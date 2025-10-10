@@ -7,10 +7,8 @@ import { throttle } from "../../../../../utils/function"
 import { joinLobbyRoom } from "../../../game/lobby-logic"
 import { useAppDispatch, useAppSelector } from "../../../hooks"
 import { logIn, logOut } from "../../../stores/NetworkStore"
-//import AnonymousButton from "./anonymous-button"
-import { StyledFirebaseAuth } from "./styled-firebase-auth"
+import EmailAuth from "./email-auth"  // Import new component
 
-import "firebaseui/dist/firebaseui.css"
 import "./login.css"
 import { FIREBASE_CONFIG } from "../../../../../types/Config"
 
@@ -22,6 +20,7 @@ export default function Login() {
   const displayName = useAppSelector((state) => state.network.displayName)
   const [prejoining, setPrejoining] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [showEmailAuth, setShowEmailAuth] = useState(false)  // New state
 
   const preJoinLobby = throttle(async function prejoin() {
     setPrejoining(true)
@@ -30,84 +29,130 @@ export default function Login() {
       .catch(() => setPrejoining(false))
   }, 1000)
 
-  const uiConfig = {
-    // Popup signin flow rather than Navigate flow.
-    signInFlow: "popup",
-    // We will display Google and Facebook as auth providers.
-    signInSuccessUrl: window.location.href + "lobby",
-    signInOptions: [
-      firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-      {
-        provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
-        requireDisplayName: true
-      },
-      firebase.auth.TwitterAuthProvider.PROVIDER_ID
-    ],
-    callbacks: {
-      // Avoid Navigates after sign-in.
-      signInSuccessWithAuthResult: () => true
-    }
-  }
-
   // Initialize Firebase
   if (!firebase.apps.length) {
     firebase.initializeApp(FIREBASE_CONFIG)
+    
+    // Enable persistence for maintaining login state
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => {
+        console.log("Firebase persistence enabled")
+      })
+      .catch((error) => {
+        console.error("Firebase persistence setup failed:", error)
+      })
   }
 
   useEffect(() => {
-    firebase.auth().onAuthStateChanged((u) => {
+    // Listen for auth state changes
+    const unsubscribe = firebase.auth().onAuthStateChanged((u) => {
       if (u) {
+        console.log("User signed in:", u.email, u.uid)
         dispatch(logIn(u))
+      } else {
+        console.log("User not signed in")
       }
     })
-  })
 
+    // Cleanup function
+    return () => unsubscribe()
+  }, [dispatch])
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider()
+      await firebase.auth().signInWithPopup(provider)
+    } catch (error) {
+      console.error("Google sign-in failed:", error)
+    }
+  }
+
+  const handleTwitterSignIn = async () => {
+    try {
+      const provider = new firebase.auth.TwitterAuthProvider()
+      await firebase.auth().signInWithPopup(provider)
+    } catch (error) {
+      console.error("Twitter sign-in failed:", error)
+    }
+  }
+
+  // Show email auth interface if requested
+  if (showEmailAuth && !uid) {
+    return <EmailAuth onCancel={() => setShowEmailAuth(false)} />
+  }
+
+  // Show login options if not signed in
   if (!uid) {
     return (
       <div id="play-panel">
-        <StyledFirebaseAuth
-          uiConfig={uiConfig}
-          firebaseAuth={firebase.auth()}
-        />
-        {/* <AnonymousButton /> */}
-      </div>
-    )
-  } else {
-    return (
-      <div id="play-panel">
-        <p>
-          {t("authenticated_as")}:{" "}
-          <span title={displayName}>{t("hover_to_reveal")}</span>
-        </p>
-        <ul className="actions">
-          <li>
-            <button
-              className="bubbly green"
-              onClick={preJoinLobby}
-              disabled={prejoining}
-            >
-              {prejoining ? t("connecting") : t("join_lobby")}
-            </button>
-          </li>
-          <li>
-            <button
-              className="bubbly red"
-              disabled={prejoining || loggingOut}
-              onClick={async () => {
-                setLoggingOut(true)
-                try {
-                  await firebase.auth().signOut()
-                  dispatch(logOut())
-                } finally {
-                  setLoggingOut(false)
-                }
-              }}
-            >
-              {loggingOut ? t("signing_out") : t("sign_out")}
-            </button>
-          </li>
-        </ul>
+        <h1 style={{ textAlign: "center", marginBottom: "2rem" }}>
+          Pokemon Auto Chess
+        </h1>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "300px", margin: "0 auto" }}>
+          <button
+            className="bubbly blue"
+            onClick={handleGoogleSignIn}
+            style={{ padding: "1rem" }}
+          >
+            🔍 Sign in with Google
+          </button>
+
+          <button
+            className="bubbly red"
+            onClick={() => setShowEmailAuth(true)}
+            style={{ padding: "1rem" }}
+          >
+            ✉️ Sign in with Email
+          </button>
+
+          <button
+            className="bubbly"
+            onClick={handleTwitterSignIn}
+            style={{ padding: "1rem", backgroundColor: "#1DA1F2" }}
+          >
+            🐦 Sign in with Twitter
+          </button>
+        </div>
       </div>
     )
   }
+
+  // Show lobby join button if signed in
+  return (
+    <div id="play-panel">
+      <p>
+        {t("authenticated_as")}:{" "}
+        <span title={displayName}>{displayName || "Anonymous"}</span>
+      </p>
+      <ul className="actions">
+        <li>
+          <button
+            className="bubbly green"
+            onClick={preJoinLobby}
+            disabled={prejoining}
+          >
+            {prejoining ? t("connecting") : t("join_lobby")}
+          </button>
+        </li>
+        <li>
+          <button
+            className="bubbly red"
+            disabled={prejoining || loggingOut}
+            onClick={async () => {
+              setLoggingOut(true)
+              try {
+                await firebase.auth().signOut()
+                dispatch(logOut())
+              } finally {
+                setLoggingOut(false)
+              }
+            }}
+          >
+            {loggingOut ? t("signing_out") : t("sign_out")}
+          </button>
+        </li>
+      </ul>
+    </div>
+  )
 }

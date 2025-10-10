@@ -696,7 +696,7 @@ export default class GameRoom extends Room<GameState> {
         ) {
           /* if a user leaves a game before the end, 
           they cannot join another in the next 5 minutes */
-          givePlayerTimeout(this.presence, client.auth.uid)
+          // givePlayerTimeout(this.presence, client.auth.uid)
         }
 
         if (player && this.state.stageLevel <= 5 && !consented) {

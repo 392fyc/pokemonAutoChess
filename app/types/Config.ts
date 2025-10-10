@@ -459,7 +459,7 @@ export const StageDuration: Record<number | "DEFAULT", number> = {
   15: 40,
   19: 40,
   20: 50,
-  DEFAULT: 30
+  DEFAULT: 35
 }
 export const FIGHTING_PHASE_DURATION = 40000
 export const ITEM_CAROUSEL_BASE_DURATION = 15000

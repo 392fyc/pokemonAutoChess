@@ -241,7 +241,7 @@ export default function PreparationMenu() {
   )
 
   const scribbleRule = gameMode === GameMode.CUSTOM_LOBBY &&
-    isAdmin &&
+    (isOwner || isAdmin) &&
     noElo && (
       <label>
         {t("smeargle_scribble")}

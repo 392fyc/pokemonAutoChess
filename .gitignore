@@ -1,4 +1,5 @@
 node_modules/
+app/public/dist/server/app/public/
 .vscode/
 .idea
 *.env

@@ -1,115 +1,660 @@
-# Economic and Roguelike System Design Proposals
+# 经济与Roguelike系统设计方案
 
-## Economic System Proposals
+## 经济系统方案
 
-### Solution 1: Dynamic Interest & Tiered Gold Rewards
+### 方案一：动态利息与分级金币奖励
 
-**Concept:** Introduce more granular and strategic income generation beyond simple linear interest, allowing players to choose between investing heavily in their economy or prioritizing immediate board strength.
+**概念：** 引入比简单线性利息更细致、更具策略性的收入生成方式，让玩家可以在重金投资经济或优先提升即时战力之间做出选择。
 
-**Mechanics:**
-*   **Tiered Interest**: Replace the current `floor(money / 10)` capped at 5 with tiered interest breakpoints.
-    *   1-9 Gold: 0 Interest
-    *   10-19 Gold: +1 Interest
-    *   20-29 Gold: +2 Interest
-    *   30-39 Gold: +3 Interest
-    *   40-49 Gold: +4 Interest
-    *   50+ Gold: +5 Interest (Can be extended to 60+ for +6 Interest, etc., for higher risk/reward).
-    *   This encourages players to accumulate gold to hit specific thresholds for increased passive income.
-*   **Win/Loss Streak Multiplier for All Gold**: Enhance the existing streak rewards by applying a small multiplier to *all* gold received (base income + interest) based on streak length.
-    *   E.g., 3-4 streak: 1.1x gold; 5-6 streak: 1.2x gold; 7+ streak: 1.3x gold.
-    *   This makes maintaining streaks significantly more rewarding economically, creating a strong incentive for early game dominance or strategic losing.
-*   **"Economic Gamble" Special Rule**: Introduce a new `SpecialGameRule` that temporarily modifies economic parameters for a few rounds.
-    *   Example: For 2-3 rounds, "Double Interest, No Streak Gold" or "Half Interest, Double Streak Gold." This forces players to adapt their economic strategy mid-game.
+**机制：**
+*   **分级利息**：替换当前 `floor(money / 10)` 上限为5的利息计算方式，改为分级利息断点。
+    *   1-9 金币：0 利息
+    *   10-19 金币：+1 利息
+    *   20-29 金币：+2 利息
+    *   30-39 金币：+3 利息
+    *   40-49 金币：+4 利息
+    *   50+ 金币：+5 利息（可以扩展到60+金币为+6利息等，以增加更高的风险/回报）。
+    *   这鼓励玩家积累金币以达到特定阈值，从而增加被动收入。
+*   **所有金币的连胜/连败倍率**：通过根据连胜/连败长度对 *所有* 获得的金币（基础收入 + 利息）应用一个小倍率来增强现有连胜奖励。
+    *   例如，3-4 连胜：1.1倍金币；5-6 连胜：1.2倍金币；7+ 连胜：1.3倍金币。
+    *   这使得保持连胜在经济上更具奖励性，为前期统治或战略性亏损创造了强大的激励。
+*   **“经济博弈”特殊规则**：引入一个新的 `SpecialGameRule`，暂时修改经济参数，持续几个回合。
+    *   示例：在2-3回合内，“双倍利息，无连胜金币”或“半倍利息，双倍连胜金币”。这迫使玩家在游戏中途调整其经济策略。
 
-**Player Utilization:**
-*   Players will constantly make decisions: hold gold to reach the next interest tier or spend to strengthen the board and maintain a streak.
-*   Risk-averse players might prioritize reaching 50+ gold for consistent maximum interest. Aggressive players might sacrifice early interest to secure and extend win streaks for amplified income.
-*   The "Economic Gamble" rule creates high-stakes decision points where players must decide whether to lean into the bonus (e.g., stack gold during double interest) or play against its benefits (e.g., aggressively reroll to maintain a streak despite no streak gold).
+**玩家利用：**
+*   玩家将不断做出决策：是保留金币以达到下一个利息等级，还是花费金币以增强战力并保持连胜。
+*   风险规避型玩家可能会优先达到50+金币以获得持续的最大利息。激进型玩家可能会牺牲早期利息，以确保并延长连胜以获得更高的收入。
+*   “经济博弈”规则创造了高风险的决策点，玩家必须决定是顺应奖励（例如，在双倍利息期间堆叠金币）还是逆势而为（例如，尽管没有连胜金币，仍积极重掷以保持连胜）。
 
-**Implementation Notes:**
-*   Modify `computeIncome` in `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` to incorporate tiered interest calculations and streak-based gold multipliers.
-*   Add new entries to the `SpecialGameRule` enum in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` (or a dedicated enum file if created) for "Economic Gamble" rules. Logic for these rules would be applied within `computeIncome` or in the `updatePlayerBetweenStages` hook in `game-commands.ts`.
-*   Update `GameStateStore` in `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` to display the current interest tier, streak multiplier status, and active "Economic Gamble" rule to the player.
+**实施说明：**
+*   修改 `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` 中的 `computeIncome` 以整合分级利息计算和基于连胜的金币倍率。
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts`（或创建专用枚举文件）中的 `SpecialGameRule` 枚举中添加新条目，用于“经济博弈”规则。这些规则的逻辑将在 `computeIncome` 或 `game-commands.ts` 中的 `updatePlayerBetweenStages` 钩子中应用。
+*   更新 `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` 中的 `GameStateStore` 以向玩家显示当前利息等级、连胜倍率状态和激活的“经济博弈”规则。
 
-### Solution 2: Resource Choice Rounds
+**进一步分析与优化**
 
-**Concept:** At specific `TOWN` stages, players are presented with a high-impact choice between different resource types (gold, experience, items, buffs) that can significantly alter their game plan. This is inspired by "Hextech Augments" but focused on fundamental resources.
+*   **针对分级利息的改进：**
+    *   **`maxInterest` 互动机制澄清**: 推荐采用非叠加式独立计算。物品（如 Gimmighoul Coin）提供的 `maxInterest` 应作为独立于基础分级利息的额外加成，并为总利息（基础分级 + 物品）设置一个合理的软上限（例如，总利息不超过7），以防止经济失衡。
+    *   **降低新玩家复杂度**: 在UI中明确显示下一个利息等级所需的金币数量（例如，在金币旁边显示 “+1 at 30g”），让经济目标更直观。
 
-**Mechanics:**
-*   **Choice Event Trigger**: Integrate new "Resource Choice" phases into or in alternation with existing `ItemCarouselStages` or `PortalCarouselStages` defined in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts`. These would occur at less frequent, key stages (e.g., stages 5, 10, 15).
-*   **Player Choices**: Players are presented with 2-3 randomly generated options and must select one. Examples of choices:
-    *   **Gold Spurt**: Gain a substantial amount of immediate gold (e.g., 10-20 gold).
-    *   **Experience Surge**: Gain a significant amount of experience points (e.g., equivalent to 1-2 levels, or a fixed amount that puts them close to the next level).
-    *   **Item Component Pouch**: Receive a small collection of random basic item components (e.g., 3-5).
-    *   **Shop Refresh Scroll**: Gain 3-5 free shop rerolls for the upcoming rounds.
-    *   **Temporary Global Buff**: All player's Pokemon gain a temporary stat boost (e.g., +5 Attack for the next 2 rounds, or +10% HP for the next combat).
-*   **Limited & Strategic Choices**: The choices are powerful and appear less frequently than standard item carousels, forcing strategic thinking.
+*   **针对全金币连胜/连败倍率的改进：**
+    *   **“所有金币”的精确定义**: 明确倍率仅作用于**回合结束时计算的被动收入**（基础收入 + 利息）。不应包含出售单位等即时金币收益，以简化计算和理解。
+    *   **缓解滚雪球效应**：
+        *   为连胜/连败的倍率设置一个**硬性上限**（例如，最高1.5倍），防止无限滚雪球。
+        *   引入**连败终结奖励**：当一个长连败（例如5+）的玩家首次获胜时，立即获得一笔额外的一次性金币奖励，鼓励其扭转局势。
 
-**Player Utilization:**
-*   Players will make high-impact decisions based on their current board strength, economic needs, and long-term strategy.
-*   Players who are behind might use "Gold Spurt" or "Experience Surge" to quickly catch up. Players with a strong board might opt for "Item Component Pouch" to complete powerful items or a "Temporary Global Buff" to press their advantage.
-*   These choices introduce dynamic pivot points in the game, similar to TFT's augments, but focused on core resources, allowing for more flexible adaptation to game state.
+*   **针对“经济博弈”特殊规则的改进：**
+    *   **确保中立性**: 规则应在特定、固定的回合（例如第10、20回合）触发，让所有玩家都能提前规划。规则本身应提供不同的策略选择，而非单一的最优解。例如，“市场波动”规则（所有单位出售价+1金币）既奖励了囤积单位的玩家，也为需要快速换阵的玩家提供了机会。
+    *   **增加玩家参与度**: 在特殊规则触发时，可以提供2-3个随机规则选项，由所有玩家**投票**选择一个生效。这增加了社区互动感和策略性。
 
-**Implementation Notes:**
-*   Define new stage types or extend existing `PortalCarouselStages` in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` to designate "Resource Choice" stages.
-*   Implement a new command class (e.g., `OnChooseResourceCommand`) that handles player selection and applies the chosen resource effect in `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts`.
-*   The `OnUpdatePhaseCommand` in `game-commands.ts` would be responsible for generating the random resource choices when a "Resource Choice" stage is triggered.
-*   Update `GameStateStore` in `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` to display the available resource choices to the player.
+*   **新发现的潜在问题与改进：**
+    *   **与刷新商店的互动**: 高利息可能抑制玩家刷新商店的欲望，导致游戏节奏变慢。
+        *   **改进方案**: 引入一个**动态刷新成本**机制。例如，每回合的第一次刷新成本为1金币，后续每次刷新成本+1。该成本在每回合开始时重置。这鼓励玩家在关键回合进行有限的刷新，而不是无脑存钱或挥霍。
+
+### 方案二：资源选择回合
+
+**概念：** 在特定的 `TOWN` 阶段，玩家将面临在不同资源类型（金币、经验、物品、增益）之间进行高影响选择的机会，这可以显著改变他们的游戏计划。这受到了“海克斯强化”的启发，但更侧重于基础资源。
+
+**机制：**
+*   **选择事件触发**：将新的“资源选择”阶段整合到现有 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` 中定义的 `ItemCarouselStages` 或 `PortalCarouselStages` 中，或者与它们交替进行。这些将在不那么频繁的关键阶段（例如，第5、10、15阶段）发生。
+*   **玩家选择**：玩家将看到2-3个随机生成的选项，并且必须选择一个。选择示例：
+    *   **金币爆发**：立即获得大量金币（例如，10-20金币）。
+    *   **经验激增**：获得大量经验值（例如，相当于1-2个等级，或一个固定的量，使其接近下一个等级）。
+    *   **物品组件袋**：获得少量随机基础物品组件（例如，3-5个）。
+    *   **商店刷新卷轴**：在接下来的回合中获得3-5次免费商店重掷。
+    *   **临时全局增益**：所有玩家的宝可梦在接下来的2回合内获得临时属性提升（例如，+5攻击力），或者在接下来的战斗中获得+10%生命值。
+*   **有限和战略性选择**：这些选择非常强大，并且出现频率低于标准物品轮盘，这迫使玩家进行战略性思考。
+
+**玩家利用：**
+*   玩家将根据他们当前的战力、经济需求和长期策略做出高影响的决策。
+*   落后的玩家可能会使用“金币爆发”或“经验激增”来快速追赶。战力强大的玩家可能会选择“物品组件袋”来完成强大的物品或“临时全局增益”来扩大他们的优势。
+*   这些选择引入了游戏中动态的转折点，类似于云顶之弈的强化符文，但侧重于核心资源，允许更灵活地适应游戏状态。
+
+**实施说明：**
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` 中定义新的阶段类型或扩展现有 `PortalCarouselStages`，以指定“资源选择”阶段。
+*   实现一个新的命令类（例如，`OnChooseResourceCommand`），用于处理玩家选择并在 `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` 中应用所选资源效果。
+*   `game-commands.ts` 中的 `OnUpdatePhaseCommand` 将负责在触发“资源选择”阶段时生成随机资源选择。
+*   更新 `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` 中的 `GameStateStore`，以向玩家显示可用的资源选择。
+
+**进一步分析与优化**
+
+*   **针对平衡挑战与滚雪球效应：**
+    *   **分层资源池**: 根据游戏阶段（前期/中期/后期）提供不同强度和类型的资源选项。前期侧重经济和经验，后期则提供更强力的即时战斗力（如高级物品组件或强力buff）。
+    *   **动态调整与追赶机制**: 为排名靠后的玩家提供略微增强的选项（例如，“金币爆发”选项的金币量比领先玩家多2-3个），作为一个软性的追赶机制。
+
+*   **针对RNG风险与不公平感：**
+    *   **引入“重掷”选项**: 允许玩家每场游戏有1-2次机会，花费少量金币“重掷”当前的资源选项，增加策略性和对运气的反制能力。
+    *   **加权随机系统**: 避免玩家连续多次看到完全相同的资源选项组合。如果玩家上一次选择了经济选项，下一次出现战斗类选项的权重可以略微提高。
+
+*   **针对认知负荷与学习曲线：**
+    *   **简化选项描述**: UI设计上，使用清晰的图标和极简的关键词（如“+15金币”、“+30经验”、“+3免费刷新”）来概括选项，详细描述可在鼠标悬停时显示。
+
+*   **实施工作量和风险：**
+    *   **模块化开发**: 将资源选项的生成、效果应用等逻辑封装成独立的模块（例如，`resource-effects.ts`），便于单独测试和扩展，降低对 `game-commands.ts` 的直接修改复杂度。
 
 ---
 
-## Roguelike System Proposals
+## Roguelike系统方案
 
-### Solution 3: Hex/Augment System
+### 方案三：强化符文系统
 
-**Concept:** At specific "TOWN" stages, players are offered game-altering "Augments" that provide powerful, persistent buffs or unique strategic advantages for the rest of the game, similar to TFT's Hextech Augments.
+**概念：** 在特定的“城镇”阶段，玩家将获得改变游戏进程的“强化符文”，这些符文为游戏的其余部分提供强大的、永久性的增益或独特的战略优势，类似于云顶之弈的海克斯强化。
 
-**Mechanics:**
-*   **Augment Carousel Stages**: Introduce new `PortalCarouselStages` specifically designated as "Augment Stages." These would occur at less frequent, high-impact stages (e.g., Stage 3, 6, 9, 12).
-*   **Augment Pool**: A diverse pool of augments, categorized for strategic depth:
-    *   **Economic Augments**: "Lucky Streak" (gain +1 gold for every 3 gold spent on shop rerolls), "Investor's Insight" (maximum interest increased by 2, or interest earned at 8 gold intervals instead of 10).
-    *   **Combat Augments**: "Battle Fury" (all Pokemon gain +10% Attack Damage on their first attack each combat), "Last Stand" (your last surviving Pokemon gains massive stats when below 20% HP).
-    *   **Utility Augments**: "Swift Scout" (gain +1 shop slot permanently), "Component Crafter" (item components have a small chance to drop an additional copy after PVE rounds).
-    *   **Unique Unit Augments**: "Chosen One" (one specific Pokemon type appears more frequently in your shop for the rest of the game), "Synergy Specialist" (gain +1 level to a chosen synergy).
-*   **Player Choice**: Similar to `ItemCarouselStages`, players pick one augment from a limited selection (e.g., 3 random augments). Augments are permanent for the game.
+**机制：**
+*   **强化符文轮盘阶段**：引入新的 `PortalCarouselStages`，专门指定为“强化符文阶段”。这些阶段将在不那么频繁的、高影响力的阶段（例如，第3、6、9、12阶段）发生。
+*   **强化符文池**：一个多样化的强化符文池，按战略深度分类：
+    *   **经济强化符文**：“幸运连胜”（商店重掷每花费3金币获得+1金币），“投资者洞察”（最大利息增加2，或每8金币间隔而非10金币间隔获得利息）。
+    *   **战斗强化符文**：“战斗狂怒”（所有宝可梦在每次战斗的第一次攻击中获得+10%攻击伤害），“背水一战”（你的最后一个幸存宝可梦在生命值低于20%时获得巨额属性）。
+    *   **辅助强化符文**：“迅捷侦察”（永久获得+1商店栏位），“组件工匠”（在PVE回合后，物品组件有小概率额外掉落一份）。
+    *   **独特单位强化符文**：“天选之人”（在游戏的其余部分，一种特定的宝可梦类型在你的商店中出现更频繁），“协同专家”（你选择的协同等级+1）。
+*   **玩家选择**：类似于 `ItemCarouselStages`，玩家从有限的选择中（例如，3个随机强化符文）选择一个强化符文。强化符文在游戏中是永久的。
 
-**Player Utilization:**
-*   Players will make fundamental strategic decisions by building their team compositions and overall game plan around their chosen augments, creating unique and highly replayable runs.
-*   An early economic augment could enable a "fast 9" strategy, while a strong combat augment might encourage an aggressive mid-game push to secure wins and snowball.
-*   Augments provide a strong sense of progression, identity, and power fantasy for each game, making each playthrough feel distinct.
+**玩家利用：**
+*   玩家将通过围绕他们选择的强化符文构建他们的团队阵容和整体游戏计划，从而做出根本性的战略决策，创造独特且高度可重玩的游戏体验。
+*   早期的经济强化符文可以实现“快速9级”策略，而强大的战斗强化符文可能会鼓励激进的中期推进，以确保胜利并滚雪球。
+*   强化符文为每场游戏提供了强烈的进程感、身份认同感和力量幻想，使每次游玩都感觉独特。
 
-**Implementation Notes:**
-*   Define a new `Augment` enum/interface in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` to list available augments and their associated effects.
-*   Add new `Stage` types or extend `PortalCarouselStages` in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` to trigger augment selection.
-*   Implement an `OnChooseAugmentCommand` in `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` to apply the chosen augment's persistent effects. Effects can be handled via modifications to `updatePlayerBetweenStages`, shop generation logic, combat calculations, or other relevant game systems.
-*   New, more complex effects might require additions to `app/core/effects/effect.ts` and related effect handler files.
-*   Update `GameStateStore` in `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` to display chosen augments and the current selection options to the player.
+**实施说明：**
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` 中定义一个新的 `Augment` 枚举/接口，列出可用的强化符文及其相关效果。
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` 中添加新的 `Stage` 类型或扩展 `PortalCarouselStages` 以触发强化符文选择。
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` 中实现一个 `OnChooseAugmentCommand`，以应用所选强化符文的永久效果。效果可以通过修改 `updatePlayerBetweenStages`、商店生成逻辑、战斗计算或其他相关游戏系统来处理。
+*   新的、更复杂的效果可能需要添加到 `app/core/effects/effect.ts` 和相关的效果处理文件。
+*   更新 `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` 中的 `GameStateStore`，以向玩家显示已选择的强化符文和当前的选项。
 
-### Solution 4: Elite PVE Encounters & Wandering Bosses
+**进一步分析与优化**
 
-**Concept:** Introduce more varied and challenging PVE encounters with unique mechanics and high-value rewards, going beyond simple `PVEStages`, fostering adaptation and strategic team building for specific threats.
+**1. 实施策略与分阶段发布**
+为应对“开发范围广”和“功能蔓延”的风险，建议采用分阶段的迭代开发策略：
+*   **第一阶段（MVP - 最小可行产品）**：
+    *   **专注核心机制**：实现符文的选择机制、数据结构和效果应用框架。
+    *   **有限的符文池**：首批只推出15-20个效果简单、直接的符文（例如：+X%攻击力，+Y金币，你的[特定协同]单位获得额外生命值）。这能有效降低初期平衡和测试的复杂度。
+    *   **复用现有流程**：如分析中所建议，将符文选择阶段整合到现有的 `PortalCarouselStages` (`game-room.ts` 中的 `initializeTownPhase`) 中，复用其UI框架和后端逻辑，降低初期开发成本。
 
-**Mechanics:**
-*   **"Boss" PVE Stages**: Designate specific `PVEStages` (e.g., every 5th stage) as "Boss" stages. These encounters would feature a single, powerful Pokemon or a unique set of abilities and environmental effects.
-    *   Example: A "Raid Boss" Snorlax with massive HP and an ability that puts your frontline to sleep. Or a "Shifty" Zoroark that frequently swaps positions with your backline units.
-    *   Bosses could have unique synergies or `SpecialGameRule` effects active during their fight.
-*   **Dynamic Wandering Elite Pokemon**: Expand `spawnWanderingPokemons` (`E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts:1912`) to include "Elite Wanderers" with special properties, increased difficulty, and unique, high-value drops.
-    *   Example: A "Shiny Gimmighoul" that is hard to defeat but drops a significant amount of gold or a unique item component.
-    *   "Corrupted Wanderer" that applies a debuff (e.g., -10% Attack) to your entire team if not defeated quickly, but grants a powerful temporary team buff (e.g., +15% HP for next combat) if beaten within a turn limit.
-*   **Strategic Reward Choices**: Upon defeating a "Boss" or "Elite Wanderer", players get to choose from a selection of rewards, often more impactful than standard PVE drops.
-    *   Guaranteed Rare Item Drop.
-    *   Substantial Gold Reward (e.g., 20+ gold).
-    *   Experience for all active Pokemon (e.g., all current board Pokemon gain 100 EXP).
-    *   Unique "Boss Item" or "Wanderer Charm" that grants a specific powerful, often temporary or consumable, buff.
+*   **第二阶段（扩展与深化）**：
+    *   **扩充符文池**：引入更复杂的符文，例如改变游戏规则、与特定宝可梦或物品互动的符文。
+    *   **引入稀有度**：将符文分为不同等级（如银、金、彩），在不同阶段提供不同等级的选择，增加策略深度。
+    *   **开发专属UI**：基于第一阶段的用户反馈，设计和开发专门的符文选择界面和信息展示面板。
 
-**Player Utilization:**
-*   Players will need to adapt their team compositions and itemization specifically for boss encounters. This adds a new layer of strategic planning where players might scout upcoming PVE stages and pivot their builds.
-*   Deciding whether to take risks to defeat an "Elite Wanderer" for a potentially game-changing high reward versus playing safe would be a key strategic choice.
-*   The reward choices after a successful boss/elite encounter allow players to further customize their run based on their immediate needs (economy, items, experience).
+*   **第三阶段（完善与平衡）**：
+    *   **引入重抽/刷新机制**：为缓解“RNG挫败感”，可以允许玩家每局游戏有1-2次机会花费金币或其他资源来刷新符文选项。
+    *   **动态平衡系统**：通过数据分析，识别过于强大或无人问津的符文，并建立一套可以快速调整其参数的配置系统。
 
-**Implementation Notes:**
-*   Extend `PVEStages` in `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` to define properties for "Boss" stages (e.g., `isBoss: true`, `bossPokemon: Pkm.SNORLAX`, `bossAbilities: [Ability.SLEEP_POWDER]`).
-*   Modify `spawnWanderingPokemons` in `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` to randomly spawn "Elite Wanderers" with special flags, increased stats, and unique drop tables.
-*   Implement specific combat logic and AI for bosses/elite wanderers with unique abilities within the game simulation.
-*   Add reward selection logic after PVE victories, possibly reusing or adapting the `OnChooseResourceCommand` or similar command for specialized rewards.
-*   Update `GameStateStore` in `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` to display boss health, wanderer special properties, and reward choices to the player.
+**2. 数据结构与系统设计**
+*   **定义符文数据结构**：在 `app/types/Config.ts` 或创建一个新的 `app/types/Augment.ts` 文件中定义符文的结构。
+    ```typescript
+    export enum AugmentRarity { SILVER, GOLD, PRISMATIC }
+
+    export interface Augment {
+      id: string;
+      name: string;
+      description: string;
+      rarity: AugmentRarity;
+      // 'EFFECT_TYPE' 可以是 'STAT_MOD', 'SYNERGY_MOD', 'ECONOMY_MOD', 'GAME_RULE_MOD' 等
+      effect: {
+        type: string;
+        target?: Synergy | 'ALL'; // 效果目标
+        value: number | string;
+      };
+    }
+    ```
+*   **扩展玩家状态**：修改 `app/models/colyseus-models/player.ts` 中的 `Player` 类，增加一个字段来存储玩家已选择的符文。
+    ```typescript
+    // In Player class
+    import { Augment } from "../../types/Augment";
+
+    export default class Player extends Schema {
+      // ... existing fields
+      public augments = new ArraySchema<Augment>();
+    }
+    ```
+    同时，需要在 `app/public/src/stores/GameStore.ts` 的 `IPlayer` 接口中同步此改动，以便客户端能够接收和展示。
+
+*   **效果应用框架**：
+    *   **被动/持续效果**：利用 `app/rooms/commands/game-commands.ts` 中的 `updatePlayerBetweenStages` 函数。在每个阶段开始时，遍历玩家的 `augments` 列表，并应用相应的持续性效果（如经济增益、商店刷新成本降低等）。
+    *   **战斗内效果**：扩展 `app/core/effects/effect.ts` 和 `app/core/simulation.ts`。在战斗模拟开始时，读取玩家的符文，并将相应的战斗修正（如属性提升、特殊能力触发）应用到战斗单位或战斗规则中。这可以复用现有的被动技能（`PassiveEffects`）和物品效果（`ItemEffects`）的逻辑框架。
+
+**3. 缓解潜在问题**
+*   **平衡性（Balancing）**：
+    *   **效果分类**：将符文效果严格分类（经济、战斗、通用），并确保在同一次选择中，提供给玩家的选项属于不同类别，避免玩家被迫选择不符合其当前策略的符文。
+    *   **避免极端乘法效应**：在设计符文效果时，尽量使用加法而非乘法叠加，以防止出现指数级增长的滚雪球效应。例如，两个“伤害+10%”的符文效果应为+20%，而不是+21%。
+
+*   **认知负荷与学习曲线（Cognitive Load）**：
+    *   **清晰的UI/UX**：在选择界面，清晰地展示符文的名称、图标和简洁明了的效果描述。玩家的已选符文也应在主界面有常驻的显示区域。
+    *   **关键词高亮**：在符文描述中使用统一的关键词和颜色高亮（例如，“金币”用黄色，“协同”用蓝色），帮助玩家快速理解核心效果。
+
+*   **随机性与运气（RNG）**：
+    *   **提供3个选项**：每次选择时提供3个不同的符文，给予玩家有意义的决策空间，而不是纯粹的随机给予。
+    *   **保底机制/倾向性系统**：可以设计一个系统，根据玩家当前的阵容协同和经济状况，略微提高相关符文的出现概率，使选择更具相关性。
+
+**4. UI/UX 设计建议**
+*   **符文选择界面**：可以设计一个模态框（类似于 `app/public/src/pages/component/modal/draggable-window.tsx`），在 `PortalCarouselStages` 期间弹出，展示三个符文选项卡。
+*   **信息展示**：在游戏主界面左侧或右侧的玩家信息栏中，增加一个区域，用小图标展示玩家当前拥有的所有符文。鼠标悬停在图标上时，显示详细信息。
+*   **战斗结算界面**：在战斗后的伤害统计（DPS Meter）旁边，可以展示双方玩家的符文，帮助玩家理解战斗结果。
+
+### 方案四：精英PVE遭遇与游荡Boss
+
+**概念：** 引入更多样化、更具挑战性的PVE遭遇，具有独特的机制和高价值奖励，超越简单的 `PVEStages`，从而促进玩家适应和针对特定威胁进行战略性团队建设。
+
+**机制：**
+*   **“Boss”PVE阶段**：将特定的 `PVEStages`（例如，每第5阶段）指定为“Boss”阶段。这些遭遇将包含单个强大的宝可梦或一组独特的技能和环境效果。
+    *   示例：一个拥有巨额生命值和能让你的前排睡眠的技能的“团队副本Boss”卡比兽。或者一个频繁与你的后排单位交换位置的“狡猾”索罗亚克。
+    *   Boss在战斗中可以拥有独特的协同或激活 `SpecialGameRule` 效果。
+*   **动态游荡精英宝可梦**：扩展 `spawnWanderingPokemons` (`E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts:1912`) 以包含具有特殊属性、更高难度和独特高价值掉落的“精英游荡者”。
+    *   示例：一个“闪光淘金者”很难击败，但会掉落大量金币或独特的物品组件。
+    *   “腐化游荡者”如果未能快速击败，会对你的整个团队施加减益（例如，-10%攻击力），但在规定回合内击败后会授予强大的临时团队增益（例如，下一次战斗+15%生命值）。
+*   **战略性奖励选择**：击败“Boss”或“精英游荡者”后，玩家可以从一系列奖励中进行选择，通常比标准PVE掉落更有影响力。
+    *   保证稀有物品掉落。
+    *   大量金币奖励（例如，20+金币）。
+    *   所有活跃宝可梦的经验（例如，所有当前场上宝可梦获得100经验）。
+    *   独特的“Boss物品”或“游荡者护符”，提供特定的强大、通常是临时或消耗性的增益。
+
+**玩家利用：**
+*   玩家需要专门为Boss遭遇调整他们的团队阵容和物品配置。这增加了一个新的战略规划层面，玩家可能会侦察即将到来的PVE阶段并调整他们的构建。
+*   决定是否冒险击败“精英游荡者”以获得可能改变游戏的高额奖励，还是保守游玩，将是一个关键的战略选择。
+*   成功击败Boss/精英遭遇后的奖励选择允许玩家根据他们的即时需求（经济、物品、经验）进一步定制他们的游戏。
+
+**实施说明：**
+*   在 `E:/PokeAutoChess/pokemonAutoChess/app/types/Config.ts` 中扩展 `PVEStages`，以定义“Boss”阶段的属性（例如，`isBoss: true`，`bossPokemon: Pkm.SNORLAX`，`bossAbilities: [Ability.SLEEP_POWDER]`）。
+*   修改 `E:/PokeAutoChess/pokemonAutoChess/app/rooms/commands/game-commands.ts` 中的 `spawnWanderingPokemons`，以随机生成具有特殊标志、更高属性和独特掉落表的“精英游荡者”。
+*   在游戏模拟中实现Boss/精英游荡者具有独特能力的特定战斗逻辑和AI。
+*   在PVE胜利后添加奖励选择逻辑，可能会重用或调整 `OnChooseResourceCommand` 或类似的命令以获得特殊奖励。
+*   更新 `E:/PokeAutoChess/pokemonAutoChess/app/public/src/stores/GameStore.ts` 中的 `GameStateStore`，以向玩家显示Boss血量、游荡者特殊属性和奖励选择。
+
+**进一步分析与优化**
+
+1.  **关于平衡性设计极其复杂的问题**：
+    *   **优化方案**：
+        *   **分阶段实现与数据驱动**: 初期聚焦于实现核心机制，将Boss技能、数值和奖励设计为可配置数据，并通过实时日志和数据分析工具进行快速迭代。利用A/B测试验证不同平衡性调整的效果。
+        *   **内部测试工具**: 开发一套自动化测试框架，模拟各种玩家阵容和策略，针对新引入的Boss和精英怪进行大规模模拟战，快速发现极端情况和平衡漏洞。
+        *   **模块化与抽象化**: 将Boss和精英怪的特有能力（AI、技能、特殊效果）设计为独立模块或继承自通用接口的类，便于增删改查和复用，减少耦合。
+
+2.  **关于可能加剧运气（RNG）的影响问题**：
+    *   **优化方案**：
+        *   **有限信息预告**: 在精英怪或Boss出现前，通过文本提示（例如：“感受到一股强大的电系能量波动”）或简单的视觉线索，提供有限的预知性，让玩家有机会进行微调或心理准备。
+        *   **决策点与规避成本**: 允许玩家在某些情况下选择规避精英怪（例如：多消耗行动力或金币），但规避将伴随机会成本（失去潜在奖励），使RNG成为玩家权衡利弊的决策点。
+        *   **保底与补偿机制**: 引入“不幸保护”机制，例如在连续多轮未获得稀有奖励后，下次奖励获得稀有物品的概率增加，或Boss战失败后获得少量补偿，避免玩家过度挫败。
+        *   **RNG范围控制**: 确保RNG在一定范围内波动，避免极端的运气好坏完全决定游戏走向，例如，Boss战特定奖励池中必须包含至少一个“有用”选项。
+
+3.  **关于对新手玩家不友好的问题**：
+    *   **优化方案**：
+        *   **情境化教学与提示**: 首次遭遇新型Boss或精英怪时，在游戏界面中弹出简短的引导（非强制性），解释其核心机制、弱点或应对策略。
+        *   **渐进式难度解锁**: 在游戏初期，只引入机制相对简单、技能直观的Boss和精英怪。更复杂的挑战应随着玩家游戏时长和经验的增长而逐步解锁。
+        *   **可视化反馈**: 在战斗中，通过清晰的UI元素（例如：Boss技能条、状态图标、技能范围指示器）直观地展示Boss的状态和即将发生的行为。
+
+4.  **关于UI/UX实现的挑战问题**：
+    *   **优化方案**：
+        *   **信息分层与按需显示**: 核心信息（如Boss血量、关键技能冷却）始终可见，详细技能描述和特殊状态则通过悬停或点击Boss模型/UI元素来显示，避免信息过载。
+        *   **清晰的视觉标识**: Boss和精英怪应有独特的视觉设计和动画，使其在战场中脱颖而出。其技能释放应伴随明确的视觉和音效提示。
+        *   **奖励选择界面优化**: 设计直观的奖励选择弹窗，每个选项都配有清晰的图标、文字描述和对玩家当前阵容/资源的影响预览，帮助玩家快速决策。
+
+5.  **新增潜在问题: 性能开销**：
+    *   **分析**: 复杂的Boss AI、大量特殊技能计算和独特的特效渲染可能会对后端Colyseus服务器的实时计算能力和前端React客户端的渲染性能造成压力。
+    *   **优化方案**：
+        *   **后端AI优化**: 设计高效的Boss AI决策逻辑，避免在每个游戏帧都进行复杂的路径搜索或状态评估。将部分计算结果缓存。
+        *   **Colyseus状态同步精简**: 严格控制通过Colyseus同步给客户端的状态数据。只同步必要的、与玩家可见或决策相关的Boss状态变化，减少网络带宽和客户端处理负担。
+        *   **前端渲染优化**: 利用React的`React.memo`、`useCallback`、`useMemo`等钩子进行性能优化，避免不必要的组件重渲染。对于Boss动画和特效，考虑使用轻量级方案或进行性能剖析。
+
+6.  **新增潜在问题: 内容可维护性与扩展性**：
+    *   **分析**: 随着Boss和精英怪种类、技能、奖励的不断增加，如果没有良好的内容管理机制，将导致代码和数据难以维护和扩展。
+    *   **优化方案**：
+        *   **数据驱动设计（强调）**: 所有Boss、精英怪、其技能、效果、奖励池等都应通过外部配置文件（例如JSON、YAML）进行定义，而非硬编码在逻辑中。这样策划人员无需修改代码即可调整内容。
+        *   **编辑器工具**: 长期规划中，考虑开发一个简单的内容编辑器，可视化创建和修改Boss、精英怪的属性和行为，极大提升内容生产效率和质量。
+        *   **命名规范与文档**: 建立一套严格的命名规范，并为每个Boss、精英怪和其技能撰写清晰的内部文档，方便团队成员理解和协作。
+
+---
+
+## 综合可行性分析与推荐实施方案
+
+### 一、代码架构分析
+
+基于对现有代码库的深入分析，Pokemon Auto Chess具有以下架构特点：
+
+**核心系统**：
+- **命令模式架构** (`app/rooms/commands/game-commands.ts`): 使用Colyseus的Command模式，所有游戏逻辑通过Command封装，易于扩展
+- **阶段系统**: 通过`ItemCarouselStages`和`PortalCarouselStages`定义特殊阶段，已支持在特定stage触发特殊逻辑
+- **经济系统**: `computeIncome`函数实现简单的`floor(money/10)`利息模型，上限5
+- **Player模型**: 已包含`streak`、`interest`、`maxInterest`等字段，为经济系统扩展做好准备
+- **特殊规则**: `SpecialGameRule`枚举已有20种游戏规则，提供了不同的游戏模式
+- **PVE系统**: `PVEStages`定义固定的PVE遭遇，`spawnWanderingPokemons`实现基础的游荡机制
+
+**架构优势**：
+- 清晰的职责分离，便于维护和扩展
+- 丰富的基础系统，为新功能提供良好的整合点
+- 已有多种特殊规则，证明系统可以支持多样化玩法
+
+### 二、方案可行性评估
+
+#### 方案一：动态利息与分级金币奖励
+
+**技术可行性**: ⭐⭐⭐⭐⭐ (95%)
+- 实现成本：极低，仅需修改`computeIncome`函数
+- 代码改动：集中在单一函数，风险可控
+- 数据模型：Player已有所需字段
+
+**平衡性分析**：
+- ✅ 优点：提供明确的短期经济目标（达到30金、50金等里程碑）
+- ⚠️ 风险：可能鼓励"坐牢流"（纯存钱不刷新商店），导致游戏节奏变慢
+- ⚠️ 风险：连胜倍率可能导致滚雪球，需要硬性上限（建议1.5倍）
+- ⚠️ 互动问题：与现有物品（Gimmighoul Coin）和特殊规则（FREE_MARKET、BLOOD_MONEY）的互动需要重新设计
+
+**建议**：作为辅助系统引入，不作为核心更新
+
+---
+
+#### 方案二：资源选择回合
+
+**技术可行性**: ⭐⭐⭐⭐ (80%)
+- 实现成本：中等，需要新增`OnChooseResourceCommand`
+- 复用性：可以复用`PortalCarouselStages`的UI框架
+- 扩展性：需要定义ResourceChoice数据结构
+
+**平衡性分析**：
+- ✅ 优点：类似TFT强化符文，提供策略深度
+- ✅ 优点：允许落后玩家通过选择追赶，增加游戏戏剧性
+- ⚠️ 风险：可能加剧运气成分（抽到不适合的选项）
+- ⚠️ 风险：资源价值难以量化和平衡
+
+**关键设计问题**：
+- 需要建立"资源价值模型"：1经验≈0.5金币，1组件≈3金币，1完整物品≈8-12金币
+- 应引入trade-off机制：高风险高回报选项（如"+20金币但下场-10%生命"）vs稳健选项
+- 必须确保每次选择至少有一个"通用"选项，避免三个选项都不适合的情况
+
+**建议**：可以作为独立系统或与符文系统结合
+
+---
+
+#### 方案三：强化符文系统（Hex/Augment System）
+
+**技术可行性**: ⭐⭐⭐⭐ (75%)
+- 实现成本：较高，需要新增Augment数据结构和扩展Player模型
+- 复杂度：效果应用需要分散到多个系统（经济、战斗、商店）
+- 参考经验：TFT的成功证明了这个系统的价值
+
+**平衡性分析**：
+- ✅✅ 优点：**核心Roguelike元素**，显著提升游戏重玩价值和战略深度
+- ✅ 优点：与现有SpecialGameRule可以共存（一个是游戏级别，一个是局内）
+- ✅ 优点：可以设计大量与特定宝可梦/协同相关的符文
+- ⚠️ 风险：需要至少30-50个符文才能保证多样性
+- ⚠️ 风险：符文间的组合效应是平衡难点，需要大量测试
+
+**关键设计原则**（基于TFT经验）：
+1. 每个符文都应该影响玩法方式，而非纯数值加成
+2. 符文之间应该有自然协同，但不强制特定组合
+3. 彩色符文应该是"游戏改变者"，完全改变玩法
+4. 效果分类：经济、战斗、协同、特殊
+
+**符文分层设计**：
+- **银色符文**（通用型）：轻度影响，易于理解（如"+1利息上限"、"出售+1金币"）
+- **金色符文**（强力型）：显著影响战略（如"每回合开始+3金币"、"连胜奖励翻倍"）
+- **彩色符文**（改变者）：根本性改变游戏（如"商店只出现史诗和传说"、"场上单位数+2但-30%属性"）
+
+**建议**：**⭐⭐⭐ 强烈推荐作为核心更新**
+
+---
+
+#### 方案四：精英PVE遭遇与游荡Boss
+
+**技术可行性**: ⭐⭐⭐⭐ (75%)
+- 实现成本：中高，PVEStages结构已支持扩展
+- 复杂度：需要扩展Simulation类支持Boss特殊机制
+- 基础设施：spawnWanderingPokemons已有基础实现
+
+**平衡性分析**：
+- ✅ 优点：增加PVE内容的多样性和挑战性
+- ✅ 优点：高风险高回报机制增加游戏戏剧性
+- ⚠️ 风险：Boss难度调整极其困难，可能出现"必须特定阵容才能打过"的情况
+- ⚠️ 风险：缺乏"选择路线"机制（Slay the Spire有此机制），所有玩家强制面对相同Boss
+
+**设计改进**：
+- 失败不致命：Boss战失败不损失HP或只损失5HP，但失去奖励
+- 提供预告：Boss出现前通过文本或视觉线索提示，给玩家准备时间
+- 保底机制：连续多轮未获得稀有奖励后，提高奖励获得概率
+
+**建议**：作为符文系统的扩展，在后续阶段引入
+
+---
+
+### 三、组合方案分析
+
+通过深度推演分析了多种组合方案，以下是主要组合的评估：
+
+#### 组合A：方案一 + 优化SpecialGameRule
+- 实现难度: ⭐⭐⭐⭐⭐ (极简单)
+- 游戏性提升: ⭐⭐ (有限)
+- Roguelike深度: ⭐ (几乎没有)
+- **总评**: 5/10 - 改动最小但收益有限
+
+#### 组合B：方案二（资源选择）单独实施
+- 实现难度: ⭐⭐⭐⭐ (适中)
+- 游戏性提升: ⭐⭐⭐ (不错)
+- Roguelike深度: ⭐⭐⭐ (中等)
+- **总评**: 6/10 - 可行但缺乏长期战略深度
+
+#### 组合C：方案三（符文）+ 方案四（精英PVE）
+- 实现难度: ⭐⭐⭐ (复杂)
+- 游戏性提升: ⭐⭐⭐⭐ (很好)
+- Roguelike深度: ⭐⭐⭐⭐⭐ (优秀)
+- **总评**: 6.7/10 - 优秀但实现风险较高
+
+#### 组合D：全功能整合（方案一+二+三+四）
+- 实现难度: ⭐⭐ (非常复杂)
+- 游戏性提升: ⭐⭐⭐ (功能堆砌)
+- Roguelike深度: ⭐⭐⭐⭐ (好但混乱)
+- **总评**: 5.3/10 - 过度设计，玩家认知负荷过高
+
+#### 组合E：纯符文系统（方案三的优化版）⭐⭐⭐推荐⭐⭐⭐
+- 实现难度: ⭐⭐⭐⭐ (适中)
+- 游戏性提升: ⭐⭐⭐⭐⭐ (极好)
+- Roguelike深度: ⭐⭐⭐⭐⭐ (极好)
+- **总评**: **8/10 - 最优方案**
+
+---
+
+### 四、最优方案详细设计：组合E - 精简符文系统
+
+#### 系统概述
+
+参考TFT的成功经验，专注于符文系统作为核心Roguelike元素，其他系统保持简洁以降低复杂度。
+
+#### 游戏流程设计
+
+**阶段安排**：
+1. **游戏开始前（Stage 0）**：选择1个起始符文（3选1，都是银色）
+   - 经济起手："储蓄习惯" - 利息上限+2
+   - 质量起手："完美主义" - 2星单位+30%属性
+   - 数量起手："数量优势" - 起始板凳位+1
+
+2. **Stage 4-2**：第一次符文强化（3选1，银色符文池）
+3. **Stage 4-7**：第二次符文强化（3选1，70%银色/30%金色）
+4. **Stage 5-7**：第三次符文强化（3选1，60%金色/40%彩色）
+
+**符文池规模**：
+- 总计30个符文：10个银色 + 12个金色 + 8个彩色
+- 每局最多获得4个符文，组合空间巨大（C(30,4) = 27,405种组合）
+
+#### 符文设计示例
+
+**银色符文（10个）** - 通用强化：
+1. **回收大师**：出售单位额外获得+1金币
+2. **兴趣爱好**：利息上限+1
+3. **经验丰富**：每回合开始获得+1经验
+4. **幸运商人**：商店刷新费用-1金币
+5. **快速进化**：3星单位只需2个2星即可合成
+6. **强壮体魄**：所有单位+50基础生命值
+7. **敏捷身手**：所有单位+5%攻击速度
+8. **物品猎人**：PVE奖励必定包含至少1个组件
+9. **替补席扩展**：板凳位置+1
+10. **商店扩展**：商店栏位+1
+
+**金色符文（12个）** - 强力效果：
+1. **经济大亨**：每回合开始获得+3金币
+2. **快速升级**：升级费用-2金币
+3. **连胜专家**：连胜/连败奖励金币翻倍
+4. **协同精通**：选择一个协同，该协同等级永久+1
+5. **二星强化**：所有2星单位获得额外+50%属性
+6. **先手优势**：战斗开始时所有单位+50%攻速持续3秒
+7. **暴击大师**：所有单位暴击率+20%
+8. **物品大师**：合成的物品效果提升20%
+9. **再生能力**：每回合结束所有单位回复20%生命值
+10. **免费重掷**：每回合获得3次免费商店刷新
+11. **经验爆发**：立即获得20经验值
+12. **金币雨**：立即获得20金币
+
+**彩色符文（8个）** - 游戏改变者：
+1. **传奇猎人**：商店只出现史诗和传说单位
+2. **数量压制**：场上单位数量上限+2，但所有单位-30%属性
+3. **精英路线**：场上单位数量上限-2，但所有单位+50%属性
+4. **进化狂潮**：所有2星单位可以直接升级为3星（无需第三个），但无法购买新单位
+5. **协同大师**：所有激活的协同效果翻倍，但每个单位只计算其第一个协同类型
+6. **物品收藏家**：每回合随机获得1个完整物品，但无法通过组合组件合成物品
+7. **快速游戏**：每回合准备时间-50%，但每回合开始获得10金币
+8. **闪光收藏家**：所有购买的单位有50%概率是闪光，闪光单位+30%属性
+
+#### 技术实现路线
+
+**Phase 1：MVP（4-6周）**
+1. 定义Augment数据结构（`app/types/Augment.ts`）
+   ```typescript
+   export enum AugmentRarity { SILVER, GOLD, PRISMATIC }
+   export interface Augment {
+     id: string
+     name: string
+     description: string
+     rarity: AugmentRarity
+     effect: {
+       type: 'STAT_MOD' | 'SYNERGY_MOD' | 'ECONOMY_MOD' | 'GAME_RULE_MOD'
+       target?: Synergy | 'ALL'
+       value: number | string
+     }
+   }
+   ```
+
+2. 扩展Player模型（`app/models/colyseus-models/player.ts`）
+   ```typescript
+   import { Augment } from "../../types/Augment"
+   public augments = new ArraySchema<Augment>()
+   ```
+
+3. 实现10个简单的银色符文（纯数值型）
+4. 在Stage 4-2添加符文选择界面
+5. 实现`OnChooseAugmentCommand`基础逻辑
+
+**Phase 2：扩展（2-3周）**
+1. 添加12个金色符文
+2. 在Stage 0（起始）、4-7、5-7添加选择时机
+3. 实现复杂符文效果的应用逻辑（分散到各系统）
+
+**Phase 3：完整（2-3周）**
+1. 添加8个彩色符文
+2. UI/UX优化和动画效果
+3. 大量平衡测试和数据收集
+
+**效果应用架构**：
+- **经济类符文**：在`computeIncome`中检查玩家的augments并应用
+- **战斗类符文**：在`Simulation`初始化时读取并修改单位属性
+- **商店类符文**：在`Shop.assignShop`中应用
+- **协同类符文**：在`Synergies.computeSynergies`中应用
+
+#### 平衡性保障机制
+
+**数据收集指标**：
+- 每个符文的选择率（应在10%-40%之间）
+- 持有特定符文的玩家平均排名
+- 符文组合的胜率相关性
+- 每个符文在不同stage的选择优先级
+
+**平衡调整流程**：
+1. Alpha测试（内部）：验证功能正确性
+2. Beta测试（小范围）：收集玩家偏好数据
+3. 正式发布后：每周监控数据，每月进行平衡调整
+
+**平衡调整原则**：
+- 选择率过高（>40%）的符文：削弱效果或增加代价
+- 选择率过低（<10%）的符文：增强效果或降低代价
+- 胜率畸高的符文组合：调整其中最强符文或增加互斥机制
+
+#### 与现有系统的整合
+
+**与SpecialGameRule的互动**：
+- **FREE_MARKET**（免费购买）：经济类符文在该模式下替换为其他类型
+- **BUYER_FEVER**（3星免费）：限制某些进化相关符文的效果
+- **SHINY_HUNTER**（高闪光率）：与"闪光收藏家"符文协同
+
+**与现有物品的互动**：
+- Gimmighoul Coin（+利息上限）：与利息类符文叠加，但设置总上限（最高10）
+- Amulet Coin（-利息）：正常工作，提供trade-off选择
+
+#### UI/UX设计要点
+
+**符文选择界面**：
+- 清晰展示3个符文选项卡
+- 每个选项显示：名称、图标、稀有度（颜色边框）、效果描述（<50字）
+- 30秒倒计时，超时随机选择
+- 移动端适配：足够大的点击区域和字体
+
+**玩家信息面板**：
+- 显示当前拥有的所有符文（小图标阵列）
+- 鼠标悬停/点击显示详细效果
+- 战斗结束界面可展示符文的影响
+
+**多语言支持**：
+- 符文名称和描述需要简洁，便于翻译
+- 效果数值和关键词统一标准化
+
+---
+
+### 五、长期发展路线图
+
+#### 短期（3-6个月）：符文系统基础建设
+1. **实施组合E**：完整的符文系统（30个符文）
+2. **数据收集与平衡**：建立完善的数据监控系统
+3. **玩家反馈收集**：通过问卷和社区收集意见
+
+#### 中期（6-12个月）：精英PVE整合
+1. **引入精英PVE系统**（方案四的轻量版）：
+   - 每5个stage出现1次精英遭遇
+   - 击败后可以选择额外符文或特殊奖励
+   - 增加"路线选择"感和挑战性
+
+2. **符文池扩展**：
+   - 新增20个符文，总计达到50个
+   - 引入"赛季符文"概念，定期轮换部分符文
+
+#### 长期（12个月+）：经济系统深化（可选）
+如果经济系统仍显单调，可以考虑：
+1. **引入分级利息**（方案一的变种）
+2. **添加经济相关的符文**与分级利息互动
+3. **动态经济事件**：在特定stage触发临时经济规则变化
+
+---
+
+### 六、核心优势总结
+
+**为什么选择组合E（纯符文系统）？**
+
+1. **解决核心问题**：
+   - Pokemon Auto Chess已有丰富的宝可梦和协同，不缺战术深度
+   - 真正缺乏的是"元战略"层面的内容，即长期战略方向的选择
+   - 符文系统正是提供这种战略深度的最佳方案
+
+2. **参考成功案例**：
+   - **TFT（云顶之弈）**：强化符文是其核心成功要素，极大提升了重玩价值
+   - **Hades（黑帝斯）**：神的恩赐系统让每次游玩都独特
+   - **Slay the Spire（杀戮尖塔）**：遗物系统提供战略方向
+
+3. **技术可行性高**：
+   - 基于Command模式的清晰架构
+   - 已有的阶段系统和SpecialGameRule证明了扩展性
+   - 分阶段实施，风险可控
+
+4. **可持续发展**：
+   - 符文可以持续新增和调整
+   - 为未来内容更新提供框架
+   - 社区可以参与符文设计（通过投票等方式）
+
+5. **平衡复杂度与深度**：
+   - 不会过度增加玩家认知负荷（每局最多4个符文）
+   - 提供足够的战略深度（30个符文的组合空间巨大）
+   - 与现有系统兼容性好
+
+---
+
+### 七、风险评估与应对
+
+**主要风险**：
+1. **平衡难度大**：符文间的组合效应难以预测
+   - 应对：分阶段发布，先发布简单符文，逐步增加复杂符文
+
+2. **开发周期长**：完整实现需要8-12周
+   - 应对：采用MVP策略，先发布基础版本，持续迭代
+
+3. **玩家学习曲线**：新玩家可能被符文系统困扰
+   - 应对：提供教程，前几局提供"推荐符文"提示
+
+4. **与现有系统冲突**：某些SpecialGameRule可能与符文冲突
+   - 应对：建立符文-规则互动矩阵，逐一检查和调整
+
+---
+
+### 八、成功指标
+
+**量化目标**（发布3个月后）：
+- 玩家平均游戏局数提升30%+（重玩价值）
+- 玩家留存率提升20%+
+- 符文选择率分布均匀（所有符文选择率在5%-45%之间）
+- 玩家满意度调查分数提升（>8/10）
+
+**定性目标**：
+- 玩家反馈中频繁提及"每局游戏都不同"
+- 社区开始讨论和分享"符文组合攻略"
+- 出现多种主流的"符文路线"（经济流、战斗流、协同流等）
+
+---
+
+### 九、最终建议
+
+**立即实施：组合E - 纯符文系统**
+
+这是经过全面代码分析、多方案对比、深度推演后得出的最优方案。它不仅技术可行性高、风险可控，更重要的是能够从根本上提升Pokemon Auto Chess的Roguelike体验，为玩家提供真正的战略深度和重玩价值。
+
+符文系统将成为Pokemon Auto Chess区别于其他自走棋游戏的核心竞争力，为游戏的长期发展奠定坚实基础。

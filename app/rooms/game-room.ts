@@ -55,7 +55,7 @@ import {
   UniquePool
 } from "../types/Config"
 import { CloseCodes } from "../types/enum/CloseCodes"
-import { GameMode, PokemonActionState } from "../types/enum/Game"
+import { GameMode, GamePhaseState, PokemonActionState } from "../types/enum/Game"
 import { Item } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import {
@@ -596,6 +596,50 @@ export default class GameRoom extends Room<GameState> {
         }
       }
     )
+
+    // 在所有其他 onMessage 之后添加准备按钮处理
+    this.onMessage(Transfer.TOGGLE_READY, (client) => {
+      if (!this.state.gameFinished && client.auth) {
+        try {
+          const player = this.state.players.get(client.auth.uid)
+          if (!player || player.isBot) return
+
+          // 只在PICK阶段允许切换准备状态
+          if (this.state.phase === GamePhaseState.PICK) {
+            player.isReady = !player.isReady
+            
+            logger.debug(`Player ${player.name} ready status: ${player.isReady}`)
+
+            // 检查是否所有真人玩家都准备好
+            this.checkAllPlayersReady()
+          }
+        } catch (error) {
+          logger.error("toggle ready error", error)
+        }
+      }
+    })
+  }
+
+  // 新增方法: 检查所有玩家是否准备好
+  checkAllPlayersReady() {
+    const humanPlayers = values(this.state.players).filter(
+      (p) => !p.isBot && p.alive
+    )
+    
+    if (humanPlayers.length === 0) return
+
+    const readyPlayers = humanPlayers.filter((p) => p.isReady)
+    const allReady = readyPlayers.length === humanPlayers.length
+    
+    logger.debug(
+      `Ready check: ${readyPlayers.length}/${humanPlayers.length} players ready`
+    )
+    
+    if (allReady && this.state.phase === GamePhaseState.PICK) {
+      // 所有真人玩家都准备好,立即跳过准备阶段
+      logger.info("All players ready, skipping to fight phase")
+      this.state.time = 0 // 直接将时间设为0,触发阶段切换
+    }
   }
 
   startGame() {

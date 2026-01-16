@@ -965,6 +965,10 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     } else if (this.state.phase == GamePhaseState.PICK) {
       this.stopPickingPhase()
       this.checkForLazyTeam()
+      // 从PICK进入FIGHT时,重置所有玩家准备状态
+      this.state.players.forEach((player) => {
+        player.isReady = player.isBot // Bot保持准备,真人重置为false
+      })
       this.initializeFightingPhase()
     } else if (this.state.phase == GamePhaseState.FIGHT) {
       this.stopFightingPhase()

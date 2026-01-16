@@ -1,6 +1,6 @@
 import { Client, getStateCallbacks, Room } from "colyseus.js"
 import firebase from "firebase/compat/app"
-import { useCallback, useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { toast } from "react-toastify"
@@ -84,6 +84,7 @@ import GameItemsProposition from "./component/game/game-items-proposition"
 import GameLoadingScreen from "./component/game/game-loading-screen"
 import GamePlayers from "./component/game/game-players"
 import GamePokemonsProposition from "./component/game/game-pokemons-proposition"
+import GameReadyButton from "./component/game/game-ready-button"
 import GameShop from "./component/game/game-shop"
 import GameSpectatePlayerInfo from "./component/game/game-spectate-player-info"
 import GameStageInfo from "./component/game/game-stage-info"
@@ -95,7 +96,8 @@ import { playMusic, preloadMusic } from "./utils/audio"
 import { LocalStoreKeys, localStore } from "./utils/store"
 import { preference } from "../preferences"
 import { throttle } from "../../../utils/function"
-import Player from "../../../models/colyseus-models/player"
+
+const MAX_ATTEMPS_RECONNECT = 10 // 添加这个常量定义
 
 let gameContainer: GameContainer
 
@@ -141,7 +143,7 @@ export function playerClick(id: string) {
   }
 }
 
-export default function Game() {
+export default function GamePage() {
   const dispatch = useAppDispatch()
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -174,7 +176,23 @@ export default function Game() {
     useState<FinalRankVisibility>(FinalRankVisibility.HIDDEN)
   const container = useRef<HTMLDivElement>(null)
 
-  const MAX_ATTEMPS_RECONNECT = 3
+  const currentPhase = useAppSelector((state) => state.game.phase)
+  const players = useAppSelector((state) => state.game.players)
+
+  // 从 players 数组中计算准备状态 (删除重复的变量声明)
+  const humanPlayers = players.filter((p) => !p.isBot && p.alive)
+  const readyPlayers = humanPlayers.filter((p) => p.isReady)
+  const readyCount = readyPlayers.length
+  const totalCount = humanPlayers.length
+  const currentPlayerData = players.find((p) => p.id === uid)
+  const isReady = currentPlayerData?.isReady ?? false
+
+  // handleToggleReady 函数
+  const handleToggleReady = useCallback(() => {
+    if (room) {
+      room.send(Transfer.TOGGLE_READY)
+    }
+  }, [room])
 
   const connectToGame = useCallback(
     async (attempts = 1) => {
@@ -227,7 +245,7 @@ export default function Game() {
         navigate("/") // no reconnection token, login again
       }
     },
-    [client, dispatch]
+    [client, dispatch, navigate]
   )
 
   const leave = useCallback(async () => {
@@ -261,7 +279,7 @@ export default function Game() {
           rerollCount: p.rerollCount
         }
 
-        const allSynergies = new Array<{ name: Synergy; value: number }>()
+        const allSynergies = new Array<{ name: Synergy, value: number }>()
         p.synergies.forEach((v, k) => {
           allSynergies.push({ name: k as Synergy, value: v })
         })
@@ -322,7 +340,7 @@ export default function Game() {
     if (room?.connection.isOpen) {
       room.leave()
     }
-  }, [client, dispatch, room])
+  }, [client, dispatch, room, currentPlayer])
 
   const spectateTillTheEnd = () => {
     setFinalRankVisibility(FinalRankVisibility.CLOSED)
@@ -819,7 +837,8 @@ export default function Game() {
           "totalPlayerDamageDealt",
           "eggChance",
           "goldenEggChance",
-          "wildChance"
+          "wildChance",
+          "isReady" // 添加 isReady 到监听字段
         ]
 
         fields.forEach((field) => {
@@ -886,6 +905,9 @@ export default function Game() {
     leave
   ])
 
+  // 只在PICK阶段且非观战时显示准备按钮
+  const showReadyButton = currentPhase === GamePhaseState.PICK && !spectate
+
   return (
     <main id="game-wrapper" onContextMenu={(e) => e.preventDefault()}>
       <div id="game" ref={container}></div>
@@ -906,6 +928,14 @@ export default function Game() {
           <GamePokemonsProposition />
           <GameDpsMeter />
           <GameToasts />
+          {showReadyButton && (
+            <GameReadyButton
+              isReady={isReady}
+              onClick={handleToggleReady}
+              readyCount={readyCount}
+              totalCount={totalCount}
+            />
+          )}
         </>
       ) : (
         <GameLoadingScreen connectError={connectError} />

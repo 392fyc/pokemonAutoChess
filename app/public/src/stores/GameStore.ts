@@ -52,6 +52,38 @@ export interface GameStateStore {
   podium: ILeaderboardInfo[]
 }
 
+export interface IGameStore {
+  afterGameId: string
+  phaseDuration: number
+  roundTime: number
+  phase: GamePhaseState
+  players: Map<string, IPlayer>
+  simulations: ISimulation[]
+  stageLevel: number
+  noElo: boolean
+  specialGameRule: SpecialGameRule | null
+  currentPlayerId: string
+  currentSimulationId: string
+  currentTeam: Team
+  money: number
+  interest: number
+  maxInterest: number
+  streak: number
+  shopFreeRolls: number
+  shopLocked: boolean
+  experienceManager: IExperienceManager
+  shop: Pkm[]
+  itemsProposition: Item[]
+  pokemonsProposition: PkmProposition[]
+  currentPlayerSynergies: [string, number][]
+  weather: Weather
+  blueDpsMeter: IDps[]
+  redDpsMeter: IDps[]
+  emotesUnlocked: Emotion[]
+  additionalPokemons: Pkm[]
+  podium: ILeaderboardInfo[]
+}
+
 const initialState: GameStateStore = {
   afterGameId: "",
   phaseDuration: StageDuration[1],

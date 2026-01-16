@@ -498,8 +498,7 @@ export class OnDragDropCombineCommand extends Command<
     message.updateBoard = false
     message.updateItems = true
 
-    const itemA = detail.itemA
-    const itemB = detail.itemB
+    const { itemA, itemB } = detail
 
     //verify player has both items
     if (!player.items.includes(itemA) || !player.items.includes(itemB)) {

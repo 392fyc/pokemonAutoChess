@@ -318,7 +318,7 @@ export default function GamePage() {
         hasLeftBeforeEnd) &&
       !room?.state.noElo &&
       afterPlayers.filter((p) => p.role !== Role.BOT).length >= 2
-    const gameMode = room?.state.gameMode
+    const { gameMode } = room?.state || {}
 
     const r: Room<AfterGameState> = await client.create("after-game", {
       players: afterPlayers,

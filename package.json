@@ -57,6 +57,7 @@
     "@colyseus/ws-transport": "^0.16.5",
     "@joaomoreno/unique-names-generator": "^5.1.0",
     "@reduxjs/toolkit": "^2.3.0",
+    "@types/html2canvas": "^0.5.35",
     "body-parser": "^2.0.0",
     "colyseus": "^0.16.4",
     "colyseus.js": "^0.16.16",

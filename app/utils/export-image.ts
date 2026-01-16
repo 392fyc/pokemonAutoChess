@@ -147,8 +147,7 @@ export async function exportElementAsImage(
     // Capture with html2canvas
     const html2canvas = (await import("html2canvas")).default
     const canvas = await html2canvas(clonedElement, {
-      backgroundColor,
-      scale,
+      background: backgroundColor,
       useCORS: true,
       allowTaint: true
     })

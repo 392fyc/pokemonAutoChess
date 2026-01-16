@@ -42,7 +42,7 @@ export default function DraggableWindow({
 
   return (
     <div
-      ref={containerRef}
+      ref={containerRef as React.LegacyRef<HTMLDivElement>}
       className={`draggable-window ${className} ${isMinimized ? "minimized" : "maximized"}`}
       style={{
         ...style,

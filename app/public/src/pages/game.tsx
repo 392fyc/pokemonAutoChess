@@ -121,8 +121,7 @@ export function cyclePlayers(amt: number) {
 export function playerClick(id: string) {
   const scene = getGameScene()
   gameContainer?.room?.send(Transfer.SPECTATE, id)
-  if (scene?.spectate) {
-    if (gameContainer?.room?.state?.players) {
+  if (scene?.spectate && gameContainer?.room?.state?.players) {
       const spectatedPlayer = gameContainer?.room?.state?.players.get(id)
       if (spectatedPlayer) {
         gameContainer.setPlayer(spectatedPlayer)
@@ -138,7 +137,6 @@ export function playerClick(id: string) {
       gameContainer?.gameScene?.board?.updateScoutingAvatars()
     }
   }
-}
 
 function showMoneyToast(value: number) {
   toast(

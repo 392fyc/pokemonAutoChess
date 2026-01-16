@@ -1,16 +1,14 @@
 import { RoomAvailable } from "colyseus.js"
 import React, { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { EloRankThreshold, MAX_PLAYERS_PER_GAME } from "../../../../../config"
 import { IPreparationMetadata, Role } from "../../../../../types"
-import {
-  EloRank,
-  EloRankThreshold,
-  MAX_PLAYERS_PER_GAME
-} from "../../../../../types/Config"
+import { EloRank } from "../../../../../types/enum/EloRank"
 import { GameMode } from "../../../../../types/enum/Game"
 import { formatMinMaxRanks, getRank } from "../../../../../utils/elo"
 import { useAppSelector } from "../../../hooks"
 import { cc } from "../../utils/jsx"
+import { GameModeIcon } from "../icons/game-mode-icon"
 import "./room-item.css"
 
 export default function RoomItem(props: {
@@ -41,7 +39,7 @@ export default function RoomItem(props: {
     props.room.metadata.blacklist.includes(user.uid) === true
   ) {
     canJoin = false
-    disabledReason = t("blacklisted")
+    disabledReason = t("errors.USER_KICKED")
   } else if (
     props.room.metadata?.whitelist &&
     props.room.metadata.whitelist.length > 0 &&
@@ -49,10 +47,10 @@ export default function RoomItem(props: {
     props.room.metadata.whitelist.includes(user.uid) === false
   ) {
     canJoin = false
-    disabledReason = t("not_whitelisted")
+    disabledReason = t("errors.USER_NOT_WHITELISTED")
   } else if (
     props.room.metadata?.minRank != null &&
-    (user?.elo ?? 0) < EloRankThreshold[props.room.metadata?.minRank]
+    (user?.elo ?? 0) < EloRankThreshold[props.room.metadata.minRank as EloRank]
   ) {
     canJoin = false
     disabledReason = t("min_rank_not_reached")
@@ -60,7 +58,7 @@ export default function RoomItem(props: {
     props.room.metadata?.maxRank != null &&
     user?.elo &&
     EloRankThreshold[getRank(user.elo)] >
-      EloRankThreshold[props.room.metadata?.maxRank]
+      EloRankThreshold[props.room.metadata?.maxRank as EloRank]
   ) {
     canJoin = false
     disabledReason = t("max_rank_not_reached")
@@ -90,12 +88,7 @@ export default function RoomItem(props: {
         />
       )}
       {props.room.metadata?.gameMode === GameMode.SCRIBBLE && (
-        <img
-          alt={t("smeargle_scribble")}
-          title={t("smeargle_scribble_hint")}
-          className="scribble gamemode icon"
-          src="/assets/ui/scribble.png"
-        />
+        <GameModeIcon gameMode={GameMode.SCRIBBLE} />
       )}
       {props.room.metadata?.noElo &&
         props.room.metadata?.gameMode === GameMode.CUSTOM_LOBBY && (
@@ -107,12 +100,10 @@ export default function RoomItem(props: {
           />
         )}
       {props.room.metadata?.gameMode === GameMode.CLASSIC && (
-        <img
-          alt={t("classic")}
-          title={t("classic_hint")}
-          className="classic gamemode icon"
-          src="/assets/ui/classic.png"
-        />
+        <GameModeIcon gameMode={GameMode.CLASSIC} />
+      )}
+      {props.room.metadata?.gameMode === GameMode.RANKED && (
+        <GameModeIcon gameMode={GameMode.RANKED} />
       )}
       {props.room.metadata?.minRank && (
         <img

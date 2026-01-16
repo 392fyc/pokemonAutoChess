@@ -1,13 +1,11 @@
 import React, { useState } from "react"
-import ReactDOM from "react-dom"
 import { useTranslation } from "react-i18next"
 import { useLocation } from "react-router-dom"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
-import { Tooltip } from "react-tooltip"
+import { RarityColor } from "../../../../../config"
 import { getPokemonData } from "../../../../../models/precomputed/precomputed-pokemon-data"
 import { PRECOMPUTED_POKEMONS_PER_TYPE } from "../../../../../models/precomputed/precomputed-types"
 import { Emotion, PkmWithCustom } from "../../../../../types"
-import { RarityColor } from "../../../../../types/Config"
 import { Ability } from "../../../../../types/enum/Ability"
 import { Rarity } from "../../../../../types/enum/Game"
 import { Item } from "../../../../../types/enum/Item"
@@ -15,6 +13,7 @@ import {
   Pkm,
   PkmFamily,
   PkmIndex,
+  PkmRegionalBaseVariants,
   PkmRegionalVariants
 } from "../../../../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../../../../types/enum/SpecialGameRule"
@@ -26,13 +25,13 @@ import { selectCurrentPlayer, useAppSelector } from "../../../hooks"
 import { usePreferences } from "../../../preferences"
 import { cc } from "../../utils/jsx"
 import { Checkbox } from "../checkbox/checkbox"
-import { GamePokemonDetail } from "../game/game-pokemon-detail"
+import { GamePokemonDetailTooltip } from "../game/game-pokemon-detail"
 import SynergyIcon from "../icons/synergy-icon"
 
 export default function PokemonPicker(props: {
-  selected: PkmWithCustom | Item
-  selectEntity: React.Dispatch<React.SetStateAction<PkmWithCustom>>
-  addEntity: (e: PkmWithCustom) => void
+  selected?: PkmWithCustom | Item
+  selectEntity?: React.Dispatch<React.SetStateAction<PkmWithCustom>>
+  addEntity?: (e: PkmWithCustom) => void
 }) {
   const tabs = [...Object.keys(PRECOMPUTED_POKEMONS_PER_TYPE), "none"]
   const pokemonsPerTab: IPokemonData[][] = tabs.map((t) =>
@@ -54,7 +53,33 @@ export default function PokemonPicker(props: {
         {tabs.map((t) => {
           return (
             <Tab key={t}>
-              {t === "none" ? "?" : <SynergyIcon type={t as Synergy} />}
+              {t === "none" ? (
+                "?"
+              ) : (
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", `synergy,${t}`)
+                    e.stopPropagation() // Prevent tab switching
+                  }}
+                  onDragEnd={() => {
+                    // Reset cursor after drag
+                  }}
+                  style={{
+                    display: "block",
+                    cursor: "var(--cursor-grab)",
+                    userSelect: "none"
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.cursor = "var(--cursor-grabbing)"
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.cursor = "var(--cursor-grab)"
+                  }}
+                >
+                  <SynergyIcon type={t as Synergy} />
+                </div>
+              )}
             </Tab>
           )
         })}
@@ -79,19 +104,23 @@ export default function PokemonPicker(props: {
 
 function PokemonPickerTab(props: {
   pokemons: IPokemonData[]
-  selected: PkmWithCustom | Item
-  selectEntity: React.Dispatch<React.SetStateAction<PkmWithCustom>>
-  addEntity: (e: PkmWithCustom) => void
+  selected?: PkmWithCustom | Item
+  selectEntity?: React.Dispatch<React.SetStateAction<PkmWithCustom>>
+  addEntity?: (e: PkmWithCustom) => void
   type: Synergy | "none"
 }) {
   const [preferences, setPreferences] = usePreferences()
   const { t } = useTranslation()
-  const [hoveredPokemon, setHoveredPokemon] = useState<Pkm>()
+  const [isDragging, setIsDragging] = useState(false)
 
   function handleOnDragStart(e: React.DragEvent, name: Pkm) {
     e.stopPropagation()
-    setHoveredPokemon(undefined)
     e.dataTransfer.setData("text/plain", `pokemon,${name}`)
+    setIsDragging(true)
+  }
+
+  function handleOnDragEnd() {
+    setIsDragging(false)
   }
 
   const ingame = useLocation().pathname === "/game"
@@ -103,11 +132,6 @@ function PokemonPickerTab(props: {
   const currentPlayer = useAppSelector(selectCurrentPlayer)
   const regionalPokemons: Pkm[] = currentPlayer?.regionalPokemons?.slice() ?? []
 
-  const baseVariant = (pkm: Pkm): Pkm =>
-    (Object.keys(PkmRegionalVariants) as Pkm[]).find((p) =>
-      PkmRegionalVariants[p]!.includes(pkm)
-    ) ?? pkm
-
   const filteredPokemons = props.pokemons
     .filter((p) => (overlap ? p.types.includes(overlap) : true))
     .filter((p) => {
@@ -118,7 +142,7 @@ function PokemonPickerTab(props: {
     })
     .filter((p) => {
       const family = PkmFamily[p.name]
-      const baseVariantName = baseVariant(family)
+      const baseVariantName = PkmRegionalBaseVariants[family] ?? family
       const regionalVariants = PkmRegionalVariants[family]
       const isInAddPicks = additionalPokemons.includes(baseVariantName)
       const isInRegion = p.regional && regionalPokemons.includes(family)
@@ -152,11 +176,12 @@ function PokemonPickerTab(props: {
   const overlapsMap = new Map(
     SynergyArray.filter((type) => type !== props.type).map((type) => [
       type,
-      filteredPokemons.filter(
-        (p, i, list) =>
-          p.types.includes(type) &&
-          list.findIndex((q) => PkmFamily[p.name] === PkmFamily[q.name]) === i
-      ).length
+      filteredPokemons
+        .filter((p) => p.types.includes(type))
+        .filter(
+          (p, i, list) =>
+            list.findIndex((q) => PkmFamily[p.name] === PkmFamily[q.name]) === i
+        ).length
     ])
   )
 
@@ -198,10 +223,10 @@ function PokemonPickerTab(props: {
                   className={cc("pokemon-portrait", {
                     additional: p.additional,
                     regional: p.regional,
-                    selected: p.name === props.selected["name"]
+                    selected: p.name === props.selected?.["name"]
                   })}
                   onClick={() => {
-                    props.selectEntity({
+                    props.selectEntity?.({
                       name: p.name,
                       emotion: Emotion.NORMAL,
                       shiny: false
@@ -209,7 +234,7 @@ function PokemonPickerTab(props: {
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
-                    props.addEntity({
+                    props.addEntity?.({
                       name: p.name,
                       emotion: Emotion.NORMAL,
                       shiny: false
@@ -217,19 +242,18 @@ function PokemonPickerTab(props: {
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault()
-                    props.addEntity({
+                    props.addEntity?.({
                       name: p.name,
                       emotion: Emotion.NORMAL,
                       shiny: false
                     })
                   }}
-                  onMouseOver={() => {
-                    setHoveredPokemon(p.name)
-                  }}
                   key={p.name}
-                  data-tooltip-id="pokemon-detail"
+                  data-tooltip-id="game-pokemon-detail-tooltip"
+                  data-tooltip-content={p.name}
                   draggable
                   onDragStart={(e) => handleOnDragStart(e, p.name)}
+                  onDragEnd={handleOnDragEnd}
                 >
                   <img src={getPortraitSrc(p.index)} />
                 </div>
@@ -280,15 +304,10 @@ function PokemonPickerTab(props: {
           </ul>
         </details>
       </div>
-      {hoveredPokemon && (
-        <Tooltip
-          id="pokemon-detail"
-          className="custom-theme-tooltip game-pokemon-detail-tooltip"
-          float
-        >
-          <GamePokemonDetail pokemon={hoveredPokemon} />
-        </Tooltip>
-      )}
+      <GamePokemonDetailTooltip
+        origin="planner"
+        {...(isDragging ? { isOpen: false } : {})}
+      />
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { MapSchema, SetSchema } from "@colyseus/schema"
+import { SynergyTriggers } from "../config"
 import { Pokemon } from "../models/colyseus-models/pokemon"
-import { SynergyTriggers } from "../types/Config"
 import { Ability } from "../types/enum/Ability"
 import { EffectEnum } from "../types/enum/Effect"
 import { Pkm } from "../types/enum/Pokemon"
@@ -57,11 +57,16 @@ export const SynergyEffects: { [key in Synergy]: readonly EffectEnum[] } = {
     EffectEnum.ENDURE,
     EffectEnum.PURE_POWER
   ],
-  [Synergy.GRASS]: [EffectEnum.INGRAIN, EffectEnum.GROWTH, EffectEnum.SPORE],
+  [Synergy.GRASS]: [
+    EffectEnum.INGRAIN,
+    EffectEnum.GROWTH,
+    EffectEnum.SPORE,
+    EffectEnum.OVERGROW
+  ],
   [Synergy.FIRE]: [
+    EffectEnum.FLAME_BODY,
+    EffectEnum.WILDFIRE,
     EffectEnum.BLAZE,
-    EffectEnum.VICTORY_STAR,
-    EffectEnum.DROUGHT,
     EffectEnum.DESOLATE_LAND
   ],
   [Synergy.WATER]: [
@@ -71,8 +76,8 @@ export const SynergyEffects: { [key in Synergy]: readonly EffectEnum[] } = {
   ],
   [Synergy.ELECTRIC]: [
     EffectEnum.RISING_VOLTAGE,
-    EffectEnum.OVERDRIVE,
-    EffectEnum.POWER_SURGE
+    EffectEnum.POWER_SURGE,
+    EffectEnum.SUPERCHARGED
   ],
   [Synergy.FIGHTING]: [
     EffectEnum.GUTS,

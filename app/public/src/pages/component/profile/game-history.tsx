@@ -1,19 +1,19 @@
+import { ArraySchema } from "@colyseus/schema"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ArraySchema } from "@colyseus/schema"
+import { SynergyTriggers } from "../../../../../config"
 import {
   IGameRecord,
   IPokemonRecord
 } from "../../../../../models/colyseus-models/game-record"
 import { computeSynergies } from "../../../../../models/colyseus-models/synergies"
 import PokemonFactory from "../../../../../models/pokemon-factory"
-import { SynergyTriggers } from "../../../../../types/Config"
 import { Synergy } from "../../../../../types/enum/Synergy"
 import { formatDate } from "../../utils/date"
 import Team from "../after/team"
+import { GameModeIcon } from "../icons/game-mode-icon"
 import SynergyIcon from "../icons/synergy-icon"
 import { EloBadge } from "./elo-badge"
-import { GameMode } from "../../../../../types/enum/Game"
 import "./game-history.css"
 
 export default function GameHistory(props: {
@@ -84,30 +84,7 @@ export default function GameHistory(props: {
           gameHistory.map((r) => (
             <div key={r.time} className="my-box game-history">
               <span className="top">
-                {r.gameMode === GameMode.CLASSIC && (
-                  <img
-                    alt={t("classic")}
-                    title={t("classic")}
-                    className="classic gamemode icon"
-                    src="/assets/ui/classic.png"
-                  />
-                )}
-                {r.gameMode === GameMode.RANKED && (
-                  <img
-                    alt={t("ranked_match")}
-                    title={t("ranked_match")}
-                    className="ranked gamemode icon"
-                    src="/assets/ui/ranked.png"
-                  />
-                )}
-                {r.gameMode === GameMode.SCRIBBLE && (
-                  <img
-                    alt={t("smeargle_scribble")}
-                    title={t("smeargle_scribble")}
-                    className="scribble gamemode icon"
-                    src="/assets/ui/scribble.png"
-                  />
-                )}
+                <GameModeIcon gameMode={r.gameMode} />
                 {t("top")} {r.rank}
               </span>
               <EloBadge elo={r.elo} />
@@ -153,14 +130,18 @@ function getTopSynergies(
 
   const topSynergies = [...synergies.entries()]
     .sort((a, b) => {
-      const aReachedTrigger = a[1] >= SynergyTriggers[a[0]][0]
-      const bReachedTrigger = b[1] >= SynergyTriggers[b[0]][0]
-      return aReachedTrigger && !bReachedTrigger
-        ? -1
-        : bReachedTrigger && !aReachedTrigger
-          ? +1
-          : b[1] - a[1]
+      const [typeA, valueA] = a
+      const [typeB, valueB] = b
+      const aTriggerReached = SynergyTriggers[typeA].filter(
+        (n) => valueA >= n
+      ).length
+      const bTriggerReached = SynergyTriggers[typeB].filter(
+        (n) => valueB >= n
+      ).length
+      return aTriggerReached !== bTriggerReached
+        ? bTriggerReached - aTriggerReached
+        : valueB - valueA
     })
-    .slice(0, 3)
+    .slice(0, 4)
   return topSynergies
 }

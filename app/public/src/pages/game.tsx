@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { toast } from "react-toastify"
+import { MinStageForGameToCount, RegionDetails } from "../../../config"
 import { IPokemonRecord } from "../../../models/colyseus-models/game-record"
+import { Wanderer } from "../../../models/colyseus-models/wanderer"
 import { PVEStages } from "../../../models/pve-stages"
 import AfterGameState from "../../../rooms/states/after-game-state"
 import GameState from "../../../rooms/states/game-state"
@@ -20,19 +22,13 @@ import {
   Role,
   Transfer
 } from "../../../types"
-import {
-  MinStageForGameToCount,
-  PortalCarouselStages
-} from "../../../types/Config"
 import { CloseCodes, CloseCodesMessages } from "../../../types/enum/CloseCodes"
 import { ConnectionStatus } from "../../../types/enum/ConnectionStatus"
-import { DungeonDetails } from "../../../types/enum/Dungeon"
 import { GamePhaseState, Team } from "../../../types/enum/Game"
 import { Item } from "../../../types/enum/Item"
 import { Passive } from "../../../types/enum/Passive"
 import { Pkm } from "../../../types/enum/Pokemon"
 import { Synergy } from "../../../types/enum/Synergy"
-import { Wanderer } from "../../../types/enum/Wanderer"
 import type { NonFunctionPropNames } from "../../../types/HelperTypes"
 import { getAvatarString } from "../../../utils/avatar"
 import { logger } from "../../../utils/logger"
@@ -95,7 +91,6 @@ import { ConnectionStatusNotification } from "./component/system/connection-stat
 import { playMusic, preloadMusic } from "./utils/audio"
 import { LocalStoreKeys, localStore } from "./utils/store"
 import { preference } from "../preferences"
-import { throttle } from "../../../utils/function"
 
 const MAX_ATTEMPS_RECONNECT = 10 // 添加这个常量定义
 
@@ -105,6 +100,10 @@ export function getGameScene(): GameScene | undefined {
   return gameContainer?.game?.scene?.getScene<GameScene>("gameScene") as
     | GameScene
     | undefined
+}
+
+export function getGameContainer(): GameContainer {
+  return gameContainer
 }
 
 export function cyclePlayers(amt: number) {
@@ -121,8 +120,8 @@ export function cyclePlayers(amt: number) {
 
 export function playerClick(id: string) {
   const scene = getGameScene()
+  gameContainer?.room?.send(Transfer.SPECTATE, id)
   if (scene?.spectate) {
-    // if spectating game we switch directly without notifying the server to not show spectators avatars
     if (gameContainer?.room?.state?.players) {
       const spectatedPlayer = gameContainer?.room?.state?.players.get(id)
       if (spectatedPlayer) {
@@ -138,12 +137,20 @@ export function playerClick(id: string) {
 
       gameContainer?.gameScene?.board?.updateScoutingAvatars()
     }
-  } else {
-    gameContainer?.room?.send(Transfer.SPECTATE, id)
   }
 }
 
-export default function GamePage() {
+function showMoneyToast(value: number) {
+  toast(
+    <div className="toast-player-income">
+      <span style={{ verticalAlign: "middle" }}>+{value}</span>
+      <img className="icon-money" src="/assets/icons/money.svg" alt="$" />
+    </div>,
+    { containerId: "toast-money" }
+  )
+}
+
+export default function Game() {
   const dispatch = useAppDispatch()
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -436,17 +443,17 @@ export default function GamePage() {
         logger.info("preloading maps", maps)
         const gameScene = getGameScene()
         if (gameScene) {
-          gameScene.load.reset()
           await gameScene.preloadMaps(maps)
-          gameScene.load.once("complete", () => {
-            if (!PortalCarouselStages.includes(room.state.stageLevel)) {
-              // map loaded after the end of the portal carousel stage, we swap it now. better later than never
-              gameContainer &&
-                gameContainer.player &&
-                gameScene.setMap(gameContainer.player.map)
-            }
-          })
-          gameScene.load.start()
+          gameScene.load
+            .once("complete", () => {
+              if (room.state.phase !== GamePhaseState.TOWN) {
+                // map loaded after the end of the portal carousel stage, we swap it now. better later than never
+                gameContainer &&
+                  gameContainer.player &&
+                  gameScene.setMap(gameContainer.player.map)
+              }
+            })
+            .start()
         }
       })
       room.onMessage(Transfer.SHOW_EMOTE, (message) => {
@@ -513,24 +520,7 @@ export default function GamePage() {
         )
       })
 
-      room.onMessage(Transfer.PLAYER_INCOME, (value) => {
-        toast(
-          <div className="toast-player-income">
-            <span style={{ verticalAlign: "middle" }}>+{value}</span>
-            <img className="icon-money" src="/assets/icons/money.svg" alt="$" />
-          </div>,
-          { containerId: "toast-money" }
-        )
-      })
-
-      room.onMessage(Transfer.WANDERER, (wanderer: Wanderer) => {
-        if (gameContainer.game) {
-          const g = getGameScene()
-          if (g && g.wandererManager) {
-            g.wandererManager.addWanderer(wanderer)
-          }
-        }
-      })
+      room.onMessage(Transfer.PLAYER_INCOME, showMoneyToast)
 
       room.onMessage(Transfer.BOARD_EVENT, (event: IBoardEvent) => {
         if (gameContainer.game) {
@@ -686,8 +676,10 @@ export default function GamePage() {
             })
           })
 
-          $dpsMeter.onRemove(() => {
-            dispatch(removeDpsMeter({ simulationId: simulation.id, team }))
+          $dpsMeter.onRemove((dps) => {
+            dispatch(
+              removeDpsMeter({ id: dps.id, team, simulationId: simulation.id })
+            )
           })
         })
       })
@@ -720,8 +712,12 @@ export default function GamePage() {
           $player.listen("shopFreeRolls", (value) => {
             dispatch(setShopFreeRolls(value))
           })
-          $player.listen("money", (value) => {
+          $player.listen("money", (value, previousValue) => {
             dispatch(setMoney(value))
+            if (value - previousValue >= 30) {
+              // show income toast for significant income only
+              showMoneyToast(value - previousValue)
+            }
           })
           $player.listen("streak", (value) => {
             dispatch(setStreak(value))
@@ -786,9 +782,9 @@ export default function GamePage() {
               if (!alreadyLoading) {
                 gameScene.load.reset()
               }
-              preloadMusic(gameScene, DungeonDetails[newMap].music)
+              preloadMusic(gameScene, RegionDetails[newMap].music)
               gameScene.load.once("complete", () =>
-                playMusic(gameScene, DungeonDetails[newMap].music)
+                playMusic(gameScene, RegionDetails[newMap].music)
               )
               if (!alreadyLoading) {
                 gameScene.load.start()
@@ -838,7 +834,8 @@ export default function GamePage() {
           "eggChance",
           "goldenEggChance",
           "wildChance",
-          "isReady" // 添加 isReady 到监听字段
+          "isReady", // 添加 isReady 到监听字段
+          "cellBattery"
         ]
 
         fields.forEach((field) => {
@@ -881,6 +878,18 @@ export default function GamePage() {
         $player.listen("mulchCap", (value) => {
           dispatch(changePlayer({ id: player.id, field: "mulchCap", value }))
           getGameScene()?.board?.updateMulchCount()
+        })
+
+        $player.wanderers.onAdd((wanderer: Wanderer) => {
+          if (
+            gameContainer.game &&
+            player.id === store.getState().game.currentPlayerId
+          ) {
+            const g = getGameScene()
+            if (g && g.wandererManager) {
+              g.wandererManager.addWanderer(wanderer)
+            }
+          }
         })
       })
 

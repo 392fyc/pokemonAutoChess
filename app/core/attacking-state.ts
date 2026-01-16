@@ -1,13 +1,12 @@
+import { BASE_PROJECTILE_SPEED } from "../config"
 import Player from "../models/colyseus-models/player"
 import { IPokemonEntity } from "../types"
-import { BASE_PROJECTILE_SPEED } from "../types/Config"
 import delays from "../types/delays.json"
 import { EffectEnum } from "../types/enum/Effect"
 import { PokemonActionState } from "../types/enum/Game"
 import { distanceC } from "../utils/distance"
 import { max } from "../utils/number"
-import { chance } from "../utils/random"
-import { AbilityStrategies } from "./abilities/abilities"
+import { castAbility } from "./abilities/abilities"
 import type { Board } from "./board"
 import { PokemonEntity } from "./pokemon-entity"
 import PokemonState from "./pokemon-state"
@@ -30,8 +29,8 @@ export default class AttackingState extends PokemonState {
         const candidates = this.getTargetsAtRange(pokemon, board)
         let minLife = Infinity
         for (const candidate of candidates) {
-          if (candidate.life + candidate.shield < minLife) {
-            minLife = candidate.life + candidate.shield
+          if (candidate.hp + candidate.shield < minLife) {
+            minLife = candidate.hp + candidate.shield
             target = candidate
           }
         }
@@ -68,15 +67,7 @@ export default class AttackingState extends PokemonState {
         }
       } else if (pokemon.pp >= pokemon.maxPP && !pokemon.status.silence) {
         // CAST ABILITY
-        let crit = false
-        const ability = AbilityStrategies[pokemon.skill]
-        if (
-          pokemon.effects.has(EffectEnum.ABILITY_CRIT) ||
-          ability.canCritByDefault
-        ) {
-          crit = chance(pokemon.critChance / 100, pokemon)
-        }
-        ability.process(pokemon, board, target, crit)
+        castAbility(pokemon.skill, pokemon, board, target)
       } else {
         // BASIC ATTACK
         pokemon.count.attackCount++

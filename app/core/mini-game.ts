@@ -1,4 +1,5 @@
 import { MapSchema } from "@colyseus/schema"
+import { logger } from "colyseus"
 import {
   Bodies,
   Body,
@@ -8,6 +9,11 @@ import {
   Events,
   Vector
 } from "matter-js"
+import {
+  ItemCarouselStages,
+  PortalCarouselStages,
+  RegionDetails
+} from "../config"
 import { FloatingItem } from "../models/colyseus-models/floating-item"
 import Player from "../models/colyseus-models/player"
 import { PokemonAvatarModel } from "../models/colyseus-models/pokemon-avatar"
@@ -15,24 +21,25 @@ import { Portal, SynergySymbol } from "../models/colyseus-models/portal"
 import GameRoom from "../rooms/game-room"
 import GameState from "../rooms/states/game-state"
 import { Transfer } from "../types"
-import { ItemCarouselStages, PortalCarouselStages } from "../types/Config"
-import { DungeonDetails, DungeonPMDO } from "../types/enum/Dungeon"
+import { DungeonPMDO } from "../types/enum/Dungeon"
 import { PokemonActionState } from "../types/enum/Game"
 import {
-  ArtificialItems,
-  Berries,
-  CraftableItems,
-  CraftableNonSynergyItems,
+  CraftableItemsNoScarves,
+  CraftableNoStonesOrScarves,
   Item,
   ItemComponents,
+  ItemComponentsNoFossilOrScarf,
+  MissionOrders,
+  NonSpecialBerries,
   SynergyGems,
   SynergyGivenByGem,
-  SynergyStones
+  SynergyStones,
+  Tools
 } from "../types/enum/Item"
 import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy, SynergyArray } from "../types/enum/Synergy"
 import { isIn } from "../utils/array"
-import { clamp, max, min } from "../utils/number"
+import { clamp, max } from "../utils/number"
 import { getOrientation } from "../utils/orientation"
 import {
   chance,
@@ -44,6 +51,7 @@ import {
 } from "../utils/random"
 import { keys, values } from "../utils/schemas"
 import { giveRandomEgg } from "./eggs"
+import { spawnDIAYAvatar } from "./scribbles"
 import {
   TownEncounterSellPrice,
   TownEncounters,
@@ -268,7 +276,7 @@ export class MiniGame {
         this.centerY +
         Math.sin((2 * Math.PI * i) / this.alivePlayers.length) * 250
       let retentionDelay =
-        4000 + (this.alivePlayers.length - player.rank) * 2000
+        5000 + (this.alivePlayers.length - player.rank) * 2000
 
       if (stageLevel === 0) {
         retentionDelay = 12000
@@ -355,6 +363,10 @@ export class MiniGame {
         player.life += 15
       })
     } else if (state.townEncounter === TownEncounters.WOBBUFFET) {
+      this.alivePlayers.forEach((player) => {
+        player.items.push(Item.RECYCLE_TICKET)
+      })
+    } else if (state.townEncounter === TownEncounters.CROAGUNK) {
       this.alivePlayers.forEach((player) => {
         player.items.push(Item.EXCHANGE_TICKET)
       })
@@ -471,13 +483,13 @@ export class MiniGame {
 
     let nbItemsToPick = clamp(this.alivePlayers.length + 3, 5, 9)
     let maxCopiesPerItem = 2
-    let itemsSet = ItemComponents
+    let itemsSet: readonly Item[] = ItemComponentsNoFossilOrScarf
 
     if (stageLevel >= 20) {
       // Carousels after stage 20 propose full items and no longer components, and have one more proposition
       nbItemsToPick += 1
       maxCopiesPerItem = 1
-      itemsSet = CraftableItems
+      itemsSet = CraftableItemsNoScarves
     }
 
     if (encounter === TownEncounters.KECLEON) {
@@ -486,12 +498,12 @@ export class MiniGame {
     }
 
     if (encounter === TownEncounters.KANGASKHAN) {
-      itemsSet = CraftableNonSynergyItems
+      itemsSet = CraftableNoStonesOrScarves
       maxCopiesPerItem = 1
     }
 
     if (encounter === TownEncounters.ELECTIVIRE) {
-      itemsSet = ArtificialItems
+      itemsSet = Tools
       maxCopiesPerItem = 2
     }
 
@@ -525,6 +537,15 @@ export class MiniGame {
       )
     }
 
+    if (encounter === TownEncounters.CINCCINO) {
+      items.push(
+        Item.SILK_SCARF,
+        Item.SILK_SCARF,
+        Item.SILK_SCARF,
+        Item.SILK_SCARF
+      )
+    }
+
     if (encounter === TownEncounters.SABLEYE) {
       items.push(...pickNRandomIn(SynergyGems, 4))
     }
@@ -541,12 +562,15 @@ export class MiniGame {
       items.push(item)
     }
 
-    if (itemsSet === CraftableItems) {
-      while (items.filter((i) => SynergyStones.includes(i)).length > 4) {
+    if (itemsSet === CraftableItemsNoScarves) {
+      while (items.filter((i) => isIn(SynergyStones, i)).length > 4) {
         // ensure that there are at most 4 synergy stones in the carousel
-        const index = items.findIndex((i) => SynergyStones.includes(i))
-        items[index] = pickRandomIn(CraftableNonSynergyItems)
+        const index = items.findIndex((i) => isIn(SynergyStones, i))
+        items[index] = pickRandomIn(CraftableNoStonesOrScarves)
       }
+    } else if (itemsSet === ItemComponentsNoFossilOrScarf && chance(0.4)) {
+      // max 1 random fossil stone, added with 40% chance
+      items.push(Item.FOSSIL_STONE)
     }
 
     return shuffleArray(items)
@@ -566,56 +590,84 @@ export class MiniGame {
     } else {
       this.avatars?.forEach((avatar) => {
         const player = this.alivePlayers.find((p) => p.id === avatar.id)!
+        const synergiesUsable = Object.values(Synergy).filter((type) => {
+          if (type === Synergy.BABY && stageLevel === 20) return false // no baby legendaries
+          return true
+        })
         const synergiesTriggerLevels: [Synergy, number][] = Array.from(
           player.synergies
-        ).map(([type, value]) => {
-          let levelReached = player.synergies.getSynergyStep(type)
-          // removing low triggers synergies
-          if (type === Synergy.FLORA || type === Synergy.LIGHT) {
-            levelReached = min(0)(levelReached - 1)
-          }
-          if (
-            stageLevel === 20 &&
-            (type === Synergy.GOURMET || type === Synergy.NORMAL)
-          ) {
-            // not enough legendaries of that type
-            levelReached = max(2)(levelReached)
-          }
-          if (type === Synergy.BABY && stageLevel === 20) {
-            levelReached = 0 // no baby legendaries
-          }
-          return [type, levelReached]
-        })
-        const candidatesSymbols: Synergy[] = []
+        )
+          .filter(([type, value]) => synergiesUsable.includes(type))
+          .map(([type, value]) => {
+            let levelReached = player.synergies.getSynergyStep(type)
+            // lowering down low triggers synergies
+            if (type === Synergy.LIGHT) {
+              levelReached = [0, 1, 1, 2, 3][levelReached]
+            }
+            if (type === Synergy.FLORA) {
+              levelReached = [0, 1, 2, 3, 3][levelReached]
+            }
+            if (stageLevel === 20 && type === Synergy.GOURMET) {
+              // not enough legendaries of that type
+              levelReached = max(2)(levelReached)
+            }
+            return [type, levelReached] as [Synergy, number]
+          })
+          .sort(([typeA, stepA], [typeB, stepB]) => {
+            const levelA = player.synergies.get(typeA) ?? 0
+            const levelB = player.synergies.get(typeB) ?? 0
+            if (stepA !== stepB) {
+              return stepB - stepA
+            } else if (levelA !== levelB) {
+              return levelB - levelA
+            } else {
+              // favor synergies with the least distribution (should be at the end of the list)
+              return SynergyArray.indexOf(typeB) - SynergyArray.indexOf(typeA)
+            }
+          })
+
+        /*logger.debug(
+          "Synergies sorted",
+          synergiesTriggerLevels.map(([t, l]) => `${t}:${l}`).join(", ")
+        )*/
+
+        let candidatesSymbols: Synergy[] = []
+        const MIN_SYMBOLS_POOL_SIZE = stageLevel <= 10 ? 4 : 5
+        const MAX_SYMBOLS_POOL_SIZE = stageLevel <= 10 ? 4 : 7
         synergiesTriggerLevels.forEach(([type, level]) => {
           // add as many symbols as synergy levels reached
           candidatesSymbols.push(...new Array(level).fill(type))
         })
         //logger.debug("symbols from synergies", candidatesSymbols)
-        if (candidatesSymbols.length < 4) {
-          // if player has reached less than 4 synergy level triggers, we complete with random other incomplete synergies
+        if (candidatesSymbols.length < MIN_SYMBOLS_POOL_SIZE) {
+          // complete with random other incomplete synergies
           const incompleteSynergies = synergiesTriggerLevels
             .filter(
               ([type, level]) => level === 0 && player.synergies.get(type)! > 0
             )
             .map(([type, _level]) => type)
           candidatesSymbols.push(
-            ...pickNRandomIn(incompleteSynergies, 4 - candidatesSymbols.length)
+            ...pickNRandomIn(
+              incompleteSynergies,
+              MIN_SYMBOLS_POOL_SIZE - candidatesSymbols.length
+            )
           )
           /*logger.debug(
             "completing symbols with incomplete synergies",
             incompleteSynergies
           )*/
         }
-        while (candidatesSymbols.length < 4) {
+        while (candidatesSymbols.length < MIN_SYMBOLS_POOL_SIZE) {
           // if still incomplete, complete with random
-          candidatesSymbols.push(pickRandomIn(Synergy))
+          candidatesSymbols.push(pickRandomIn(synergiesUsable))
           /*logger.debug(
             "completing symbols with random synergies",
             candidatesSymbols
           )*/
         }
 
+        candidatesSymbols = candidatesSymbols.slice(0, MAX_SYMBOLS_POOL_SIZE)
+        //logger.debug("final candidates symbols", candidatesSymbols)
         const symbols = pickNRandomIn(candidatesSymbols, NB_SYMBOLS_PER_PLAYER)
         //logger.debug(`symbols chosen for player ${player.name}`, symbols)
         symbols.forEach((type, i) => {
@@ -653,8 +705,9 @@ export class MiniGame {
       let nbMaxInCommon = 0,
         candidateMaps: DungeonPMDO[] = []
       maps.forEach((map) => {
-        const synergies = DungeonDetails[map].synergies
+        const synergies = RegionDetails[map].synergies
         const inCommon = synergies.filter((s) => portalSynergies.includes(s))
+
         if (inCommon.length > nbMaxInCommon) {
           nbMaxInCommon = inCommon.length
           candidateMaps = [map]
@@ -710,8 +763,7 @@ export class MiniGame {
     }
   }
 
-  stop(room: GameRoom) {
-    const state: GameState = room.state
+  stop(state: GameState) {
     const players: MapSchema<Player> = state.players
     const encounter = state.townEncounter
     this.bodies.forEach((body, key) => {
@@ -740,7 +792,7 @@ export class MiniGame {
         }
       }
 
-      if (avatar.portalId == "" && player && !player.isBot) {
+      if (avatar.portalId == "") {
         // random propositions if no portal was taken
         avatar.portalId = "random"
         if (state.stageLevel == 0 && this.portals) {
@@ -781,9 +833,11 @@ export class MiniGame {
           if (portal.map !== player.map) {
             const previousMap = player.map
             player.map = portal.map
+            player.regions.push(portal.map)
             player.updateRegionalPool(state, true, previousMap)
+            const newBerryTreeTypes = pickNRandomIn(NonSpecialBerries, 3)
             for (let i = 0; i < player.berryTreesType.length; i++) {
-              player.berryTreesType[i] = pickRandomIn(Berries)
+              player.berryTreesType[i] = newBerryTreeTypes[i]
               player.berryTreesStages[i] = 0
             }
           }
@@ -791,12 +845,15 @@ export class MiniGame {
 
         const symbols = this.symbolsByPortal.get(avatar.portalId) ?? []
         const portalSynergies = symbols.map((s) => s.synergy)
-        if (state.stageLevel > 1) {
-          state.shop.assignUniquePropositions(
-            player,
-            state.stageLevel,
-            portalSynergies
-          )
+        if (
+          state.specialGameRule === SpecialGameRule.DO_IT_ALL_YOURSELF &&
+          state.stageLevel === 0
+        ) {
+          const avatar = spawnDIAYAvatar(player)
+          player.board.set(avatar.id, avatar)
+          avatar.onAcquired(player)
+        } else {
+          state.shop.assignUniquePropositions(player, state, portalSynergies)
         }
       }
 
@@ -818,6 +875,12 @@ export class MiniGame {
     if (this.symbols) {
       this.symbols.forEach((symbol) => {
         this.symbols!.delete(symbol.id)
+      })
+    }
+
+    if (state.townEncounter === TownEncounters.WIGGLYTUFF) {
+      this.alivePlayers.forEach((player) => {
+        player.itemsProposition.push(...pickNRandomIn(MissionOrders, 3))
       })
     }
   }

@@ -1,8 +1,8 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
-import { Tooltip } from "react-tooltip"
+
+import { WeatherThreshold } from "../../../../../config"
 import { getPokemonData } from "../../../../../models/precomputed/precomputed-pokemon-data"
-import { WeatherThreshold } from "../../../../../types/Config"
 import { Pkm } from "../../../../../types/enum/Pokemon"
 import {
   SynergyAssociatedToWeather,
@@ -11,7 +11,7 @@ import {
 import { getPortraitSrc } from "../../../../../utils/avatar"
 import { addIconsToDescription } from "../../utils/descriptions"
 import { cc } from "../../utils/jsx"
-import { GamePokemonDetail } from "../game/game-pokemon-detail"
+import { GamePokemonDetailTooltip } from "../game/game-pokemon-detail"
 import SynergyIcon from "../icons/synergy-icon"
 
 export default function WikiWeather() {
@@ -52,15 +52,10 @@ export default function WikiWeather() {
                         additional: p.additional,
                         regional: p.regional
                       })}
-                      data-tooltip-id={`pokemon-detail-${p.index}`}
+                      data-tooltip-id="game-pokemon-detail-tooltip"
+                      data-tooltip-content={p.name}
                     >
                       <img src={getPortraitSrc(p.index)} />
-                      <Tooltip
-                        id={`pokemon-detail-${p.index}`}
-                        className="custom-theme-tooltip game-pokemon-detail-tooltip"
-                      >
-                        <GamePokemonDetail pokemon={p.name} />
-                      </Tooltip>
                     </div>
                   </li>
                 ))}
@@ -68,21 +63,23 @@ export default function WikiWeather() {
           </li>
         ))}
       </ul>
+      <GamePokemonDetailTooltip origin="wiki" />
     </div>
   )
 }
 
 const pokemonsInfluencingWeather = new Map([
-  [Weather.SUN, [Pkm.HO_OH, Pkm.MOLTRES, Pkm.SOLROCK, Pkm.CASTFORM_SUN]],
-  [Weather.NIGHT, [Pkm.LUNATONE, Pkm.SHADOW_LUGIA]],
+  [Weather.ZENITH, [Pkm.SHAYMIN_SKY, Pkm.CASTFORM_SUN]],
   [
-    Weather.WINDY,
-    [Pkm.LUGIA, Pkm.LANDORUS, Pkm.THUNDURUS, Pkm.TORNADUS, Pkm.ENAMORUS]
+    Weather.DROUGHT,
+    [Pkm.PRIMAL_GROUDON, Pkm.MOLTRES, Pkm.SOLROCK, Pkm.CASTFORM_SUN]
   ],
-  [Weather.MISTY, [Pkm.ENAMORUS, Pkm.XERNEAS]],
+  [Weather.NIGHT, [Pkm.LUNATONE]],
+  [Weather.WINDY, [Pkm.LANDORUS, Pkm.THUNDURUS, Pkm.TORNADUS, Pkm.ENAMORUS]],
+  [Weather.MISTY, [Pkm.ENAMORUS]],
   [Weather.RAIN, [Pkm.PRIMAL_KYOGRE, Pkm.CASTFORM_RAIN]],
   [Weather.SNOW, [Pkm.ARTICUNO, Pkm.CASTFORM_HAIL, Pkm.TORNADUS]],
-  [Weather.STORM, [Pkm.ZAPDOS, Pkm.THUNDURUS]],
+  [Weather.STORM, [Pkm.ZAPDOS, Pkm.THUNDURUS, Pkm.PRIMAL_KYOGRE]],
   [Weather.SANDSTORM, [Pkm.LANDORUS, Pkm.PRIMAL_GROUDON]],
   [Weather.NEUTRAL, [Pkm.MEGA_RAYQUAZA]]
 ])

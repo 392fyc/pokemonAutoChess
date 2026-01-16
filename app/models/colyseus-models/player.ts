@@ -1,7 +1,13 @@
 import { ArraySchema, MapSchema, Schema, type } from "@colyseus/schema"
-import { getUnitPowerScore } from "../../core/bot-logic"
+import { nanoid } from "nanoid"
+import {
+  AdditionalPicksStages,
+  BOARD_HEIGHT,
+  BOARD_WIDTH,
+  RegionDetails,
+  SynergyTriggers
+} from "../../config"
 import { CollectionUtils } from "../../core/collection"
-import { createRandomEgg } from "../../core/eggs"
 import {
   ConditionBasedEvolutionRule,
   carryOverPermanentStats
@@ -10,13 +16,7 @@ import { FlowerPot, FlowerPots, MulchStockCaps } from "../../core/flower-pots"
 import { PokemonEntity } from "../../core/pokemon-entity"
 import type GameState from "../../rooms/states/game-state"
 import { IPlayer, Role, Title } from "../../types"
-import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  SynergyTriggers,
-  UniquePool
-} from "../../types/Config"
-import { DungeonDetails, DungeonPMDO } from "../../types/enum/Dungeon"
+import { DungeonPMDO } from "../../types/enum/Dungeon"
 import {
   BattleResult,
   PokemonActionState,
@@ -25,29 +25,33 @@ import {
 } from "../../types/enum/Game"
 import {
   ArtificialItems,
-  Berries,
   HMs,
   Item,
-  ItemComponents,
-  SynergyGems,
+  ItemComponentsNoFossilOrScarf,
+  MissionOrder,
+  NonSpecialBerries,
+  ScarfItem,
+  SynergyGemsBuried,
   SynergyGivenByItem,
   TMs,
+  ToolsBuried,
   WeatherRocks
 } from "../../types/enum/Item"
 import { Passive } from "../../types/enum/Passive"
 import {
   Pkm,
-  PkmDuos,
   PkmFamily,
   PkmIndex,
   type PkmProposition,
+  PkmRegionalBaseVariants,
   PkmRegionalVariants
 } from "../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
+import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
 import { Weather } from "../../types/enum/Weather"
 import { IPokemonCollectionItemMongo } from "../../types/interfaces/UserMetadata"
-import { removeInArray } from "../../utils/array"
+import { isIn, removeInArray } from "../../utils/array"
 import { getPokemonCustomFromAvatar } from "../../utils/avatar"
 import { getFirstAvailablePositionInBench, isOnBench } from "../../utils/board"
 import { max, min } from "../../utils/number"
@@ -55,8 +59,7 @@ import {
   chance,
   pickNRandomIn,
   pickRandomIn,
-  shuffleArray,
-  simpleHashSeededCoinFlip
+  shuffleArray
 } from "../../utils/random"
 import { resetArraySchema, values } from "../../utils/schemas"
 import { Effects } from "../effects"
@@ -65,13 +68,12 @@ import {
   getPokemonData,
   PRECOMPUTED_REGIONAL_MONS
 } from "../precomputed/precomputed-pokemon-data"
-import { PRECOMPUTED_POKEMONS_PER_RARITY } from "../precomputed/precomputed-rarity"
-import { getRegularsTier1 } from "../shop"
 import ExperienceManager from "./experience-manager"
 import HistoryItem from "./history-item"
 import { Pokemon, PokemonClasses } from "./pokemon"
 import { PokemonCustoms } from "./pokemon-customs"
 import Synergies, { computeSynergies } from "./synergies"
+import { Wanderer } from "./wanderer"
 
 export default class Player extends Schema implements IPlayer {
   @type("string") id: string
@@ -113,11 +115,7 @@ export default class Player extends Schema implements IPlayer {
   @type(["string"]) pveRewards = new ArraySchema<Item>()
   @type(["string"]) pveRewardsPropositions = new ArraySchema<Item>()
   @type("float32") loadingProgress: number = 0
-  @type(["string"]) berryTreesType: Item[] = [
-    pickRandomIn(Berries),
-    pickRandomIn(Berries),
-    pickRandomIn(Berries)
-  ]
+  @type(["string"]) berryTreesType: Item[] = pickNRandomIn(NonSpecialBerries, 3)
   @type(["uint8"]) berryTreesStages: number[] = [1, 1, 1]
   @type([Pokemon]) flowerPots: Pokemon[] = []
   @type("uint8") mulch: number = 0
@@ -134,6 +132,11 @@ export default class Player extends Schema implements IPlayer {
   @type("float32") eggChance: number = 0
   @type("float32") goldenEggChance: number = 0
   @type("float32") wildChance: number = 0
+  @type("uint8") cellBattery: number = 0
+  @type({ map: Wanderer }) wanderers: Map<string, Wanderer> = new Map<
+    string,
+    Wanderer
+  >()
   commonRegionalPool: Pkm[] = new Array<Pkm>()
   uncommonRegionalPool: Pkm[] = new Array<Pkm>()
   rareRegionalPool: Pkm[] = new Array<Pkm>()
@@ -143,6 +146,7 @@ export default class Player extends Schema implements IPlayer {
   opponents: Map<string, number> = new Map<string, number>()
   titles: Set<Title> = new Set<Title>()
   artificialItems: Item[] = pickNRandomIn(ArtificialItems, 3)
+  scarvesItems: Item[] = []
   buriedItems: (Item | null)[] = initBuriedItems()
   tms: (Item | null)[] = pickRandomTMs()
   weatherRocks: Item[] = []
@@ -161,6 +165,9 @@ export default class Player extends Schema implements IPlayer {
     returnStage: number
     ticketLevel: number
   }[] = []
+  specialGameRule: SpecialGameRule | null = null // its easier to duplicate this here and in gamestate than passing gamestate everywhere we need it
+  shopsSinceLastUnownShop: number = 0
+  regions: DungeonPMDO[] = []
 
   constructor(
     id: string,
@@ -187,6 +194,7 @@ export default class Player extends Schema implements IPlayer {
     this.title = title
     this.role = role
     this.pokemonCustoms = new PokemonCustoms(pokemonCollection)
+    this.specialGameRule = state.specialGameRule
     this.flowerPots = initFlowerPots(this)
     const avatarCustom = getPokemonCustomFromAvatar(avatar)
     const avatarInCollection = pokemonCollection.get(
@@ -222,49 +230,19 @@ export default class Player extends Schema implements IPlayer {
       }
     }
 
-    if (state.specialGameRule === SpecialGameRule.UNIQUE_STARTER) {
-      const randomUnique = pickRandomIn(UniquePool)
-      const pokemonsObtained: Pokemon[] = (
-        randomUnique in PkmDuos ? PkmDuos[randomUnique] : [randomUnique]
-      ).map((p) => PokemonFactory.createPokemonFromName(p, this))
-      this.firstPartner = pokemonsObtained[0].name
-      pokemonsObtained.forEach((pokemon) => {
-        pokemon.positionX = getFirstAvailablePositionInBench(this.board) ?? 0
-        pokemon.positionY = 0
-        this.board.set(pokemon.id, pokemon)
-        pokemon.onAcquired(this)
-      })
-    } else if (state.specialGameRule === SpecialGameRule.DO_IT_ALL_YOURSELF) {
-      const avatar = spawnDIAYAvatar(this)
-      this.board.set(avatar.id, avatar)
-      avatar.onAcquired(this)
-    } else if (state.specialGameRule === SpecialGameRule.FIRST_PARTNER) {
-      const coinFlip = simpleHashSeededCoinFlip(state.preparationId)
-      const rarityPartner = coinFlip ? Rarity.COMMON : Rarity.UNCOMMON
-      const partnersPropositions = pickNRandomIn(
-        getRegularsTier1(PRECOMPUTED_POKEMONS_PER_RARITY[rarityPartner]).filter(
-          (p) => getPokemonData(p).stages === 3
-        ),
-        3
-      )
-      this.pokemonsProposition.push(...partnersPropositions)
-    } else {
-      this.firstPartner = state.shop.getRandomPokemonFromPool(
-        Rarity.COMMON,
-        this
-      )
-      const pokemon = PokemonFactory.createPokemonFromName(
-        this.firstPartner,
-        this
-      )
-      pokemon.positionX = getFirstAvailablePositionInBench(this.board) ?? 0
-      pokemon.positionY = 0
-      this.board.set(pokemon.id, pokemon)
-      pokemon.onAcquired(this)
-    }
-
     if (state.specialGameRule === SpecialGameRule.SLAMINGO) {
-      for (let i = 0; i < 4; i++) this.items.push(pickRandomIn(ItemComponents))
+      for (let i = 0; i < 4; i++)
+        this.items.push(pickRandomIn(ItemComponentsNoFossilOrScarf))
+    }
+  }
+
+  addExperience(value: number) {
+    this.experienceManager.addExperience(value)
+    if (
+      this.experienceManager.level >= 9 &&
+      this.items.includes(Item.MISSION_ORDER_BLUE)
+    ) {
+      this.completeMissionOrder(Item.MISSION_ORDER_BLUE)
     }
   }
 
@@ -283,6 +261,12 @@ export default class Player extends Schema implements IPlayer {
         pokemon.evolutionRule.tryEvolve(pokemon, this, 0) // for Goldengo evolution ; TOFIX: pass stagelevel instead of 0
       }
     })
+    if (
+      this.totalMoneyEarned >= 200 &&
+      this.items.includes(Item.MISSION_ORDER_GOLD)
+    ) {
+      this.completeMissionOrder(Item.MISSION_ORDER_GOLD)
+    }
   }
 
   addBattleResult(
@@ -318,7 +302,7 @@ export default class Player extends Schema implements IPlayer {
         newPokemon.shiny = true
       }
     })
-    newPokemon.meal = pokemon.meal
+    newPokemon.dishes = pokemon.dishes
     newPokemon.positionX = pokemon.positionX
     newPokemon.positionY = pokemon.positionY
     this.board.delete(pokemon.id)
@@ -332,17 +316,26 @@ export default class Player extends Schema implements IPlayer {
   updateSynergies() {
     const pokemons: Pokemon[] = values(this.board)
     const previousSynergies = this.synergies.toMap()
-    let updatedSynergies = computeSynergies(pokemons, this.bonusSynergies)
+    let updatedSynergies = computeSynergies(
+      pokemons,
+      this.bonusSynergies,
+      this.specialGameRule
+    )
+
+    const normalNeedsRecomputing = this.updateScarves(
+      previousSynergies,
+      updatedSynergies
+    )
 
     const artifNeedsRecomputing = this.updateArtificialItems(
       previousSynergies,
       updatedSynergies
     )
-    if (artifNeedsRecomputing) {
+    if (artifNeedsRecomputing || normalNeedsRecomputing) {
       /* NOTE: computing twice is costly in performance but the safest way to get the synergies
-      right after losing an artificial item, since many edgecases may need to be adressed when 
-      losing a type (Axew double dragon + artif item for example) ; it's not as easy as just 
-      decrementing by 1 in updatedSynergies map count
+      right after losing an artificial item or a scarf, since many edgecases may need to be 
+      adressed when losing a type (Axew double dragon + artif item for example) ;
+      it's not as easy as just decrementing by 1 in updatedSynergies map count
       */
       updatedSynergies = computeSynergies(pokemons, this.bonusSynergies)
     }
@@ -389,6 +382,20 @@ export default class Player extends Schema implements IPlayer {
 
     this.updateWildChance()
     this.effects.update(this.synergies, this.board)
+
+    if (
+      this.items.includes(Item.MISSION_ORDER_GREEN) &&
+      this.synergies.countActiveSynergies() >= 8
+    ) {
+      this.completeMissionOrder(Item.MISSION_ORDER_GREEN)
+    }
+
+    if (
+      this.items.includes(Item.MISSION_ORDER_PINK) &&
+      values(this.board).filter((p) => p.stars >= 3).length >= 5
+    ) {
+      this.completeMissionOrder(Item.MISSION_ORDER_PINK)
+    }
   }
 
   updateArtificialItems(
@@ -444,13 +451,71 @@ export default class Player extends Schema implements IPlayer {
     return needsRecomputingSynergiesAgain
   }
 
+  updateScarves(
+    previousSynergies: Map<Synergy, number>,
+    updatedSynergies: Map<Synergy, number>
+  ): boolean {
+    let needsRecomputingSynergiesAgain = false
+    const previousNbScarves = SynergyTriggers[Synergy.NORMAL].filter(
+      (n) => (previousSynergies.get(Synergy.NORMAL) ?? 0) >= n
+    ).length
+
+    const newNbScarves = SynergyTriggers[Synergy.NORMAL].filter(
+      (n) => (updatedSynergies.get(Synergy.NORMAL) ?? 0) >= n
+    ).length
+
+    if (newNbScarves > previousNbScarves) {
+      // some scarves are gained
+      while (this.scarvesItems.length < newNbScarves) {
+        // initialize scarves items if not done yet
+        this.scarvesItems.push(Item.SILK_SCARF)
+      }
+
+      const gainedScarves = this.scarvesItems.slice(
+        previousNbScarves,
+        newNbScarves
+      )
+      gainedScarves.forEach((item) => {
+        this.items.push(item)
+      })
+    } else if (newNbScarves < previousNbScarves) {
+      // some scarves are lost
+      const lostScarves = this.scarvesItems.slice(
+        newNbScarves,
+        previousNbScarves
+      )
+
+      const removeScarf = (item: ScarfItem) => {
+        // first check held items
+        const pokemons = values(this.board)
+        for (const pokemon of pokemons) {
+          if (pokemon.items.has(item)) {
+            pokemon.removeItem(item, this)
+
+            if (item in SynergyGivenByItem && !isOnBench(pokemon)) {
+              needsRecomputingSynergiesAgain = true
+            }
+            return // break for loop to remove only one
+          }
+        }
+
+        // if not found check player item bench
+        removeInArray<Item>(this.items, item)
+      }
+
+      lostScarves.forEach(removeScarf)
+    }
+
+    return needsRecomputingSynergiesAgain
+  }
+
   updateWeatherRocks() {
     const nbWeatherRocks = this.synergies.getSynergyStep(Synergy.ROCK)
 
     let weatherRockInInventory
     do {
       weatherRockInInventory = this.items.findIndex((item, index) =>
-        WeatherRocks.includes(item)
+        isIn(WeatherRocks, item)
       )
       if (weatherRockInInventory != -1) {
         this.items.splice(weatherRockInInventory, 1)
@@ -566,7 +631,7 @@ export default class Player extends Schema implements IPlayer {
 
       if (state.specialGameRule === SpecialGameRule.REGIONAL_SPECIALTIES) {
         if (previousMap) {
-          const { synergies: previousSynergies } = DungeonDetails[previousMap]
+          const { synergies: previousSynergies } = RegionDetails[previousMap]
           previousSynergies.forEach((synergy) => {
             this.bonusSynergies.set(
               synergy,
@@ -575,7 +640,7 @@ export default class Player extends Schema implements IPlayer {
           })
         }
 
-        const { synergies, regionalSpeciality } = DungeonDetails[this.map]
+        const { synergies, regionalSpeciality } = RegionDetails[this.map]
         synergies.forEach((synergy) => {
           this.bonusSynergies.set(
             synergy,
@@ -585,8 +650,8 @@ export default class Player extends Schema implements IPlayer {
         this.updateSynergies()
         if (regionalSpeciality) {
           this.board.forEach((pokemon) => {
-            if (pokemon.canEat) {
-              pokemon.meal = regionalSpeciality
+            if (pokemon.canEat && !pokemon.dishes.has(regionalSpeciality)) {
+              pokemon.dishes.add(regionalSpeciality)
             }
           })
         }
@@ -608,23 +673,22 @@ export default class Player extends Schema implements IPlayer {
         if (
           cloakTypes.some(
             (type) =>
-              DungeonDetails[this.map]?.synergies.includes(type) === false
+              RegionDetails[this.map]?.synergies.includes(type) === false
           )
         ) {
           const burmyEvolving = burmys[0]
-          burmyEvolving.evolutionRule = new ConditionBasedEvolutionRule(
-            () => true,
-            () => Pkm.MOTHIM
-          )
-          burmyEvolving.evolutionRule.tryEvolve(
+          burmyEvolving.evolutionRule.divergentEvolution = () => Pkm.MOTHIM
+
+          const mothim = burmyEvolving.evolutionRule.evolve(
             burmyEvolving,
             this,
             state.stageLevel
           )
-          burmys.slice(1).forEach((burmyToRemove) => {
-            this.board.delete(burmyToRemove.id)
-          })
-          this.updateSynergies()
+          burmyEvolving.evolutionRule.afterEvolve(
+            mothim,
+            this,
+            state.stageLevel
+          )
         }
       }
     }
@@ -638,6 +702,26 @@ export default class Player extends Schema implements IPlayer {
       newRegionalPokemons.filter((p, index, array) => {
         const pkm = getPokemonData(PkmFamily[p])
         const evolution = pkm.evolution
+        const baseVariant = PkmRegionalBaseVariants[p]
+        if (baseVariant) {
+          const basePkm = getPokemonData(baseVariant)
+          if (basePkm.additional) {
+            const addpickStages = {
+              [Rarity.UNCOMMON]: AdditionalPicksStages[0],
+              [Rarity.RARE]: AdditionalPicksStages[1],
+              [Rarity.EPIC]: AdditionalPicksStages[2]
+            }
+            const addPickStage = addpickStages[basePkm.rarity]
+            if (
+              addPickStage > 0 &&
+              (state.stageLevel < addPickStage ||
+                state.additionalPokemons.includes(baseVariant) === false)
+            ) {
+              return false // do not show the regional variant if its base variant is not in additional picks
+            }
+          }
+        }
+
         return (
           pkm.rarity !== Rarity.UNIQUE && // do not show uniques in regional pokemons
           pkm.rarity !== Rarity.LEGENDARY && // do not show legendaries in regional pokemons
@@ -700,6 +784,7 @@ export default class Player extends Schema implements IPlayer {
   }
 
   getFinalizedLines(): Set<Pkm> {
+    if (this.specialGameRule === SpecialGameRule.FAMILY_OUTING) return new Set() // in family outing mode, do not remove finished lines from shop
     const finals = new Set(
       values(this.board)
         .filter((pokemon) => pokemon.final)
@@ -712,6 +797,33 @@ export default class Player extends Schema implements IPlayer {
     }
     return finals
   }
+
+  completeMissionOrder(missionOrder: MissionOrder) {
+    removeInArray<Item>(this.items, missionOrder)
+    const id = nanoid()
+    this.wanderers.set(
+      id,
+      new Wanderer({
+        id,
+        shiny: false,
+        pkm: Pkm.CHATOT,
+        type: WandererType.DIALOG,
+        behavior: WandererBehavior.SPECTATE
+      })
+    )
+
+    setTimeout(() => {
+      this.addMoney(30, true, null)
+    }, 7000)
+  }
+
+  chargeCellBattery(amount: number) {
+    this.cellBattery += amount
+    if (this.cellBattery >= 100) {
+      this.items.push(Item.CELL_BATTERY)
+      this.cellBattery %= 100
+    }
+  }
 }
 
 function pickRandomTMs() {
@@ -723,24 +835,10 @@ function pickRandomTMs() {
 
 function initBuriedItems() {
   const buriedItems: (Item | null)[] = new Array(24).fill(null)
-  const possibleArtificialBuriedItems = [
-    Item.TOXIC_ORB,
-    Item.HARD_STONE,
-    Item.METAL_COAT,
-    Item.EXPLORER_KIT,
-    Item.ROTOM_PHONE,
-    Item.SILK_SCARF,
-    Item.TINY_MUSHROOM,
-    Item.INCENSE,
-    Item.ELECTIRIZER,
-    Item.MAGMARIZER,
-    Item.MAX_ELIXIR,
-    Item.EXP_SHARE
-  ]
 
   // 3 synergy gems
   for (let i = 0; i < 3; i++) {
-    buriedItems[i] = pickRandomIn(SynergyGems)
+    buriedItems[i] = pickRandomIn(SynergyGemsBuried)
   }
 
   // 4 trash (Trash, Leftovers, Coin, Nugget, Fossil Stone)
@@ -754,9 +852,9 @@ function initBuriedItems() {
     ])
   }
 
-  // 1 precious (artificial item, treasure box, big nugget)
+  // 1 precious (tool, treasure box, big nugget)
   buriedItems[7] = chance(1 / 2)
-    ? pickRandomIn(possibleArtificialBuriedItems)
+    ? pickRandomIn(ToolsBuried)
     : pickRandomIn([Item.TREASURE_BOX, Item.BIG_NUGGET])
 
   shuffleArray(buriedItems)
@@ -775,88 +873,4 @@ function initFlowerPots(player: Player) {
     pokemon.action = PokemonActionState.SLEEP
     return pokemon
   })
-}
-
-function spawnDIAYAvatar(player: Player): Pokemon {
-  const {
-    name,
-    emotion,
-    shiny = false
-  } = getPokemonCustomFromAvatar(player.avatar)
-  player.firstPartner = name
-  let powerScore = getUnitPowerScore(name)
-
-  switch (player.firstPartner) {
-    case Pkm.AEGISLASH_BLADE:
-      player.firstPartner = Pkm.AEGISLASH
-      break
-
-    case Pkm.HOOPA_UNBOUND:
-      player.firstPartner = Pkm.HOOPA
-      break
-
-    case Pkm.MINIOR_KERNEL_BLUE:
-    case Pkm.MINIOR_KERNEL_GREEN:
-    case Pkm.MINIOR_KERNEL_ORANGE:
-    case Pkm.MINIOR_KERNEL_RED:
-      player.firstPartner = Pkm.MINIOR
-      break
-
-    case Pkm.MORPEKO_HANGRY:
-      player.firstPartner = Pkm.MORPEKO
-      break
-
-    case Pkm.DARMANITAN_ZEN:
-      player.firstPartner = Pkm.DARMANITAN
-      break
-
-    case Pkm.COSMOG:
-    case Pkm.POIPOLE:
-    case Pkm.CHIMECHO:
-    case Pkm.GIMMIGHOUL:
-      powerScore = 5
-      break
-
-    case Pkm.COSMOEM:
-      powerScore = 6
-      break
-
-    case Pkm.NAGANADEL:
-    case Pkm.GHOLDENGO:
-      powerScore = 8
-      break
-  }
-
-  let avatar: Pokemon
-  if (player.firstPartner === Pkm.EGG) {
-    avatar = createRandomEgg(player, false)
-    powerScore = 5
-  } else {
-    avatar = PokemonFactory.createPokemonFromName(player.firstPartner, {
-      emotion,
-      shiny
-    })
-  }
-
-  avatar.positionX = getFirstAvailablePositionInBench(player.board) ?? 0
-  avatar.positionY = 0
-
-  if (avatar.name === Pkm.EGG) {
-    powerScore = 5
-    if (avatar.shiny) {
-      player.money = 1
-    }
-  }
-  if (avatar.rarity === Rarity.HATCH) {
-    powerScore = [5, 6, 7][avatar.stars] ?? 7
-  }
-  if (avatar.rarity === Rarity.SPECIAL) {
-    powerScore = [1, 3, 7, 7][avatar.stars] ?? 7
-  }
-  if (powerScore < 5) {
-    player.money += 55 - Math.round(10 * powerScore)
-  }
-  const bonusHP = Math.round(150 - powerScore * 30)
-  avatar.hp = min(10)(avatar.hp + bonusHP)
-  return avatar
 }

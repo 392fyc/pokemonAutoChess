@@ -2,14 +2,14 @@ import React from "react"
 import ReactDOM from "react-dom"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "react-tooltip"
-import { PVEStages } from "../../../../../models/pve-stages"
-import { Emotion } from "../../../../../types"
 import {
   AdditionalPicksStages,
   ItemCarouselStages,
-  PortalCarouselStages
-} from "../../../../../types/Config"
-import { DungeonDetails } from "../../../../../types/enum/Dungeon"
+  PortalCarouselStages,
+  RegionDetails
+} from "../../../../../config"
+import { PVEStages } from "../../../../../models/pve-stages"
+import { Emotion } from "../../../../../types"
 import { BattleResult, GamePhaseState } from "../../../../../types/enum/Game"
 import { PkmIndex } from "../../../../../types/enum/Pokemon"
 import { SynergyAssociatedToWeather } from "../../../../../types/enum/Weather"
@@ -18,10 +18,11 @@ import { min } from "../../../../../utils/number"
 import { selectCurrentPlayer, useAppSelector } from "../../../hooks"
 import { addIconsToDescription } from "../../utils/descriptions"
 import { cc } from "../../utils/jsx"
+import { GameModeIcon } from "../icons/game-mode-icon"
 import SynergyIcon from "../icons/synergy-icon"
+import PokemonPortrait from "../pokemon-portrait"
 import TimerBar from "./game-timer-bar"
 import "./game-stage-info.css"
-import PokemonPortrait from "../pokemon-portrait"
 
 export default function GameStageInfo() {
   const { t } = useTranslation()
@@ -30,6 +31,7 @@ export default function GameStageInfo() {
 
   const currentPlayer = useAppSelector(selectCurrentPlayer)
   const stageLevel = useAppSelector((state) => state.game.stageLevel)
+  const gameMode = useAppSelector((state) => state.network.game?.state.gameMode)
 
   if (!currentPlayer) return null
 
@@ -115,11 +117,9 @@ export default function GameStageInfo() {
                 place="bottom"
               >
                 <div style={{ display: "flex", alignContent: "center" }}>
-                  {DungeonDetails[currentPlayer.map].synergies.map(
-                    (synergy) => (
-                      <SynergyIcon type={synergy} key={"map_type_" + synergy} />
-                    )
-                  )}
+                  {RegionDetails[currentPlayer.map].synergies.map((synergy) => (
+                    <SynergyIcon type={synergy} key={"map_type_" + synergy} />
+                  ))}
                   <p>{t(`map.${currentPlayer.map}`)}</p>
                 </div>
               </Tooltip>,
@@ -150,6 +150,26 @@ export default function GameStageInfo() {
               document.body
             )}
             <img src={`/assets/icons/weather/${weather.toLowerCase()}.svg`} />
+          </div>
+        )}
+
+        {gameMode && (
+          <div
+            className="game-mode-information"
+            data-tooltip-id="detail-game-mode"
+          >
+            {ReactDOM.createPortal(
+              <Tooltip
+                id="detail-game-mode"
+                className="custom-theme-tooltip"
+                place="bottom"
+              >
+                <p>{t(`game_modes.${gameMode}`)}</p>
+                <p>{t(`game_modes_descriptions.${gameMode}`)}</p>
+              </Tooltip>,
+              document.body
+            )}
+            <GameModeIcon gameMode={gameMode} />
           </div>
         )}
 

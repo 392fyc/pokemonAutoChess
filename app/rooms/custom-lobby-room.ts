@@ -2,6 +2,13 @@ import { Dispatcher } from "@colyseus/command"
 import { Client, IRoomCache, matchMaker, Room, subscribeLobby } from "colyseus"
 import { CronJob } from "cron"
 import admin from "firebase-admin"
+import {
+  INACTIVITY_TIMEOUT,
+  MAX_CONCURRENT_PLAYERS_ON_LOBBY,
+  MAX_CONCURRENT_PLAYERS_ON_SERVER,
+  TOURNAMENT_CLEANUP_DELAY,
+  TOURNAMENT_REGISTRATION_TIME
+} from "../config"
 import Message from "../models/colyseus-models/message"
 import { TournamentSchema } from "../models/colyseus-models/tournament"
 import { IBot } from "../models/mongo-models/bot-v2"
@@ -9,13 +16,6 @@ import ChatV2 from "../models/mongo-models/chat-v2"
 import Tournament from "../models/mongo-models/tournament"
 import UserMetadata from "../models/mongo-models/user-metadata"
 import { Emotion, Role, Title, Transfer } from "../types"
-import {
-  INACTIVITY_TIMEOUT,
-  MAX_CONCURRENT_PLAYERS_ON_LOBBY,
-  MAX_CONCURRENT_PLAYERS_ON_SERVER,
-  TOURNAMENT_CLEANUP_DELAY,
-  TOURNAMENT_REGISTRATION_TIME
-} from "../types/Config"
 import { CloseCodes } from "../types/enum/CloseCodes"
 import { GameMode } from "../types/enum/Game"
 import { Language } from "../types/enum/Language"
@@ -385,10 +385,6 @@ export default class CustomLobbyRoom extends Room<LobbyState> {
         })
       }
     )
-
-    /*this.presence.subscribe("ranked-lobby-winner", (player: IPlayer) => {
-      this.state.addAnnouncement(`${player.name} won the ranked match !`)
-    })*/
 
     this.presence.subscribe("announcement", (message: string) => {
       this.state.addAnnouncement(message)

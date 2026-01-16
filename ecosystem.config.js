@@ -1,6 +1,6 @@
 // ecosystem.config.js
 const os = require("os")
-require('dotenv').config()
+require("dotenv").config()
 
 module.exports = {
   apps: [
@@ -15,18 +15,18 @@ module.exports = {
       env_production: {
         NODE_ENV: "production"
       },
-      interpreter: "node@22.14.0"
+      interpreter: "node@24.11.1"
     }
   ],
   deploy: {
     production: {
       user: "root",
-      host: process.env.DEPLOY_HOSTS?.split(',') || [],
+      host: process.env.DEPLOY_HOSTS?.split(",") || [],
       ref: "origin/prod",
       repo: "https://github.com/keldaanCommunity/pokemonAutoChess.git",
       path: "/home/deploy",
       "post-deploy":
-        "source ~/.nvm/nvm.sh && nvm use 22.14.0 && npm install && npm run build" //nvm use 20.12.0 && npm run assetpack && nvm use 22.14.0 &&
+        "source ~/.nvm/nvm.sh && nvm install 24.11.1 && nvm use 24.11.1 && npm install && npm run build" //nvm use 20.12.0 && npm run assetpack && nvm use 22.14.0 &&
     }
   }
 }

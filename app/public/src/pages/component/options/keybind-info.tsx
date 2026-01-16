@@ -16,14 +16,17 @@ export default function KeybindInfo() {
   useEffect(() => {
     function onKeydown(e: KeyboardEvent) {
       if (currentlyRemapping === null) return
+
+      // Prevent page scroll / focus movement while capturing keys (arrows, space, etc.)
+      e.preventDefault()
+      e.stopPropagation()
+
       let key = e.key.toUpperCase()
       if (key === "ESCAPE") {
         setCurrentlyRemapping(null)
         return
       }
-      if (key === " ") {
-        key = "SPACE"
-      }
+      key = KEY_CODES_TO_PHASER_KEY_CODES[key] ?? key
       setPreferences((old) => ({
         keybindings: { ...old.keybindings, [currentlyRemapping]: key }
       }))
@@ -130,4 +133,17 @@ export default function KeybindInfo() {
       <p>{t("click_on_keybind_to_change_it")}</p>
     </div>
   )
+}
+
+const KEY_CODES_TO_PHASER_KEY_CODES: { [key: string]: string } = {
+  " ": "SPACE",
+  PAGEUP: "PAGE_UP",
+  PAGEDOWN: "PAGE_DOWN",
+
+  // Normalize arrow keys from DOM KeyboardEvent format to Phaser key names
+  // e.g. "ArrowLeft" -> "ARROWLEFT" -> "LEFT"
+  ARROWUP: "UP",
+  ARROWDOWN: "DOWN",
+  ARROWLEFT: "LEFT",
+  ARROWRIGHT: "RIGHT"
 }

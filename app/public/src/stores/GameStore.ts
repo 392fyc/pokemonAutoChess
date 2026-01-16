@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
+import { StageDuration } from "../../../config"
 import Simulation from "../../../core/simulation"
 import ExperienceManager from "../../../models/colyseus-models/experience-manager"
 import Synergies from "../../../models/colyseus-models/synergies"
@@ -9,7 +10,6 @@ import {
   IPlayer,
   ISimulation
 } from "../../../types"
-import { StageDuration } from "../../../types/Config"
 import { GamePhaseState, Team } from "../../../types/enum/Game"
 import { Item } from "../../../types/enum/Item"
 import { Pkm, PkmProposition } from "../../../types/enum/Pokemon"
@@ -221,8 +221,8 @@ export const gameSlice = createSlice({
       )
 
       if (playerToUpdate !== -1) {
-        state.players.at(playerToUpdate)!.synergies = new Map(
-          entries(action.payload.value)
+        state.players.at(playerToUpdate)!.synergies = new Synergies(
+          new Map(entries(action.payload.value))
         )
       }
     },
@@ -314,12 +314,14 @@ export const gameSlice = createSlice({
 
     removeDpsMeter: (
       state,
-      action: PayloadAction<{ team: Team; simulationId: string }>
+      action: PayloadAction<{ id: string; team: Team; simulationId: string }>
     ) => {
-      const { team, simulationId } = action.payload
+      const { id, team, simulationId } = action.payload
       if (state.currentSimulationId === simulationId) {
-        if (team === Team.BLUE_TEAM) state.blueDpsMeter = new Array<IDps>()
-        if (team === Team.RED_TEAM) state.redDpsMeter = new Array<IDps>()
+        if (team === Team.BLUE_TEAM)
+          state.blueDpsMeter = state.blueDpsMeter.filter((dps) => dps.id !== id)
+        if (team === Team.RED_TEAM)
+          state.redDpsMeter = state.redDpsMeter.filter((dps) => dps.id !== id)
       }
     },
 

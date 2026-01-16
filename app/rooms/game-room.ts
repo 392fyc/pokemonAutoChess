@@ -3,6 +3,18 @@ import { MapSchema } from "@colyseus/schema"
 import { Client, Room } from "colyseus"
 import admin from "firebase-admin"
 import { nanoid } from "nanoid"
+import {
+  AdditionalPicksStages,
+  ALLOWED_GAME_RECONNECTION_TIME,
+  EventPointsPerRank,
+  ExpPlace,
+  LegendaryPool,
+  MAX_EVENT_POINTS,
+  MAX_SIMULATION_DELTA_TIME,
+  MinStageForGameToCount,
+  PortalCarouselStages,
+  UniquePool
+} from "../config"
 import { computeElo } from "../core/elo"
 import { CountEvolutionRule, ItemEvolutionRule } from "../core/evolution-rules"
 import { MiniGame } from "../core/mini-game"
@@ -16,6 +28,7 @@ import {
 import { IGameUser } from "../models/colyseus-models/game-user"
 import Player from "../models/colyseus-models/player"
 import { Pokemon } from "../models/colyseus-models/pokemon"
+import { Wanderer } from "../models/colyseus-models/wanderer"
 import { BotV2, IDetailledPokemon } from "../models/mongo-models/bot-v2"
 import DetailledStatistic from "../models/mongo-models/detailled-statistic-v2"
 import UserMetadata from "../models/mongo-models/user-metadata"
@@ -41,20 +54,8 @@ import {
   Title,
   Transfer
 } from "../types"
-import {
-  AdditionalPicksStages,
-  ALLOWED_GAME_RECONNECTION_TIME,
-  EloRank,
-  EventPointsPerRank,
-  ExpPlace,
-  LegendaryPool,
-  MAX_EVENT_POINTS,
-  MAX_SIMULATION_DELTA_TIME,
-  MinStageForGameToCount,
-  PortalCarouselStages,
-  UniquePool
-} from "../types/Config"
 import { CloseCodes } from "../types/enum/CloseCodes"
+import { EloRank } from "../types/enum/EloRank"
 import { GameMode, GamePhaseState, PokemonActionState } from "../types/enum/Game"
 import { Item } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
@@ -68,7 +69,7 @@ import {
 } from "../types/enum/Pokemon"
 import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy } from "../types/enum/Synergy"
-import { Wanderer } from "../types/enum/Wanderer"
+import { WandererBehavior, WandererType } from "../types/enum/Wanderer"
 import { IPokemonCollectionItemMongo } from "../types/interfaces/UserMetadata"
 import { removeInArray } from "../utils/array"
 import { getAvatarString } from "../utils/avatar"
@@ -80,7 +81,7 @@ import { isValidDate } from "../utils/date"
 import { formatMinMaxRanks } from "../utils/elo"
 import { logger } from "../utils/logger"
 import { clamp } from "../utils/number"
-import { shuffleArray } from "../utils/random"
+import { chance, shuffleArray } from "../utils/random"
 import { values } from "../utils/schemas"
 import {
   OnBuyPokemonCommand,
@@ -226,10 +227,10 @@ export default class GameRoom extends Room<GameState> {
       // Remove all Deerling forms except the current season's
       this.additionalRarePool = this.additionalRarePool.filter((p) => {
         if (
-          p === Pkm.DEERLING_SPRING && season !== "spring" ||
-          p === Pkm.DEERLING_SUMMER && season !== "summer" ||
-          p === Pkm.DEERLING_AUTUMN && season !== "autumn" ||
-          p === Pkm.DEERLING_WINTER && season !== "winter"
+          (p === Pkm.DEERLING_SPRING && season !== "spring") ||
+          (p === Pkm.DEERLING_SUMMER && season !== "summer") ||
+          (p === Pkm.DEERLING_AUTUMN && season !== "autumn") ||
+          (p === Pkm.DEERLING_WINTER && season !== "winter")
         ) {
           return false
         }
@@ -243,13 +244,13 @@ export default class GameRoom extends Room<GameState> {
 
     if (this.state.specialGameRule === SpecialGameRule.EVERYONE_IS_HERE) {
       this.additionalUncommonPool.forEach((p) =>
-        this.state.shop.addAdditionalPokemon(p)
+        this.state.shop.addAdditionalPokemon(p, this.state)
       )
       this.additionalRarePool.forEach((p) =>
-        this.state.shop.addAdditionalPokemon(p)
+        this.state.shop.addAdditionalPokemon(p, this.state)
       )
       this.additionalEpicPool.forEach((p) =>
-        this.state.shop.addAdditionalPokemon(p)
+        this.state.shop.addAdditionalPokemon(p, this.state)
       )
     }
 
@@ -337,6 +338,7 @@ export default class GameRoom extends Room<GameState> {
             playerId: client.auth.uid,
             index: message.id
           })
+          clearPendingGame(this.presence, client.auth.uid) // tryfix for reconnection leading to eject bug
         } catch (error) {
           logger.error("shop error", message, error)
         }
@@ -373,6 +375,7 @@ export default class GameRoom extends Room<GameState> {
             client: client,
             detail: message
           })
+          clearPendingGame(this.presence, client.auth.uid) // tryfix for reconnection leading to eject bug
         } catch (error) {
           const errorInformation = {
             updateBoard: true,
@@ -491,6 +494,8 @@ export default class GameRoom extends Room<GameState> {
     this.onMessage(Transfer.SPECTATE, (client, spectatedPlayerId: string) => {
       if (client.auth) {
         try {
+          if (!client.userData) client.userData = {}
+          client.userData.spectatedPlayerId = spectatedPlayerId
           this.dispatcher.dispatch(new OnSpectateCommand(), {
             id: client.auth.uid,
             spectatedPlayerId
@@ -521,7 +526,7 @@ export default class GameRoom extends Room<GameState> {
     })
 
     this.onMessage(
-      Transfer.WANDERER_CAUGHT,
+      Transfer.WANDERER_CLICKED,
       async (client, msg: { id: string }) => {
         if (client.auth) {
           try {
@@ -918,7 +923,6 @@ export default class GameRoom extends Room<GameState> {
           if (usr.elo === minElo && humans.length >= 8) {
             player.titles.add(Title.OUTSIDER)
           }
-          //this.presence.publish("ranked-lobby-winner", player)
         }
       }
 
@@ -991,7 +995,8 @@ export default class GameRoom extends Room<GameState> {
           playerId: dbrecord.id,
           elo: elo,
           synergies: synergiesMap,
-          gameMode: this.state.gameMode
+          gameMode: this.state.gameMode,
+          regions: player.regions
         })
 
         if (usr.eventFinishTime == null) {
@@ -1227,10 +1232,18 @@ export default class GameRoom extends Room<GameState> {
   ) {
     const player = this.state.players.get(playerId)
     if (!player || player.pokemonsProposition.length === 0) return
-    if (this.state.additionalPokemons.includes(pkm as Pkm)) return // already picked, probably a double click
+    if (
+      this.state.additionalPokemons.includes(pkm as Pkm) &&
+      this.state.specialGameRule !== SpecialGameRule.EVERYONE_IS_HERE
+    )
+      return // already picked, probably a double click
     if (
       UniquePool.includes(pkm) &&
-      this.state.stageLevel !== PortalCarouselStages[1]
+      this.state.stageLevel !== PortalCarouselStages[1] &&
+      !(
+        this.state.specialGameRule === SpecialGameRule.UNIQUE_STARTER &&
+        this.state.stageLevel <= 1
+      )
     )
       return // should not be pickable at this stage
     if (
@@ -1243,8 +1256,20 @@ export default class GameRoom extends Room<GameState> {
       pkm in PkmDuos ? PkmDuos[pkm] : [pkm]
     ).map((p) => PokemonFactory.createPokemonFromName(p, player))
 
+    const pokemon = pokemonsObtained[0]
+    const isEvolution =
+      pokemon.evolutionRule &&
+      pokemon.evolutionRule instanceof CountEvolutionRule &&
+      pokemon.evolutionRule.canEvolveIfGettingOne(pokemon, player)
+
     const freeSpace = getFreeSpaceOnBench(player.board)
-    if (freeSpace < pokemonsObtained.length && !bypassLackOfSpace) return // prevent picking if not enough space on bench
+
+    if (
+      freeSpace < pokemonsObtained.length &&
+      !bypassLackOfSpace &&
+      !isEvolution
+    )
+      return // prevent picking if not enough space on bench
 
     // at this point, the player is allowed to pick a proposition
     const selectedIndex = player.pokemonsProposition.indexOf(pkm)
@@ -1256,17 +1281,20 @@ export default class GameRoom extends Room<GameState> {
         const basePkm = (Object.keys(PkmRegionalVariants).find((p) =>
           PkmRegionalVariants[p].includes(pokemonsObtained[0].name)
         ) ?? pokemonsObtained[0].name) as Pkm
-        this.state.additionalPokemons.push(basePkm)
-        this.state.shop.addAdditionalPokemon(basePkm)
+        this.state.shop.addAdditionalPokemon(basePkm, this.state)
         player.regionalPokemons.push(pkm as Pkm)
       } else {
-        this.state.additionalPokemons.push(pkm as Pkm)
-        this.state.shop.addAdditionalPokemon(pkm)
+        this.state.shop.addAdditionalPokemon(pkm, this.state)
       }
 
       // update regional pokemons in case some regional variants of add picks are now available
       this.state.players.forEach((p) => p.updateRegionalPool(this.state, false))
+    }
 
+    if (
+      AdditionalPicksStages.includes(this.state.stageLevel) ||
+      this.state.stageLevel <= 1
+    ) {
       const selectedItem = player.itemsProposition[selectedIndex]
       if (player.itemsProposition.length > 0 && selectedItem != null) {
         player.items.push(selectedItem)
@@ -1274,16 +1302,19 @@ export default class GameRoom extends Room<GameState> {
       }
     }
 
-    if (
-      this.state.specialGameRule === SpecialGameRule.FIRST_PARTNER &&
-      this.state.stageLevel <= 1
-    ) {
+    if (this.state.stageLevel <= 1) {
       player.firstPartner = pokemonsObtained[0].name
     }
 
     pokemonsObtained.forEach((pokemon) => {
       const freeCellX = getFirstAvailablePositionInBench(player.board)
-      if (freeCellX !== null) {
+      if (isEvolution) {
+        pokemon.positionX = freeCellX ?? -1 // temporary position off the board just to handle evolution
+        pokemon.positionY = 0
+        player.board.set(pokemon.id, pokemon)
+        pokemon.onAcquired(player)
+        this.checkEvolutionsAfterPokemonAcquired(playerId)
+      } else if (freeCellX !== null) {
         pokemon.positionX = freeCellX
         pokemon.positionY = 0
         player.board.set(pokemon.id, pokemon)
@@ -1360,12 +1391,21 @@ export default class GameRoom extends Room<GameState> {
     }
   }
 
-  spawnWanderingPokemon(wandererNoId: Omit<Wanderer, "id">, player: Player) {
+  spawnWanderingPokemon({
+    pkm,
+    type,
+    behavior,
+    player
+  }: {
+    pkm: Pkm
+    type: WandererType
+    behavior: WandererBehavior
+    player: Player
+  }) {
     const client = this.clients.find((cli) => cli.auth.uid === player.id)
     if (!client) return
     const id = nanoid()
-    const wanderer: Wanderer = { ...wandererNoId, id }
-    this.state.wanderers.set(id, wanderer)
-    client.send(Transfer.WANDERER, wanderer)
+    const wanderer = new Wanderer({ id, pkm, type, behavior, shiny: chance(0.01) })
+    player.wanderers.set(id, wanderer)
   }
 }

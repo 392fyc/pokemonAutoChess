@@ -1,24 +1,18 @@
-import { MapSchema } from "@colyseus/schema"
+import { MapSchema, SetSchema } from "@colyseus/schema"
+import { SynergyTriggers } from "../../config"
 import { IPokemon } from "../../types"
-import { SynergyTriggers } from "../../types/Config"
-import {
-  ArtificialItems,
-  Item,
-  SynergyGivenByItem
-} from "../../types/enum/Item"
+import { SynergyGivenByItem } from "../../types/enum/Item"
 import { Passive } from "../../types/enum/Passive"
-import { Pkm, PkmFamily } from "../../types/enum/Pokemon"
+import { PkmFamily } from "../../types/enum/Pokemon"
+import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
 import { values } from "../../utils/schemas"
 
-export default class Synergies
-  extends MapSchema<number, Synergy>
-  implements Map<Synergy, number>
-{
-  constructor() {
+export default class Synergies extends MapSchema<number, Synergy> {
+  constructor(synergies?: Map<Synergy, number>) {
     super()
     Object.keys(Synergy).forEach((key) => {
-      this.set(key as Synergy, 0)
+      this.set(key as Synergy, synergies?.get(key as Synergy) ?? 0)
     })
   }
 
@@ -27,22 +21,38 @@ export default class Synergies
       .length
   }
 
+  hasSynergyActive(type: Synergy): boolean {
+    return (this.get(type) ?? 0) >= SynergyTriggers[type][0]
+  }
+
   countActiveSynergies() {
     let count = 0
-    this.forEach((value, key) => {
-      if (value >= SynergyTriggers[key][0]) {
+    this.forEach((value, synergy) => {
+      if (value >= SynergyTriggers[synergy][0]) {
         count++
       }
     })
     return count
   }
 
-  getTopSynergies(): Synergy[] {
+  getTopSynergies(amount?: number): Synergy[] {
     const synergiesSortedByLevel: [Synergy, number][] = []
     this.forEach((value, key) => {
       synergiesSortedByLevel.push([key as Synergy, value])
     })
-    synergiesSortedByLevel.sort(([s1, v1], [s2, v2]) => v2 - v1)
+    synergiesSortedByLevel.sort(([s1, v1], [s2, v2]) => {
+      if (v2 === v1) {
+        // if equal level, prioritize the highest amount of synergy steps reached
+        return (
+          SynergyTriggers[s2].filter((n) => n <= v2).length -
+          SynergyTriggers[s1].filter((n) => n <= v1).length
+        )
+      }
+      return v2 - v1
+    })
+    if (amount) {
+      return synergiesSortedByLevel.slice(0, amount).map(([s, v]) => s)
+    }
     const topSynergyCount = synergiesSortedByLevel[0][1]
     const topSynergies = synergiesSortedByLevel
       .filter(([s, v]) => v >= topSynergyCount)
@@ -61,25 +71,28 @@ export default class Synergies
 
 export function computeSynergies(
   board: IPokemon[],
-  bonusSynergies?: Map<Synergy, number>
+  bonusSynergies?: Map<Synergy, number>,
+  specialGameRule?: SpecialGameRule | null
 ): Map<Synergy, number> {
   const synergies = new Map<Synergy, number>()
   Object.keys(Synergy).forEach((key) => {
     synergies.set(key as Synergy, bonusSynergies?.get(key as Synergy) ?? 0)
   })
 
-  const typesPerFamily = new Map<Pkm, Set<Synergy>>()
+  const typesPerFamily = new Map<string, Set<Synergy>>()
 
-  board.forEach((pkm: IPokemon) => {
+  board.forEach((pkm: IPokemon, index) => {
     // reset dynamic synergies
     if (pkm.passive === Passive.PROTEAN2 || pkm.passive === Passive.PROTEAN3) {
-      //pkm.types.clear()
-      pkm.types.forEach((type) => pkm.types.delete(type))
+      pkm.types.clear()
     }
 
     addSynergiesGivenByItems(pkm)
     if (pkm.positionY != 0) {
-      const family = PkmFamily[pkm.name]
+      const family =
+        specialGameRule === SpecialGameRule.FAMILY_OUTING
+          ? `pkm${index}`
+          : PkmFamily[pkm.name]
       if (!typesPerFamily.has(family)) typesPerFamily.set(family, new Set())
       const types: Set<Synergy> = typesPerFamily.get(family)!
       pkm.types.forEach((type) => types.add(type))
@@ -93,14 +106,17 @@ export function computeSynergies(
   })
 
   function applyDragonDoubleTypes() {
-    const dragonDoubleTypes = new Map<Pkm, Set<Synergy>>()
-    board.forEach((pkm: IPokemon) => {
+    const dragonDoubleTypes = new Map<string, Set<Synergy>>()
+    board.forEach((pkm: IPokemon, index) => {
       if (
         pkm.positionY != 0 &&
         pkm.types.has(Synergy.DRAGON) &&
         pkm.types.size > 1
       ) {
-        const family = PkmFamily[pkm.name]
+        const family =
+          specialGameRule === SpecialGameRule.FAMILY_OUTING
+            ? `pkm${index}`
+            : PkmFamily[pkm.name]
         if (!dragonDoubleTypes.has(family))
           dragonDoubleTypes.set(family, new Set())
         dragonDoubleTypes.get(family)!.add(values(pkm.types)[1])
@@ -179,11 +195,12 @@ export function computeSynergies(
 export function addSynergiesGivenByItems(pkm: IPokemon) {
   pkm.items.forEach((item) => {
     const synergy = SynergyGivenByItem[item]
-    if (
-      synergy &&
-      !(pkm.passive === Passive.RECYCLE && ArtificialItems.includes(item))
-    ) {
-      pkm.types.add(synergy)
+    if (synergy) {
+      if (synergy === Synergy.DRAGON) {
+        pkm.types = new SetSchema<Synergy>([synergy, ...pkm.types])
+      } else {
+        pkm.types.add(synergy)
+      }
     }
   })
 }

@@ -38,14 +38,10 @@ import { Synergy } from "./enum/Synergy"
 import { Weather } from "./enum/Weather"
 
 export * from "./enum/Emotion"
-
-export const CDN_PORTRAIT_URL =
-  "https://raw.githubusercontent.com/keldaanCommunity/SpriteCollab/master/portrait/"
+export * from "./enum/Item"
 
 export const CDN_URL =
   "https://raw.githubusercontent.com/keldaanCommunity/SpriteCollab/master"
-
-export const USERNAME_REGEXP = /^(\p{Letter}|[0-9]|\.|-|_){3,24}$/u
 
 export type PkmCustom = { shiny?: boolean; emotion?: Emotion }
 export interface PkmWithCustom extends PkmCustom {
@@ -120,7 +116,7 @@ export enum Transfer {
   POKEMON_DAMAGE = "POKEMON_DAMAGE",
   POKEMON_HEAL = "POKEMON_HEAL",
   WANDERER = "WANDERER",
-  WANDERER_CAUGHT = "WANDERER_CAUGHT",
+  WANDERER_CLICKED = "WANDERER_CLICKED",
   VECTOR = "VECTOR",
   LOADING_PROGRESS = "LOADING_PROGRESS",
   LOADING_COMPLETE = "LOADING_COMPLETE",
@@ -322,6 +318,7 @@ export interface IPlayer {
   wildChance: number
   eggChance: number
   goldenEggChance: number
+  cellBattery: number
   lightX: number
   lightY: number
   isReady: boolean
@@ -343,16 +340,22 @@ export interface IPokemon {
   speDef: number
   atk: number
   hp: number
+  maxHP: number
+  shield: number
   range: number
   stars: number
+  pp: number
   maxPP: number
   luck: number
-  permanentLuck: number
   ap: number
+  critChance: number
+  critPower: number
+  stacks: number
+  stacksRequired: number
   skill: Ability
   passive: Passive
   items: SetSchema<Item>
-  meal: Item | ""
+  dishes: SetSchema<Item>
   tm: Ability | null
   shiny: boolean
   emotion: Emotion
@@ -364,7 +367,9 @@ export interface IPokemon {
   canHoldItems: boolean
   canEat: boolean
   deathCount: number
+  killCount: number
   readonly hasEvolution: boolean
+  supercharged: boolean
 }
 
 export interface IExperienceManager {
@@ -532,17 +537,18 @@ export interface IPokemonEntity {
   id: string
   orientation: Orientation
   critChance: number
-  hp: number
+  maxHP: number
   pp: number
   maxPP: number
   atk: number
   def: number
   speDef: number
   luck: number
+  baseTeam: Team
   baseAtk: number
   baseDef: number
   baseSpeDef: number
-  life: number
+  hp: number
   shield: number
   team: number
   range: number
@@ -565,10 +571,11 @@ export interface IPokemonEntity {
   healDone: number
   shiny: boolean
   emotion: Emotion
+  stacks: number
+  stacksRequired: number
   isSpawn: boolean
   commands: ISimulationCommand[]
   effectsSet: Set<EffectClass>
-  flyingProtection: number
   inSpotlight: boolean
 }
 
@@ -582,8 +589,8 @@ export interface IStatus {
   sleep: boolean
   confusion: boolean
   wound: boolean
-  resurection: boolean
-  resurecting: boolean
+  resurrection: boolean
+  resurrecting: boolean
   paralysis: boolean
   pokerus: boolean
   locked: boolean
@@ -605,15 +612,14 @@ export interface ICount {
   attackCount: number
   fightingBlockCount: number
   dodgeCount: number
-  powerLensCount: number
   starDustCount: number
   tripleAttackCount: number
   staticHolderCount: number
-  defensiveRibbonCount: number
+  muscleBandCount: number
+  machRibbonCount: number
   spellBlockedCount: number
   manaBurnCount: number
   moneyCount: number
-  magmarizerCount: number
 }
 
 export interface IPreparationMetadata {
@@ -740,7 +746,10 @@ export enum Title {
   RUNNER = "RUNNER",
   FINISHER = "FINISHER",
   VICTORIOUS = "VICTORIOUS",
-  AQUARIOPHILE = "AQUARIOPHILE"
+  AQUARIOPHILE = "AQUARIOPHILE",
+  POFFIN_MASTER = "POFFIN_MASTER",
+  TOP_GUN = "TOP_GUN",
+  SCOUT = "SCOUT"
 }
 
 export interface IBoardEvent {

@@ -1,10 +1,10 @@
 import { Emotion } from "../types"
+import { Stat } from "../types/enum/Game"
 import {
-  CraftableItems,
-  CraftableNonSynergyItems,
+  CraftableItemsNoScarves,
+  CraftableNoStonesOrScarves,
   Item,
-  ItemComponents,
-  NonSpecialItemComponents,
+  ItemComponentsNoFossilOrScarf,
   ShinyItems
 } from "../types/enum/Item"
 import { Pkm } from "../types/enum/Pokemon"
@@ -18,10 +18,12 @@ export type PVEStage = {
   avatar: Pkm
   emotion?: Emotion
   shinyChance?: number
+  rewards?: Item[]
   getRewards?: (player: Player) => Item[]
   getRewardsPropositions?: (player: Player) => Item[]
   board: [pkm: Pkm, x: number, y: number][]
   marowakItems?: Item[][]
+  statBoosts?: { [stat in Stat]?: number }
 }
 
 export const PVEStages: { [turn: number]: PVEStage } = {
@@ -33,8 +35,9 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.MAGIKARP, 5, 1]
     ],
     shinyChance: 1 / 40,
+    rewards: ItemComponentsNoFossilOrScarf,
     getRewards(player: Player) {
-      const randomComponent = pickRandomIn(NonSpecialItemComponents)
+      const randomComponent = pickRandomIn(ItemComponentsNoFossilOrScarf)
       player.randomComponentsGiven.push(randomComponent)
       return [randomComponent]
     }
@@ -47,14 +50,14 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.RATTATA, 3, 1],
       [Pkm.RATTATA, 5, 1]
     ],
-    getRewards(player) {
-      const randomComponent = pickRandomIn(
-        NonSpecialItemComponents.filter(
+    rewards: ItemComponentsNoFossilOrScarf,
+    getRewardsPropositions(player: Player) {
+      return pickNRandomIn(
+        ItemComponentsNoFossilOrScarf.filter(
           (i) => player.randomComponentsGiven.includes(i) === false
-        )
+        ),
+        3
       )
-      player.randomComponentsGiven.push(randomComponent)
-      return [randomComponent]
     }
   },
 
@@ -66,9 +69,10 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.SPEAROW, 5, 1],
       [Pkm.SPEAROW, 4, 2]
     ],
+    rewards: ItemComponentsNoFossilOrScarf,
     getRewards(player) {
       const randomComponent = pickRandomIn(
-        NonSpecialItemComponents.filter(
+        ItemComponentsNoFossilOrScarf.filter(
           (i) => player.randomComponentsGiven.includes(i) === false
         )
       )
@@ -83,8 +87,9 @@ export const PVEStages: { [turn: number]: PVEStage } = {
     board: [[Pkm.GYARADOS, 4, 2]],
     marowakItems: [[Item.KINGS_ROCK]],
     shinyChance: 1 / 100,
+    rewards: ItemComponentsNoFossilOrScarf,
     getRewards(player: Player) {
-      const randomComponents = pickNRandomIn(ItemComponents, 1)
+      const randomComponents = pickNRandomIn(ItemComponentsNoFossilOrScarf, 1)
       return randomComponents
     }
   },
@@ -97,12 +102,11 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.MEWTWO, 0, 1],
       [Pkm.MEW, 7, 1]
     ],
-    marowakItems: [
-      [Item.METAL_COAT, Item.LIGHT_BALL],
-      [Item.WIDE_LENS, Item.DEEP_SEA_TOOTH]
-    ],
+    marowakItems: [[Item.METAL_COAT], [Item.DEEP_SEA_TOOTH]],
+    shinyChance: 1 / 100,
+    rewards: ItemComponentsNoFossilOrScarf,
     getRewards(player: Player) {
-      const rewards = [pickRandomIn(NonSpecialItemComponents)]
+      const rewards = [pickRandomIn(ItemComponentsNoFossilOrScarf)]
       if (values(player.board).some((p) => p.name === Pkm.CHARCADET)) {
         const psyLevel = player.synergies.get(Synergy.PSYCHIC) || 0
         const ghostLevel = player.synergies.get(Synergy.GHOST) || 0
@@ -117,6 +121,12 @@ export const PVEStages: { [turn: number]: PVEStage } = {
         rewards.push(armorReceived)
       }
       return rewards
+    },
+    getRewardsPropositions(_player: Player) {
+      return pickNRandomIn(
+        [...ItemComponentsNoFossilOrScarf, Item.FOSSIL_STONE],
+        3
+      )
     }
   },
 
@@ -128,21 +138,15 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.LUGIA, 3, 1],
       [Pkm.HO_OH, 5, 1]
     ],
+    statBoosts: {
+      [Stat.HP]: 50,
+      [Stat.DEF]: 5,
+      [Stat.SPE_DEF]: 5
+    },
     marowakItems: [[Item.COMET_SHARD], [Item.SACRED_ASH]],
-    shinyChance: 1 / 100,
+    rewards: CraftableNoStonesOrScarves,
     getRewards(player: Player) {
-      const items = values(player.board)
-        .flatMap((p) => values(p.items))
-        .concat(values(player.items))
-      const nbComponents = items.filter((i) =>
-        ItemComponents.includes(i)
-      ).length
-      if (nbComponents % 2 === 1) {
-        // ensure we dont stay with a single useless component
-        return [pickRandomIn(NonSpecialItemComponents)]
-      } else {
-        return [pickRandomIn(CraftableNonSynergyItems)]
-      }
+      return [pickRandomIn(CraftableNoStonesOrScarves)]
     }
   },
 
@@ -154,7 +158,18 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.MOLTRES, 4, 2],
       [Pkm.ARTICUNO, 6, 2]
     ],
-    marowakItems: [[Item.FLUFFY_TAIL], [Item.POKEMONOMICON], [Item.AQUA_EGG]],
+    statBoosts: {
+      [Stat.HP]: 100,
+      [Stat.DEF]: 10,
+      [Stat.SPE_DEF]: 10,
+      [Stat.AP]: 50
+    },
+    marowakItems: [
+      [Item.XRAY_VISION, Item.BLUE_ORB],
+      [Item.SOUL_DEW, Item.POKEMONOMICON],
+      [Item.AQUA_EGG, Item.STAR_DUST]
+    ],
+    rewards: CraftableItemsNoScarves,
     getRewards(player: Player) {
       for (const p of values(player.board)) {
         if (p.name === Pkm.ZACIAN) {
@@ -164,9 +179,11 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       return []
     },
     getRewardsPropositions(player: Player) {
-      const rewards = pickNRandomIn(CraftableNonSynergyItems, 2)
+      const rewards = pickNRandomIn(CraftableNoStonesOrScarves, 2)
       rewards.push(
-        pickRandomIn(CraftableItems.filter((o) => !rewards.includes(o)))
+        pickRandomIn(
+          CraftableItemsNoScarves.filter((o) => !rewards.includes(o))
+        )
       )
       return rewards
     }
@@ -181,15 +198,27 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.RAIKOU, 4, 2],
       [Pkm.SUICUNE, 6, 2]
     ],
+    statBoosts: {
+      [Stat.HP]: 100,
+      [Stat.DEF]: 10,
+      [Stat.SPE_DEF]: 10,
+      [Stat.ATK]: 10,
+      [Stat.SPEED]: 10,
+      [Stat.PP]: 80,
+      [Stat.AP]: 50
+    },
     marowakItems: [
-      [Item.ICE_STONE, Item.THUNDER_STONE, Item.SHELL_BELL],
-      [Item.FIRE_STONE, Item.ICE_STONE, Item.SHELL_BELL],
-      [Item.FIRE_STONE, Item.THUNDER_STONE, Item.SHELL_BELL]
+      [Item.ASSAULT_VEST, Item.ROCKY_HELMET],
+      [Item.XRAY_VISION, Item.PUNCHING_GLOVE],
+      [Item.DEEP_SEA_TOOTH, Item.CHOICE_SPECS]
     ],
+    rewards: CraftableItemsNoScarves,
     getRewardsPropositions(player: Player) {
-      const rewards = pickNRandomIn(CraftableNonSynergyItems, 2)
+      const rewards = pickNRandomIn(CraftableNoStonesOrScarves, 2)
       rewards.push(
-        pickRandomIn(CraftableItems.filter((o) => !rewards.includes(o)))
+        pickRandomIn(
+          CraftableItemsNoScarves.filter((o) => !rewards.includes(o))
+        )
       )
       return rewards
     }
@@ -204,15 +233,24 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.MEGA_RAYQUAZA, 4, 2],
       [Pkm.PRIMAL_GROUDON, 6, 2]
     ],
+    statBoosts: {
+      [Stat.HP]: 200,
+      [Stat.DEF]: 15,
+      [Stat.SPE_DEF]: 15,
+      [Stat.ATK]: 10
+    },
     marowakItems: [
       [Item.BLUE_ORB, Item.AQUA_EGG, Item.SOUL_DEW],
       [Item.GREEN_ORB, Item.STAR_DUST, Item.POWER_LENS],
       [Item.RED_ORB, Item.FLAME_ORB, Item.PROTECTIVE_PADS]
     ],
+    rewards: CraftableItemsNoScarves,
     getRewardsPropositions(player: Player) {
-      const rewards = pickNRandomIn(CraftableNonSynergyItems, 2)
+      const rewards = pickNRandomIn(CraftableNoStonesOrScarves, 2)
       rewards.push(
-        pickRandomIn(CraftableItems.filter((o) => !rewards.includes(o)))
+        pickRandomIn(
+          CraftableItemsNoScarves.filter((o) => !rewards.includes(o))
+        )
       )
       return rewards
     }
@@ -223,25 +261,31 @@ export const PVEStages: { [turn: number]: PVEStage } = {
     avatar: Pkm.REGICE,
     emotion: Emotion.DETERMINED,
     board: [
-      [Pkm.REGIELEKI, 2, 2],
+      [Pkm.REGIELEKI, 1, 3],
       [Pkm.REGICE, 2, 3],
       [Pkm.REGIGIGAS, 3, 3],
       [Pkm.REGIROCK, 4, 3],
       [Pkm.REGISTEEL, 5, 3],
-      [Pkm.REGIDRAGO, 5, 2]
+      [Pkm.REGIDRAGO, 6, 3]
     ],
+    statBoosts: {
+      [Stat.HP]: 50
+    },
     marowakItems: [
-      [Item.OLD_AMBER],
-      [Item.OLD_AMBER],
-      [Item.OLD_AMBER],
-      [Item.OLD_AMBER],
-      [Item.OLD_AMBER],
-      [Item.OLD_AMBER]
+      [],
+      [Item.ABILITY_SHIELD, Item.GRACIDEA_FLOWER, Item.GREEN_ORB],
+      [Item.DYNAMAX_BAND],
+      [Item.ABILITY_SHIELD, Item.GRACIDEA_FLOWER, Item.GREEN_ORB],
+      [Item.ABILITY_SHIELD, Item.GRACIDEA_FLOWER, Item.GREEN_ORB],
+      []
     ],
+    rewards: CraftableItemsNoScarves,
     getRewardsPropositions(player: Player) {
-      const rewards = pickNRandomIn(CraftableNonSynergyItems, 2)
+      const rewards = pickNRandomIn(CraftableNoStonesOrScarves, 2)
       rewards.push(
-        pickRandomIn(CraftableItems.filter((o) => !rewards.includes(o)))
+        pickRandomIn(
+          CraftableItemsNoScarves.filter((o) => !rewards.includes(o))
+        )
       )
       return rewards
     }
@@ -257,12 +301,20 @@ export const PVEStages: { [turn: number]: PVEStage } = {
       [Pkm.PALKIA, 6, 3],
       [Pkm.ARCEUS, 4, 1]
     ],
+    statBoosts: {
+      [Stat.HP]: 200,
+      [Stat.DEF]: 15,
+      [Stat.SPE_DEF]: 15,
+      [Stat.ATK]: 10,
+      [Stat.AP]: 50
+    },
     marowakItems: [
       [Item.DYNAMAX_BAND],
       [Item.DYNAMAX_BAND],
       [Item.DYNAMAX_BAND],
       [Item.DYNAMAX_BAND]
     ],
+    rewards: ShinyItems,
     getRewardsPropositions(player: Player) {
       return pickNRandomIn(ShinyItems, 3)
     }

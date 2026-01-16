@@ -1,15 +1,14 @@
-import React from "react"
 import { GameObjects } from "phaser"
 import ReactDOM from "react-dom/client"
 import { useTranslation } from "react-i18next"
-import { PRECOMPUTED_EMOTIONS_PER_POKEMON_INDEX } from "../../../../models/precomputed/precomputed-emotions"
+import { getAvailableEmotions } from "../../../../models/precomputed/precomputed-emotions"
 import { IPlayer } from "../../../../types"
 import { AvatarEmotions, Emotion } from "../../../../types/enum/Emotion"
 import { logger } from "../../../../utils/logger"
+import PokemonPortrait from "../../pages/component/pokemon-portrait"
 import { cc } from "../../pages/utils/jsx"
 import store from "../../stores"
 import GameScene from "../scenes/game-scene"
-import PokemonPortrait from "../../pages/component/pokemon-portrait"
 import "./emote-menu.css"
 
 export function EmoteMenuComponent(props: {
@@ -19,12 +18,10 @@ export function EmoteMenuComponent(props: {
   sendEmote: (emotion: Emotion) => void
 }) {
   const { t } = useTranslation()
-  const emotions: Emotion[] = AvatarEmotions.filter((emotion) => {
-    const indexEmotion = Object.values(Emotion).indexOf(emotion)
-    return (
-      PRECOMPUTED_EMOTIONS_PER_POKEMON_INDEX[props.index]?.[indexEmotion] === 1
-    )
-  })
+  const availableEmotions = getAvailableEmotions(props.index, props.shiny)
+  const emotions: Emotion[] = AvatarEmotions.filter((emotion) =>
+    availableEmotions.includes(emotion)
+  )
 
   return emotions.length === 0 ? (
     <div>{t("no_emotions_available")}</div>

@@ -10,6 +10,11 @@ import helmet from "helmet"
 import { connect } from "mongoose"
 import path from "path"
 import pkg from "../package.json"
+import {
+  MAX_CONCURRENT_PLAYERS_ON_SERVER,
+  MAX_POOL_CONNECTIONS_SIZE,
+  SynergyTriggers
+} from "./config"
 import { initTilemap } from "./core/design"
 import { GameRecord } from "./models/colyseus-models/game-record"
 import chatV2 from "./models/mongo-models/chat-v2"
@@ -32,13 +37,15 @@ import {
   fetchBotsList
 } from "./services/bots"
 import { getLeaderboard } from "./services/leaderboard"
-import { getMetadata, getMetaItems, getMetaPokemons } from "./services/meta"
-import { Role } from "./types"
 import {
-  MAX_CONCURRENT_PLAYERS_ON_SERVER,
-  MAX_POOL_CONNECTIONS_SIZE,
-  SynergyTriggers
-} from "./types/Config"
+  computeSynergyAverages,
+  getMetadata,
+  getMetaItems,
+  getMetaPokemons,
+  getMetaRegions,
+  getMetaV2
+} from "./services/meta"
+import { Role } from "./types"
 import { DungeonPMDO } from "./types/enum/Dungeon"
 import { Item } from "./types/enum/Item"
 import { Pkm, PkmIndex } from "./types/enum/Pokemon"
@@ -133,6 +140,7 @@ export default config({
               "https://*.firebaseapp.com",
               "https://apis.google.com",
               "https://*.googleapis.com",
+              "https://*.doubleclick.net", // google ads, required for youtube embedded
               "https://*.githubusercontent.com",
               "http://raw.githubusercontent.com",
               "https://*.youtube.com",
@@ -149,7 +157,8 @@ export default config({
               "'unsafe-inline'",
               "'unsafe-eval'",
               "https://apis.google.com",
-              "https://*.googleapis.com"
+              "https://*.googleapis.com",
+              "https://*.doubleclick.net" // google ads, required for youtube embedded
             ],
             imgSrc: [
               "'self'",
@@ -235,23 +244,6 @@ export default config({
       res.send(SynergyTriggers)
     })
 
-    app.get("/meta", async (req, res) => {
-      res.set("Cache-Control", "no-cache")
-      res.send(
-        await Meta.find({}, [
-          "cluster_id",
-          "count",
-          "ratio",
-          "winrate",
-          "mean_rank",
-          "types",
-          "pokemons",
-          "x",
-          "y"
-        ])
-      )
-    })
-
     app.get("/titles", async (req, res) => {
       res.send(await TitleStatistic.find().sort({ name: 1 }).exec()) // Ensure a consistent order by sorting on a unique field
     })
@@ -272,6 +264,30 @@ export default config({
       // Set Cache-Control header for 24 hours (86400 seconds)
       res.set("Cache-Control", "max-age=86400")
       res.send(getMetaPokemons())
+    })
+
+    app.get("/meta/regions", async (req, res) => {
+      // Set Cache-Control header for 24 hours (86400 seconds)
+      res.set("Cache-Control", "max-age=86400")
+      res.send(getMetaRegions())
+    })
+
+    app.get("/meta-v2", async (req, res) => {
+      // Set Cache-Control header for 24 hours (86400 seconds)
+      res.set("Cache-Control", "max-age=86400")
+      res.send(getMetaV2())
+    })
+
+    app.get("/meta/types", async (req, res) => {
+      const userAuth = await authUser(req, res)
+      if (!userAuth) return
+      const user = await UserMetadata.findOne({ uid: userAuth.uid })
+      if (!user || user.role !== Role.ADMIN) {
+        res.status(403).send("Unauthorized")
+        return
+      }
+
+      res.send(computeSynergyAverages())
     })
 
     app.get("/tilemap/:map", async (req, res) => {
@@ -362,13 +378,13 @@ export default config({
     })
 
     app.get("/bots", async (req, res) => {
-      const botsData = await fetchBotsList(
+      const approved =
         req.query.approved === "true"
           ? true
           : req.query.approved === "false"
             ? false
             : undefined
-      )
+      const botsData = await fetchBotsList(approved, req.query.pkm?.toString())
       res.send(botsData)
     })
 
@@ -503,7 +519,6 @@ export default config({
      * Before before gameServer.listen() is called.
      */
     connect(process.env.MONGO_URI!, {
-      maxPoolSize: MAX_POOL_CONNECTIONS_SIZE,
       socketTimeoutMS: 45000
     })
     admin.initializeApp({

@@ -2,6 +2,12 @@ import { Room } from "colyseus.js"
 import firebase from "firebase/compat/app"
 import { GameObjects, Scene } from "phaser"
 import OutlinePlugin from "phaser3-rex-plugins/plugins/outlinepipeline-plugin"
+import {
+  BERRY_TREE_POSITIONS,
+  BOARD_WIDTH,
+  getRegionTint,
+  RegionDetails
+} from "../../../../config"
 import { DesignTiled } from "../../../../core/design"
 import { FLOWER_POTS_POSITIONS_BLUE } from "../../../../core/flower-pots"
 import { canSell } from "../../../../core/pokemon-entity"
@@ -14,15 +20,11 @@ import {
   IDragDropMessage,
   Transfer
 } from "../../../../types"
-import { BOARD_WIDTH } from "../../../../types/Config"
-import {
-  DungeonDetails,
-  DungeonMusic,
-  DungeonPMDO
-} from "../../../../types/enum/Dungeon"
+import { DungeonMusic, DungeonPMDO } from "../../../../types/enum/Dungeon"
 import { GamePhaseState } from "../../../../types/enum/Game"
 import { Item, ItemRecipe, Mulches } from "../../../../types/enum/Item"
 import { Pkm } from "../../../../types/enum/Pokemon"
+import { isIn } from "../../../../utils/array"
 import { throttle } from "../../../../utils/function"
 import { logger } from "../../../../utils/logger"
 import { clamp } from "../../../../utils/number"
@@ -40,7 +42,7 @@ import ItemContainer from "../components/item-container"
 import ItemsContainer from "../components/items-container"
 import LoadingManager from "../components/loading-manager"
 import MinigameManager from "../components/minigame-manager"
-import PokemonSprite from "../components/pokemon"
+import PokemonSprite, { resetSpriteCounts } from "../components/pokemon"
 import { SellZone } from "../components/sell-zone"
 import WanderersManager from "../components/wanderers-manager"
 import WeatherManager from "../components/weather-manager"
@@ -90,18 +92,23 @@ export default class GameScene extends Scene {
   }
 
   preload() {
+    resetSpriteCounts()
     this.loadingManager = new LoadingManager(this)
 
     this.load.on("progress", (value: number) => {
       this.room?.send(Transfer.LOADING_PROGRESS, value * 100)
     })
 
-    this.load.on("complete", () => {
-      this.room?.send(Transfer.LOADING_COMPLETE)
+    this.load.once("complete", () => {
+      logger.debug("Loading complete")
+      if (!this.started) {
+        this.room?.send(Transfer.LOADING_COMPLETE)
+      }
     })
 
     this.room!.onMessage(Transfer.LOADING_COMPLETE, () => {
       if (!this.started) {
+        logger.debug("Game starting")
         this.started = true
         this.startGame()
       }
@@ -161,7 +168,7 @@ export default class GameScene extends Scene {
       if (!this.music) {
         playMusic(
           this,
-          DungeonDetails[player.map].music ?? DungeonMusic.TREASURE_TOWN
+          RegionDetails[player.map].music ?? DungeonMusic.TREASURE_TOWN
         )
       }
       //;(this.sys as any).animatedTiles.init(this.map)
@@ -216,6 +223,7 @@ export default class GameScene extends Scene {
 
   registerKeys() {
     const keybindings = preference("keybindings")
+
     this.input.keyboard!.removeAllListeners()
     this.input.keyboard!.on(
       "keydown-" + keybindings.refresh,
@@ -243,8 +251,8 @@ export default class GameScene extends Scene {
         this.pokemonHovered
           .getBounds()
           .contains(
-            this.game.input.activePointer.x,
-            this.game.input.activePointer.y
+            this.input.activePointer.worldX,
+            this.input.activePointer.worldY
           )
       ) {
         this.sellPokemon(this.pokemonHovered)
@@ -259,7 +267,6 @@ export default class GameScene extends Scene {
     })
 
     this.input.keyboard!.on("keydown-" + keybindings.camera_lock, () => {
-      console.log("toggle camera input")
       savePreferences({ cameraLocked: !preference("cameraLocked") })
     })
 
@@ -319,7 +326,7 @@ export default class GameScene extends Scene {
       this.board?.minigameMode()
       this.weatherManager?.setTownDaytime(this.room?.state.stageLevel ?? 0)
     } else {
-      this.board?.pickMode()
+      this.board?.pickMode(true)
     }
   }
 
@@ -382,6 +389,13 @@ export default class GameScene extends Scene {
         sys.animatedTiles.pause()
       }
     }
+
+    // update region tint on pokemons
+    this.board?.pokemons.forEach((p) => {
+      p.sprite.setTint(
+        getRegionTint(this.mapName, preference("colorblindMode"))
+      )
+    })
   }
 
   resetDragState() {
@@ -434,6 +448,14 @@ export default class GameScene extends Scene {
       zone.setData({ x, y, index: i })
     }
 
+    for (let i = 0; i < BERRY_TREE_POSITIONS.length; i++) {
+      const [x, y] = BERRY_TREE_POSITIONS[i]
+      const zone = this.add.zone(x, y, 48, 48)
+      zone.setRectangleDropZone(48, 48)
+      zone.setName("berry-tree-zone")
+      zone.setData({ x, y, index: i })
+    }
+
     this.input.on("pointerdown", (pointer) => {
       if (
         pointer.leftButtonDown() &&
@@ -480,7 +502,7 @@ export default class GameScene extends Scene {
       Phaser.Input.Events.GAMEOBJECT_OVER,
       (pointer, gameObject: Phaser.GameObjects.GameObject) => {
         if (gameObject instanceof PokemonSprite && gameObject.draggable) {
-          this.setHovered(gameObject)
+          this.setPokemonHovered(gameObject)
         }
       }
     )
@@ -489,7 +511,7 @@ export default class GameScene extends Scene {
       Phaser.Input.Events.GAMEOBJECT_OUT,
       (pointer, gameObject: Phaser.GameObjects.GameObject) => {
         if (this.pokemonHovered === gameObject) {
-          this.clearHovered(this.pokemonHovered)
+          this.clearHovered(this.pokemonHovered.sprite)
           this.pokemonHovered = null
         }
       }
@@ -642,6 +664,14 @@ export default class GameScene extends Scene {
               id: gameObject.name
             })
           }
+          // Item -> berry tree zone = MULCH
+          else if (dropZone.name === "berry-tree-zone") {
+            this.dispatchEvent<IDragDropItemMessage>(Transfer.DRAG_DROP_ITEM, {
+              zone: dropZone.name,
+              index: dropZone.getData("index"),
+              id: gameObject.name
+            })
+          }
           // RETURN TO ORIGINAL SPOT
           else {
             const player = this.room?.state.players.get(this.uid!)
@@ -708,19 +738,30 @@ export default class GameScene extends Scene {
           )
           if (pokemonOnCell) {
             // item dragged over a pokemon, highlight the pokemon
-            this.setHovered(pokemonOnCell)
+            this.setPokemonHovered(pokemonOnCell)
           }
         }
 
         if (
           gameObject instanceof ItemContainer &&
           dropZone.name === "flower-pot-zone" &&
-          Mulches.includes(gameObject.name)
+          isIn(Mulches, gameObject.name)
         ) {
           const flowerMonSprite =
             this.board?.flowerPokemonsInPots[dropZone.getData("index")]
           if (flowerMonSprite) {
-            this.setHovered(flowerMonSprite)
+            this.setPokemonHovered(flowerMonSprite)
+          }
+        }
+
+        if (
+          gameObject instanceof ItemContainer &&
+          dropZone.name === "berry-tree-zone" &&
+          isIn(Mulches, gameObject.name)
+        ) {
+          const berryTree = this.board?.berryTrees[dropZone.getData("index")]
+          if (berryTree) {
+            this.setHovered(berryTree.sprite)
           }
         }
 
@@ -770,7 +811,34 @@ export default class GameScene extends Scene {
               p.positionY === dropZone.getData("y")
           )
           if (pokemonOnCell) {
-            this.clearHovered(pokemonOnCell)
+            this.clearHovered(pokemonOnCell.sprite)
+          }
+        }
+
+        if (
+          dropZone.name === "flower-pot-zone" &&
+          gameObject instanceof ItemContainer &&
+          isIn(Mulches, gameObject.name)
+        ) {
+          {
+            const flowerPot =
+              this.board?.flowerPokemonsInPots[dropZone.getData("index")]
+            if (flowerPot) {
+              this.clearHovered(flowerPot.sprite)
+            }
+          }
+        }
+
+        if (
+          dropZone.name === "berry-tree-zone" &&
+          gameObject instanceof ItemContainer &&
+          isIn(Mulches, gameObject.name)
+        ) {
+          {
+            const berryTree = this.board?.berryTrees[dropZone.getData("index")]
+            if (berryTree) {
+              this.clearHovered(berryTree.sprite)
+            }
           }
         }
       },
@@ -778,26 +846,38 @@ export default class GameScene extends Scene {
     )
   }
 
-  setHovered(gameObject: PokemonSprite) {
+  setPokemonHovered(pokemonSprite: PokemonSprite) {
+    if (this.pokemonHovered != null) {
+      this.clearHovered(this.pokemonHovered.sprite)
+    }
+    this.pokemonHovered = pokemonSprite
+    const thickness = Math.round(
+      1 + Math.log(pokemonSprite.pokemon.def + pokemonSprite.pokemon.speDef)
+    )
+    this.setHovered(pokemonSprite.sprite, thickness)
+  }
+
+  setHovered(sprite: Phaser.GameObjects.Sprite, thickness = 2) {
     const outline = <OutlinePlugin>this.plugins.get("rexOutline")
     if (!outline) return // outline plugin doesnt work with canvas renderer
-    if (this.pokemonHovered != null) this.clearHovered(this.pokemonHovered)
-    this.pokemonHovered = gameObject
 
-    const thickness = Math.round(
-      1 + Math.log(gameObject.def + gameObject.speDef)
-    )
-
-    outline.add(gameObject.sprite, {
+    outline.add(sprite, {
       thickness,
       outlineColor: 0xffffff
     })
   }
 
-  clearHovered(gameObject: PokemonSprite) {
+  clearHovered(sprite: Phaser.GameObjects.Sprite) {
     const outline = <OutlinePlugin>this.plugins.get("rexOutline")
     if (!outline) return // outline plugin doesnt work with canvas renderer
-    outline.remove(gameObject.sprite)
+    outline.remove(sprite)
+  }
+
+  closeTooltips() {
+    this.board?.closeTooltips()
+    this.battle?.closeTooltips()
+    this.minigameManager?.closeTooltips()
+    this.itemsContainer?.closeTooltips()
   }
 
   displayMoneyGain(x: number, y: number, gain: number) {

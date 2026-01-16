@@ -2,21 +2,22 @@ import React, { useMemo, useState } from "react"
 import ReactDOM from "react-dom"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "react-tooltip"
-import { getPokemonData } from "../../../../../models/precomputed/precomputed-pokemon-data"
 import { PRECOMPUTED_POKEMONS_PER_ABILITY } from "../../../../../models/precomputed/precomputed-ability"
+import { getPokemonData } from "../../../../../models/precomputed/precomputed-pokemon-data"
 import { Ability } from "../../../../../types/enum/Ability"
+import { AbilityPerTM, Item, TMs } from "../../../../../types/enum/Item"
 import { Pkm, PkmFamily, PkmIndex } from "../../../../../types/enum/Pokemon"
 import { getPortraitSrc } from "../../../../../utils/avatar"
+import { ItemDetailTooltip } from "../../../game/components/item-detail"
 import { addIconsToDescription } from "../../utils/descriptions"
 import { cc } from "../../utils/jsx"
-import { GamePokemonDetail } from "../game/game-pokemon-detail"
-import { AbilityPerTM, Item, TMs } from "../../../../../types/enum/Item"
-import { ItemDetailTooltip } from "../../../game/components/item-detail"
+import {
+  GamePokemonDetail,
+  GamePokemonDetailTooltip
+} from "../game/game-pokemon-detail"
 
 export default function WikiAbility() {
   const { t } = useTranslation()
-  const [hoveredPokemon, setHoveredPokemon] = useState<Pkm>()
-  const [itemHovered, setItemHovered] = useState<Item>()
 
   const [searchQuery, setSearchQuery] = useState<string>("")
   const pokemonsPerAbility = useMemo(
@@ -96,10 +97,8 @@ export default function WikiAbility() {
                           additional: p.additional,
                           regional: p.regional
                         })}
-                        data-tooltip-id="pokemon-detail"
-                        onMouseOver={() => {
-                          setHoveredPokemon(p.name)
-                        }}
+                        data-tooltip-id="game-pokemon-detail-tooltip"
+                        data-tooltip-content={p.name}
                       >
                         <img src={getPortraitSrc(p.index)} />
                       </div>
@@ -107,8 +106,8 @@ export default function WikiAbility() {
                   ))}
                   {tmPerAbility[ability] && (
                     <li
-                      data-tooltip-id="item-detail"
-                      onMouseOver={() => setItemHovered(tmPerAbility[ability])}
+                      data-tooltip-id="item-detail-tooltip"
+                      data-tooltip-content={tmPerAbility[ability]}
                     >
                       <img
                         src={`assets/item/${TMs.includes(tmPerAbility[ability]) ? "TM" : "HM"}.png`}
@@ -122,23 +121,8 @@ export default function WikiAbility() {
           )
         })}
       </ul>
-      {hoveredPokemon && (
-        <Tooltip
-          id="pokemon-detail"
-          className="custom-theme-tooltip game-pokemon-detail-tooltip"
-          float
-        >
-          <GamePokemonDetail pokemon={hoveredPokemon} />
-        </Tooltip>
-      )}
-      {itemHovered && (
-        <Tooltip
-          id="item-detail"
-          className="custom-theme-tooltip item-detail-tooltip"
-        >
-          <ItemDetailTooltip item={itemHovered} />
-        </Tooltip>
-      )}
+      <GamePokemonDetailTooltip origin="wiki" />
+      <ItemDetailTooltip />
     </div>
   )
 }

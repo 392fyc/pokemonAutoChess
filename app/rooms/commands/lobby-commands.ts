@@ -2,6 +2,16 @@ import { Command } from "@colyseus/command"
 import { Client, matchMaker } from "colyseus"
 import { nanoid } from "nanoid"
 import { writeHeapSnapshot } from "v8"
+import {
+  BoosterPriceByRarity,
+  DUST_PER_BOOSTER,
+  DUST_PER_SHINY,
+  EloRankThreshold,
+  getEmotionCost,
+  MAX_PLAYERS_PER_GAME,
+  MAX_USER_NAME_LENGTH,
+  USERNAME_REGEXP
+} from "../../config"
 import { CollectionUtils, createBooster } from "../../core/collection"
 import { getPendingGame } from "../../core/pending-game-manager"
 import {
@@ -20,7 +30,6 @@ import UserMetadata, {
 import { getPokemonData } from "../../models/precomputed/precomputed-pokemon-data"
 import { discordService } from "../../services/discord"
 import {
-  CDN_PORTRAIT_URL,
   CollectionEmotions,
   Emotion,
   IPlayer,
@@ -28,17 +37,8 @@ import {
   PkmWithCustom,
   Role,
   Title,
-  Transfer,
-  USERNAME_REGEXP
+  Transfer
 } from "../../types"
-import {
-  BoosterPriceByRarity,
-  DUST_PER_BOOSTER,
-  DUST_PER_SHINY,
-  EloRankThreshold,
-  getEmotionCost,
-  MAX_PLAYERS_PER_GAME
-} from "../../types/Config"
 import { CloseCodes } from "../../types/enum/CloseCodes"
 import { EloRank } from "../../types/enum/EloRank"
 import { GameMode } from "../../types/enum/Game"
@@ -63,6 +63,7 @@ import { cleanProfanity } from "../../utils/profanity-filter"
 import { pickRandomIn } from "../../utils/random"
 import { convertSchemaToRawObject, values } from "../../utils/schemas"
 import CustomLobbyRoom from "../custom-lobby-room"
+import { PkmColorVariants } from "../../models/pokemon-factory";
 
 export class OnJoinCommand extends Command<
   CustomLobbyRoom,
@@ -99,14 +100,20 @@ export class OnJoinCommand extends Command<
         const starterAvatar = pickRandomIn(StarterAvatars)
         await UserMetadata.create({
           uid: client.auth.uid,
-          displayName: client.auth.displayName,
+          displayName: client.auth.displayName.substring(
+            0,
+            MAX_USER_NAME_LENGTH
+          ),
           avatar: starterAvatar,
           booster: starterBoosters,
           pokemonCollection: new Map<string, IPokemonCollectionItemMongo>()
         })
         const newUser: IUserMetadataMongo = {
           uid: client.auth.uid,
-          displayName: client.auth.displayName,
+          displayName: client.auth.displayName.substring(
+            0,
+            MAX_USER_NAME_LENGTH
+          ),
           language: client.auth.metadata.language,
           avatar: starterAvatar,
           games: 0,
@@ -186,6 +193,9 @@ export class DeleteAccountCommand extends Command<CustomLobbyRoom> {
   async execute({ client }: { client: Client }) {
     try {
       if (client.auth.uid) {
+        logger.info(
+          `User ${client.auth.displayName} [${client.auth.uid}] has deleted their account`
+        )
         await UserMetadata.deleteOne({ uid: client.auth.uid })
         client.leave(CloseCodes.USER_DELETED)
       }
@@ -322,7 +332,7 @@ export class OpenBoosterCommand extends Command<
       if (!user) return
 
       // First, find the user and check if they have boosters
-      const userDoc = await UserMetadata.findOne({
+      let userDoc = await UserMetadata.findOne({
         uid: client.auth.uid,
         booster: { $gt: 0 }
       })
@@ -337,7 +347,7 @@ export class OpenBoosterCommand extends Command<
 
       boosterContent.forEach((card) => {
         const index = PkmIndex[card.name]
-        const existingItem = userDoc.pokemonCollection.get(index)
+        const existingItem = userDoc!.pokemonCollection.get(index)
 
         if (!existingItem) {
           if (`pokemonCollection.${index}` in updateOperations) {
@@ -390,22 +400,29 @@ export class OpenBoosterCommand extends Command<
       })
 
       // Perform atomic update
-      const mongoUser = await UserMetadata.findOneAndUpdate(
-        { uid: client.auth.uid, booster: { $gt: 0 } },
-        updateOperations,
-        { new: true }
-      )
-
-      if (!mongoUser) return
+      await userDoc.updateOne(updateOperations)
+      userDoc = await UserMetadata.findOne({ uid: client.auth.uid }) // reload updated doc
+      if (!userDoc) {
+        logger.error(
+          `User document not found after opening booster: ${client.auth.uid}`
+        )
+        return
+      }
 
       // resync, db-authoritative
-      user.booster = mongoUser.booster
+      user.booster = userDoc.booster
       boosterContent.forEach((pkmWithCustom) => {
         const index = PkmIndex[pkmWithCustom.name]
         const pokemonCollectionItem = user.pokemonCollection.get(index)
-        const mongoPokemonCollectionItem =
-          mongoUser.pokemonCollection.get(index)
-        if (!mongoPokemonCollectionItem) return
+        const mongoPokemonCollectionItem = userDoc.pokemonCollection.get(index)
+        if (!mongoPokemonCollectionItem) {
+          logger.error(`Missing mongo collection item after booster open`, {
+            index,
+            pkmWithCustom,
+            clientUid: client.auth.uid
+          })
+          return
+        }
         if (pokemonCollectionItem) {
           pokemonCollectionItem.dust = mongoPokemonCollectionItem.dust
           pokemonCollectionItem.unlocked = Buffer.copyBytesFrom(
@@ -430,9 +447,10 @@ export class OpenBoosterCommand extends Command<
         }
       })
 
-      await checkTitlesAfterEmotionUnlocked(mongoUser, boosterContent)
+      await checkTitlesAfterEmotionUnlocked(userDoc, boosterContent)
+      await userDoc.save()
       client.send(Transfer.BOOSTER_CONTENT, boosterContent)
-      client.send(Transfer.USER_PROFILE, toUserMetadataJSON(mongoUser))
+      client.send(Transfer.USER_PROFILE, toUserMetadataJSON(userDoc))
     } catch (error) {
       logger.error(error)
     }
@@ -564,7 +582,7 @@ export class ChangeAvatarCommand extends Command<
       )
         return
       const portrait = getPortraitSrc(index, shiny, emotion)
-        .replace(CDN_PORTRAIT_URL, "")
+        .replace("/assets/portraits/", "")
         .replace(".png", "")
       user.avatar = portrait
       mongoUser.avatar = portrait
@@ -637,6 +655,7 @@ export class BuyEmotionCommand extends Command<
       await checkTitlesAfterEmotionUnlocked(mongoUser, [
         { name: PkmByIndex[index], emotion, shiny }
       ])
+      await mongoUser.save()
       client.send(Transfer.USER_PROFILE, toUserMetadataJSON(mongoUser))
     } catch (error) {
       logger.error(error)
@@ -664,7 +683,7 @@ async function checkTitlesAfterEmotionUnlocked(
   if (!mongoUser.titles.includes(Title.DUKE)) {
     if (
       Object.values(Pkm)
-        .filter((p) => NonPkm.includes(p) === false)
+        .filter((p) => NonPkm.includes(p) === false && PkmColorVariants.includes(p) === false)
         .every((pkm) => {
           const item = mongoUser.pokemonCollection.get(PkmIndex[pkm])
           if (!item) return false
@@ -796,18 +815,17 @@ export class OnSearchCommand extends Command<
 > {
   async execute({ client, name }: { client: Client; name: string }) {
     try {
-      const searchTerm = name.trim()
-      const escapedSearchTerm = searchTerm.replace(
-        /[-\/\\^$*+?.()|[\]{}]/g,
-        "\\$&"
-      )
-      const regExp = new RegExp("^" + escapedSearchTerm, "i")
+      const searchTerm = name.trim().toLowerCase()
       const user = this.room.users.get(client.auth.uid)
       const showBanned =
         user?.role === Role.ADMIN || user?.role === Role.MODERATOR
+
       const users = await UserMetadata.find(
         {
-          displayName: { $regex: regExp },
+          displayName: {
+            $gte: searchTerm,
+            $lt: searchTerm + "\uffff"
+          },
           ...(showBanned ? {} : { banned: false })
         },
         [
@@ -818,8 +836,13 @@ export class OnSearchCommand extends Command<
           "avatar",
           ...(showBanned ? ["banned"] : [])
         ],
-        { limit: 100, sort: { level: -1 } }
+        {
+          limit: 100,
+          sort: { level: -1 },
+          collation: { locale: "en", strength: 2 }
+        }
       )
+
       if (users) {
         const suggestions: Array<ISuggestionUser> = users.map((u) => {
           return {
@@ -984,10 +1007,14 @@ export class JoinOrOpenRoomCommand extends Command<
             break
           case EloRank.SAFARI_BALL:
           case EloRank.LOVE_BALL:
+            // 1050-1200
+            minRank = EloRank.NET_BALL
+            maxRank = EloRank.LOVE_BALL
+            break
           case EloRank.PREMIER_BALL:
           case EloRank.QUICK_BALL:
-            // 1050-1299
-            minRank = EloRank.NET_BALL
+            // 1150-1299
+            minRank = EloRank.LOVE_BALL
             maxRank = EloRank.QUICK_BALL
             break
           case EloRank.POKE_BALL:

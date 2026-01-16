@@ -1,19 +1,20 @@
+import { matchMaker } from "colyseus"
 import { CronJob } from "cron"
 import dayjs from "dayjs"
 import admin from "firebase-admin"
 import { UserRecord } from "firebase-admin/lib/auth/user-record"
-import DetailledStatistic from "../models/mongo-models/detailled-statistic-v2"
-import TitleStatistic from "../models/mongo-models/title-statistic"
-import UserMetadata from "../models/mongo-models/user-metadata"
-import { Title } from "../types"
 import {
   CRON_ELO_DECAY_DELAY,
   CRON_ELO_DECAY_MINIMUM_ELO,
   CRON_HISTORY_CLEANUP_DELAY,
   ELO_DECAY_LOST_PER_DAY,
-  EloRank,
   EloRankThreshold
-} from "../types/Config"
+} from "../config"
+import DetailledStatistic from "../models/mongo-models/detailled-statistic-v2"
+import TitleStatistic from "../models/mongo-models/title-statistic"
+import UserMetadata from "../models/mongo-models/user-metadata"
+import { Title } from "../types"
+import { EloRank } from "../types/enum/EloRank"
 import { GameMode } from "../types/enum/Game"
 import { logger } from "../utils/logger"
 import { min } from "../utils/number"
@@ -21,12 +22,12 @@ import { min } from "../utils/number"
 export function initCronJobs() {
   logger.debug("init cron jobs")
 
-  CronJob.from({
-    cronTime: "0 8 * * *", // every day at 8am
-    timeZone: "Europe/Paris",
-    onTick: () => deleteOldAnonymousAccounts(),
-    start: true
-  })
+  // CronJob.from({
+  //   cronTime: "0 8 * * *", // every day at 8am
+  //   timeZone: "Europe/Paris",
+  //   onTick: () => deleteOldAnonymousAccounts(),
+  //   start: true
+  // })
   CronJob.from({
     cronTime: "15 8 * * *", // every day at 8:15am
     timeZone: "Europe/Paris",
@@ -188,6 +189,11 @@ async function resetEventScores() {
 
     logger.info(
       `Event reset completed! Reset event data for ${result.modifiedCount} users`
+    )
+
+    matchMaker.presence.publish(
+      "announcement",
+      "Victory Road has started! Be the first to reach the finish line!"
     )
   } catch (e) {
     logger.error("Error during event reset scores:", e)

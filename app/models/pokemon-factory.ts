@@ -2,7 +2,9 @@ import { MapSchema } from "@colyseus/schema"
 import { FlowerPot } from "../core/flower-pots"
 import { TownEncounter, TownEncounters } from "../core/town-encounters"
 import { Emotion, IPlayer, PkmCustom } from "../types"
+import { Stat } from "../types/enum/Game"
 import { Pkm, PkmFamily, PkmIndex } from "../types/enum/Pokemon"
+import { Synergy } from "../types/enum/Synergy"
 import { logger } from "../utils/logger"
 import Player from "./colyseus-models/player"
 import { Pokemon, PokemonClasses } from "./colyseus-models/pokemon"
@@ -23,6 +25,9 @@ export default class PokemonFactory {
       })
       pokemon.positionX = x
       pokemon.positionY = y
+      for (const stat in pveStage.statBoosts) {
+        pokemon.applyStat(stat as Stat, pveStage.statBoosts[stat], undefined)
+      }
       if (
         townEncounter === TownEncounters.MAROWAK &&
         pveStage.marowakItems &&
@@ -54,7 +59,9 @@ export default class PokemonFactory {
     }
     if (name in PokemonClasses) {
       const PokemonClass = PokemonClasses[name]
-      return new PokemonClass(name, shiny, emotion)
+      const pokemon = new PokemonClass(name, shiny, emotion)
+      pokemon.maxHP = pokemon.hp
+      return pokemon
     } else {
       logger.warn(`No pokemon with name "${name}" found, return MissingNo`)
       return new Pokemon(Pkm.DEFAULT, shiny, emotion)
@@ -62,9 +69,9 @@ export default class PokemonFactory {
   }
 }
 
-export const PkmColorVariantsByPkm: { [pkm in Pkm]?: (player: Player) => Pkm } =
-  {
-    [Pkm.FLABEBE]: (player) => {
+export function getColorVariantForPlayer(basePkm: Pkm, player: IPlayer): Pkm {
+  switch (basePkm) {
+    case Pkm.FLABEBE: {
       switch (player.flowerPotsSpawnOrder[0]) {
         case FlowerPot.YELLOW:
           return Pkm.FLABEBE_YELLOW
@@ -76,8 +83,8 @@ export const PkmColorVariantsByPkm: { [pkm in Pkm]?: (player: Player) => Pkm } =
           return Pkm.FLABEBE_WHITE
       }
       return Pkm.FLABEBE
-    },
-    [Pkm.FLOETTE]: (player) => {
+    }
+    case Pkm.FLOETTE: {
       switch (player.flowerPotsSpawnOrder[0]) {
         case FlowerPot.YELLOW:
           return Pkm.FLOETTE_YELLOW
@@ -89,8 +96,8 @@ export const PkmColorVariantsByPkm: { [pkm in Pkm]?: (player: Player) => Pkm } =
           return Pkm.FLOETTE_WHITE
       }
       return Pkm.FLOETTE
-    },
-    [Pkm.FLORGES]: (player) => {
+    }
+    case Pkm.FLORGES: {
       switch (player.flowerPotsSpawnOrder[0]) {
         case FlowerPot.YELLOW:
           return Pkm.FLORGES_YELLOW
@@ -103,7 +110,52 @@ export const PkmColorVariantsByPkm: { [pkm in Pkm]?: (player: Player) => Pkm } =
       }
       return Pkm.FLORGES
     }
+
+    case Pkm.VIVILLON: {
+      const synergyVivillon: { synergy: Synergy; form: Pkm; count: number }[] =
+        [
+          { synergy: Synergy.SOUND, form: Pkm.VIVILLON, count: 0 },
+          { synergy: Synergy.NORMAL, form: Pkm.VIVILLON_ICY_SNOW, count: 0 },
+          { synergy: Synergy.GHOST, form: Pkm.VIVILLON_POLAR, count: 0 },
+          { synergy: Synergy.ICE, form: Pkm.VIVILLON_TUNDRA, count: 0 },
+          { synergy: Synergy.FOSSIL, form: Pkm.VIVILLON_CONTINENTAL, count: 0 },
+          { synergy: Synergy.GRASS, form: Pkm.VIVILLON_GARDEN, count: 0 },
+          { synergy: Synergy.PSYCHIC, form: Pkm.VIVILLON_ELEGANT, count: 0 },
+          { synergy: Synergy.FIELD, form: Pkm.VIVILLON_MODERN, count: 0 },
+          { synergy: Synergy.WATER, form: Pkm.VIVILLON_MARINE, count: 0 },
+          {
+            synergy: Synergy.FIGHTING,
+            form: Pkm.VIVILLON_ARCHIPELAGO,
+            count: 0
+          },
+          { synergy: Synergy.HUMAN, form: Pkm.VIVILLON_HIGH_PLAINS, count: 0 },
+          { synergy: Synergy.ROCK, form: Pkm.VIVILLON_SANDSTORM, count: 0 },
+          { synergy: Synergy.AQUATIC, form: Pkm.VIVILLON_RIVER, count: 0 },
+          { synergy: Synergy.STEEL, form: Pkm.VIVILLON_MONSOON, count: 0 },
+          { synergy: Synergy.ELECTRIC, form: Pkm.VIVILLON_SAVANNA, count: 0 },
+          { synergy: Synergy.FIRE, form: Pkm.VIVILLON_SUN, count: 0 },
+          { synergy: Synergy.LIGHT, form: Pkm.VIVILLON_OCEAN, count: 0 },
+          { synergy: Synergy.POISON, form: Pkm.VIVILLON_JUNGLE, count: 0 },
+          { synergy: Synergy.FAIRY, form: Pkm.VIVILLON_FANCY, count: 0 },
+          {
+            synergy: Synergy.ARTIFICIAL,
+            form: Pkm.VIVILLON_POKE_BALL,
+            count: 0
+          }
+        ]
+
+      for (const s of synergyVivillon) {
+        s.count = player.synergies.get(s.synergy) || 0
+      }
+
+      synergyVivillon.sort((a, b) => b.count - a.count)
+      return synergyVivillon[0].form
+    }
+
+    default:
+      return basePkm
   }
+}
 
 export const PkmColorVariants: readonly Pkm[] = [
   Pkm.FLABEBE_YELLOW,
@@ -117,8 +169,83 @@ export const PkmColorVariants: readonly Pkm[] = [
   Pkm.FLORGES_YELLOW,
   Pkm.FLORGES_ORANGE,
   Pkm.FLORGES_BLUE,
-  Pkm.FLORGES_WHITE
+  Pkm.FLORGES_WHITE,
+  Pkm.MINIOR_KERNEL_RED,
+  Pkm.MINIOR_KERNEL_ORANGE,
+  Pkm.MINIOR_KERNEL_GREEN,
+  Pkm.MINIOR_KERNEL_BLUE,
+  Pkm.VIVILLON_ICY_SNOW,
+  Pkm.VIVILLON_POLAR,
+  Pkm.VIVILLON_TUNDRA,
+  Pkm.VIVILLON_CONTINENTAL,
+  Pkm.VIVILLON_GARDEN,
+  Pkm.VIVILLON_ELEGANT,
+  Pkm.VIVILLON_MODERN,
+  Pkm.VIVILLON_MARINE,
+  Pkm.VIVILLON_ARCHIPELAGO,
+  Pkm.VIVILLON_HIGH_PLAINS,
+  Pkm.VIVILLON_SANDSTORM,
+  Pkm.VIVILLON_RIVER,
+  Pkm.VIVILLON_MONSOON,
+  Pkm.VIVILLON_SAVANNA,
+  Pkm.VIVILLON_SUN,
+  Pkm.VIVILLON_OCEAN,
+  Pkm.VIVILLON_JUNGLE,
+  Pkm.VIVILLON_FANCY,
+  Pkm.VIVILLON_POKE_BALL
 ]
+
+export type PkmColorVariant = (typeof PkmColorVariants)[number]
+
+export const PkmColorVariantsByPkm = {
+  [Pkm.FLABEBE]: [
+    Pkm.FLABEBE_YELLOW,
+    Pkm.FLABEBE_ORANGE,
+    Pkm.FLABEBE_BLUE,
+    Pkm.FLABEBE_WHITE
+  ],
+  [Pkm.FLOETTE]: [
+    Pkm.FLOETTE_YELLOW,
+    Pkm.FLOETTE_ORANGE,
+    Pkm.FLOETTE_BLUE,
+    Pkm.FLOETTE_WHITE
+  ],
+  [Pkm.FLORGES]: [
+    Pkm.FLORGES_YELLOW,
+    Pkm.FLORGES_ORANGE,
+    Pkm.FLORGES_BLUE,
+    Pkm.FLORGES_WHITE
+  ],
+  [Pkm.MINIOR]: [
+    Pkm.MINIOR_KERNEL_RED,
+    Pkm.MINIOR_KERNEL_ORANGE,
+    Pkm.MINIOR_KERNEL_GREEN,
+    Pkm.MINIOR_KERNEL_BLUE
+  ],
+  [Pkm.VIVILLON]: [
+    Pkm.VIVILLON_ICY_SNOW,
+    Pkm.VIVILLON_POLAR,
+    Pkm.VIVILLON_TUNDRA,
+    Pkm.VIVILLON_CONTINENTAL,
+    Pkm.VIVILLON_GARDEN,
+    Pkm.VIVILLON_ELEGANT,
+    Pkm.VIVILLON_MODERN,
+    Pkm.VIVILLON_MARINE,
+    Pkm.VIVILLON_ARCHIPELAGO,
+    Pkm.VIVILLON_HIGH_PLAINS,
+    Pkm.VIVILLON_SANDSTORM,
+    Pkm.VIVILLON_RIVER,
+    Pkm.VIVILLON_MONSOON,
+    Pkm.VIVILLON_SAVANNA,
+    Pkm.VIVILLON_SUN,
+    Pkm.VIVILLON_OCEAN,
+    Pkm.VIVILLON_JUNGLE,
+    Pkm.VIVILLON_FANCY,
+    Pkm.VIVILLON_POKE_BALL
+  ]
+} satisfies { [base in Pkm]?: PkmColorVariant[] }
+
+export type PkmWithColorVariant = keyof typeof PkmColorVariantsByPkm
 
 export function getPokemonBaseline(name: Pkm) {
   switch (name) {

@@ -1,12 +1,10 @@
 import { t } from "i18next"
-import React, { useEffect, useState, useMemo } from "react"
-import ReactDOM from "react-dom"
+import React, { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
-import { Tooltip } from "react-tooltip"
+import { RarityColor } from "../../../../../config"
 import { getPokemonData } from "../../../../../models/precomputed/precomputed-pokemon-data"
 import { PRECOMPUTED_POKEMONS_PER_RARITY } from "../../../../../models/precomputed/precomputed-rarity"
-import { RarityColor } from "../../../../../types/Config"
 import { Ability } from "../../../../../types/enum/Ability"
 import { Rarity } from "../../../../../types/enum/Game"
 import {
@@ -18,21 +16,21 @@ import {
 import { IPokemonData } from "../../../../../types/interfaces/PokemonData"
 import { groupBy } from "../../../../../utils/array"
 import { getPortraitSrc } from "../../../../../utils/avatar"
+import { usePreferences } from "../../../preferences"
 import { cc } from "../../utils/jsx"
-import { GamePokemonDetail } from "../game/game-pokemon-detail"
+import { Checkbox } from "../checkbox/checkbox"
+import { GamePokemonDetailTooltip } from "../game/game-pokemon-detail"
+import PokemonPortrait from "../pokemon-portrait"
 import { PokemonTypeahead } from "../typeahead/pokemon-typeahead"
 import WikiPokemonDetail from "./wiki-pokemon-detail"
-import PokemonPortrait from "../pokemon-portrait"
-import { Checkbox } from "../checkbox/checkbox"
 
 export default function WikiPokemons() {
   const { t } = useTranslation()
+  const [preferences, setPreferences] = usePreferences()
   const tabs = Object.values(Rarity) as Rarity[]
   const [selectedPkm, setSelectedPkm] = useState<Pkm | "">("")
   const [tabIndex, setTabIndex] = useState(0)
-  const [showEvolutions, setShowEvolutions] = useState(true)
-  const [showAdditional, setShowAdditional] = useState(true)
-  const [showRegional, setShowRegional] = useState(true)
+  const [pool, setPool] = useState<string>("all")
 
   useEffect(() => {
     if (selectedPkm) {
@@ -51,23 +49,26 @@ export default function WikiPokemons() {
     >
       <div className="filters">
         <Checkbox
-          checked={showEvolutions}
-          onToggle={setShowEvolutions}
+          checked={preferences.showEvolutions}
+          onToggle={(checked) => {
+            setPreferences({ showEvolutions: checked })
+          }}
           label={t("show_evolutions")}
           isDark
         />
-        <Checkbox
-          checked={showAdditional}
-          onToggle={setShowAdditional}
-          label={t("pool.additional")}
-          isDark
-        />
-        <Checkbox
-          checked={showRegional}
-          onToggle={setShowRegional}
-          label={t("pool.regional")}
-          isDark
-        />
+        <select value={pool} onChange={(e) => setPool(e.target.value)}>
+          <option value={"all"}>
+            {t("pool_label")}: {t("all")}
+          </option>
+          {["regular", "additional", "regional"].map((p) => (
+            <option value={p} key={p}>
+              {t(`pool.${p}`)}
+            </option>
+          ))}
+          <option value={"special"} key={"special"}>
+            {t(`rarity.SPECIAL`)}
+          </option>
+        </select>
         <PokemonTypeahead
           value={selectedPkm}
           onChange={(pkm) => setSelectedPkm(pkm)}
@@ -91,9 +92,8 @@ export default function WikiPokemons() {
               rarity={r}
               selected={selectedPkm}
               onSelect={setSelectedPkm}
-              showEvolutions={showEvolutions}
-              showAdditional={showAdditional}
-              showRegional={showRegional}
+              showEvolutions={preferences.showEvolutions}
+              pool={pool}
             />
           </TabPanel>
         )
@@ -109,18 +109,22 @@ export function WikiPokemon(props: {
   rarity: Rarity
   selected: Pkm | ""
   showEvolutions: boolean
-  showAdditional: boolean
-  showRegional: boolean
+  pool: string
   onSelect: (pkm: Pkm) => void
 }) {
   const pokemons = useMemo(
     () =>
       PRECOMPUTED_POKEMONS_PER_RARITY[props.rarity]
-        .filter((p, index, list) => {
+        .filter((p) => {
           if (NonPkm.includes(p)) return false
           const { additional, regional } = getPokemonData(p)
-          if (!props.showAdditional && additional) return false
-          if (!props.showRegional && regional) return false
+          const special = props.rarity === Rarity.SPECIAL
+          if (props.pool === "additional" && !additional) return false
+          if (props.pool === "regional" && !regional) return false
+          if (props.pool === "special" && !special) return false
+          if (props.pool === "regular" && (additional || regional || special))
+            return false
+
           if (
             !props.showEvolutions &&
             PkmFamily[p] !== p &&
@@ -134,12 +138,7 @@ export function WikiPokemon(props: {
             ? getPokemonData(a).stars - getPokemonData(b).stars
             : PkmIndex[PkmFamily[a]].localeCompare(PkmIndex[PkmFamily[b]])
         }),
-    [
-      props.rarity,
-      props.showAdditional,
-      props.showRegional,
-      props.showEvolutions
-    ]
+    [props.rarity, props.pool, props.showEvolutions]
   ) as Pkm[]
 
   return (
@@ -189,8 +188,6 @@ export function WikiAllPokemons() {
     })
   }
 
-  const [hoveredPokemon, setHoveredPokemon] = useState<Pkm>()
-
   return (
     <>
       <div id="wiki-pokemons-all">
@@ -207,10 +204,8 @@ export function WikiAllPokemons() {
                         additional: p.additional,
                         regional: p.regional
                       })}
-                      onMouseOver={() => {
-                        setHoveredPokemon(p.name)
-                      }}
-                      data-tooltip-id="pokemon-detail"
+                      data-tooltip-id="game-pokemon-detail-tooltip"
+                      data-tooltip-content={p.name}
                     >
                       <img src={getPortraitSrc(p.index)} />
                     </li>
@@ -221,15 +216,7 @@ export function WikiAllPokemons() {
           )
         })}
       </div>
-      {hoveredPokemon && (
-        <Tooltip
-          id="pokemon-detail"
-          className="custom-theme-tooltip game-pokemon-detail-tooltip"
-          float
-        >
-          <GamePokemonDetail pokemon={hoveredPokemon} />
-        </Tooltip>
-      )}
+      <GamePokemonDetailTooltip origin="wiki" />
     </>
   )
 }

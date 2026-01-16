@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction, useState } from "react"
+import React, { Dispatch, SetStateAction } from "react"
 import { useTranslation } from "react-i18next"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
 import { Language } from "../../../../../types/enum/Language"
@@ -8,12 +8,11 @@ import { usePreferences } from "../../../preferences"
 import { selectLanguage } from "../../../stores/NetworkStore"
 import { getGameScene } from "../../game"
 import { Checkbox } from "../checkbox/checkbox"
-import KeybindInfo from "./keybind-info"
-import GameFiles from "./game-files"
 import { Page } from "../main-sidebar/main-sidebar"
-
-import "./game-options-modal.css"
 import { Modal } from "../modal/modal"
+import GameFiles from "./game-files"
+import KeybindInfo from "./keybind-info"
+import "./game-options-modal.css"
 
 export default function GameOptionsModal(props: {
   show: boolean
@@ -177,6 +176,16 @@ export default function GameOptionsModal(props: {
               checked={preferences.antialiasing}
               onToggle={(checked) => setPreferences({ antialiasing: checked })}
               label={t("antialiasing")}
+            />
+          </p>
+          <p>
+            <Checkbox
+              isDark
+              checked={preferences.colorblindMode}
+              onToggle={(checked) =>
+                setPreferences({ colorblindMode: checked })
+              }
+              label={t("colorblind_mode")}
             />
           </p>
           {props.page === "main_lobby" && (

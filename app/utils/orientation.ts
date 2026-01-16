@@ -35,7 +35,7 @@ export const OrientationArray: Orientation[] = [
   Orientation.DOWNLEFT
 ]
 
-export function effectInLine(
+export function effectInOrientation(
   board: Board,
   pokemon: PokemonEntity,
   target: PokemonEntity | Orientation,
@@ -57,7 +57,7 @@ export function effectInLine(
 
   const applyEffect = (x: number, y: number) => {
     const value = board.getEntityOnCell(x, y)
-    if (value != null) {
+    if (value != null && value.team !== pokemon.team) {
       targetsHit.add(value)
     }
     effect({ x, y, value })
@@ -129,7 +129,9 @@ export function effectInLine(
       break
   }
 
-  if (target instanceof PokemonEntity && targetsHit.has(target) === false) {
+  const isEntity = (obj: PokemonEntity | Orientation): obj is PokemonEntity =>
+    obj.hasOwnProperty("positionX")
+  if (isEntity(target) && targetsHit.size === 0) {
     // should at least touch the original target
     // this can happen when target has an angle in between 45 degrees modulo, see https://discord.com/channels/737230355039387749/1098262507505848523
     effect({ x: target.positionX, y: target.positionY, value: target })
@@ -162,4 +164,26 @@ export function getOrientation(x1: number, y1: number, x2: number, y2: number) {
   } else {
     return Orientation.RIGHT
   }
+}
+
+export function effectInLine(
+  board: Board,
+  pokemon: PokemonEntity,
+  target: PokemonEntity,
+  effect: (cell: Cell) => void
+) {
+  const angleToTarget = Math.atan2(
+    target.positionY - pokemon.positionY,
+    target.positionX - pokemon.positionX
+  )
+  const distance = 12 // sufficiently large to cover the whole board in diagonal
+  const finalX = Math.round(
+    pokemon.positionX + distance * Math.cos(angleToTarget)
+  )
+  const finalY = Math.round(
+    pokemon.positionY + distance * Math.sin(angleToTarget)
+  )
+  board
+    .getCellsBetween(pokemon.positionX, pokemon.positionY, finalX, finalY)
+    .forEach(effect)
 }

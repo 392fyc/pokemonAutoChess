@@ -3,6 +3,7 @@ import "firebase/compat/auth"
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
+import { FIREBASE_CONFIG } from "../../../../../config"
 import { throttle } from "../../../../../utils/function"
 import { joinLobbyRoom } from "../../../game/lobby-logic"
 import { useAppDispatch, useAppSelector } from "../../../hooks"
@@ -10,7 +11,6 @@ import { logIn, logOut } from "../../../stores/NetworkStore"
 import EmailAuth from "./email-auth"  // Import new component
 
 import "./login.css"
-import { FIREBASE_CONFIG } from "../../../../../types/Config"
 
 export default function Login() {
   const { t } = useTranslation()
@@ -18,6 +18,7 @@ export default function Login() {
   const navigate = useNavigate()
   const uid = useAppSelector((state) => state.network.uid)
   const displayName = useAppSelector((state) => state.network.displayName)
+  const email = useAppSelector((state) => state.network.email)
   const [prejoining, setPrejoining] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [showEmailAuth, setShowEmailAuth] = useState(false)  // New state
@@ -88,7 +89,7 @@ export default function Login() {
         <h1 style={{ textAlign: "center", marginBottom: "2rem" }}>
           Pokemon Auto Chess
         </h1>
-        
+
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "300px", margin: "0 auto" }}>
           <button
             className="bubbly blue"
@@ -114,6 +115,45 @@ export default function Login() {
             🐦 Sign in with Twitter
           </button>
         </div>
+      </div>
+    )
+  } else {
+    return (
+      <div id="play-panel">
+        <p>
+          {t("authenticated_as")}:{" "}
+          <span title={`${displayName}${email ? ` (${email})` : ""}`}>
+            {t("hover_to_reveal")}
+          </span>
+        </p>
+        <ul className="actions">
+          <li>
+            <button
+              className="bubbly green"
+              onClick={preJoinLobby}
+              disabled={prejoining}
+            >
+              {prejoining ? t("connecting") : t("join_lobby")}
+            </button>
+          </li>
+          <li>
+            <button
+              className="bubbly red"
+              disabled={prejoining || loggingOut}
+              onClick={async () => {
+                setLoggingOut(true)
+                try {
+                  await firebase.auth().signOut()
+                  dispatch(logOut())
+                } finally {
+                  setLoggingOut(false)
+                }
+              }}
+            >
+              {loggingOut ? t("signing_out") : t("sign_out")}
+            </button>
+          </li>
+        </ul>
       </div>
     )
   }

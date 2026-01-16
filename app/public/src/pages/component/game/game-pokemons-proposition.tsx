@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
+import { AdditionalPicksStages } from "../../../../../config"
 import { IDetailledPokemon } from "../../../../../models/mongo-models/bot-v2"
-import { AdditionalPicksStages } from "../../../../../types/Config"
 import { ShinyItems } from "../../../../../types/enum/Item"
 import {
   Pkm,
@@ -10,8 +10,13 @@ import {
   PkmFamily
 } from "../../../../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../../../../types/enum/SpecialGameRule"
+import { isIn } from "../../../../../utils/array"
 import { DEPTH } from "../../../game/depths"
-import { useAppDispatch, useAppSelector } from "../../../hooks"
+import {
+  selectConnectedPlayer,
+  useAppDispatch,
+  useAppSelector
+} from "../../../hooks"
 import { pokemonPropositionClick } from "../../../stores/NetworkStore"
 import { getGameScene } from "../../game"
 import { playSound, SOUNDS } from "../../utils/audio"
@@ -38,10 +43,9 @@ export default function GamePokemonsPropositions() {
     board &&
     board.getBenchSize() >=
       (pokemonsProposition.some((p) => p in PkmDuo) ? 7 : 8)
-  const life = useAppSelector(
-    (state) =>
-      state.game.players.find((p) => p.id === state.network.uid)?.life ?? 0
-  )
+  const connectedPlayer = useAppSelector(selectConnectedPlayer)
+  const life = connectedPlayer?.life ?? 0
+
   const [teamPlanner, setTeamPlanner] = useState<IDetailledPokemon[]>(
     localStore.get(LocalStoreKeys.TEAM_PLANNER)
   )
@@ -71,10 +75,13 @@ export default function GamePokemonsPropositions() {
           {AdditionalPicksStages.includes(stageLevel) && (
             <h2>{t("pick_additional_pokemon_hint")}</h2>
           )}
-          {stageLevel === 1 &&
-            specialGameRule === SpecialGameRule.FIRST_PARTNER && (
-              <h2>{t("pick_first_partner_hint")}</h2>
-            )}
+          {stageLevel === 1 && (
+            <h2>
+              {specialGameRule === SpecialGameRule.FIRST_PARTNER
+                ? t("pick_first_partner_scribble")
+                : t("pick_first_partner")}
+            </h2>
+          )}
           <div className="game-pokemons-proposition-list">
             {pokemonsProposition.map((proposition, index) => {
               const item = itemsProposition[index]
@@ -119,7 +126,7 @@ export default function GamePokemonsPropositions() {
                       }
                     />
                   )}
-                  {item && ShinyItems.includes(item) === false && (
+                  {item && isIn(ShinyItems, item) === false && (
                     <div className="additional-pick-item ">
                       <span
                         style={{

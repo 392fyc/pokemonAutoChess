@@ -447,23 +447,23 @@ export const DEFAULT_CRIT_POWER = 2
 export const BASE_PROJECTILE_SPEED = 3
 
 export const StageDuration: Record<number | "DEFAULT", number> = {
-  0: 23, // adjusted for treasure town theme
+  0: 28, // 23 + 5 (Portal Carousel)
   1: 20,
   2: 20,
   3: 20,
-  5: 40,
-  8: 40,
+  5: 55, // 50 + 5 (Additional Pick)
+  8: 55, // 50 + 5 (Additional Pick)
   9: 40,
-  10: 50,
-  11: 40,
-  15: 40,
+  10: 65, // 60 + 5 (Portal Carousel)
+  11: 55, // 50 + 5 (Additional Pick)
+  15: 50,
   19: 40,
-  20: 50,
-  DEFAULT: 35
+  20: 55, // 50 + 5 (Portal Carousel)
+  DEFAULT: 60 // 35 → 60
 }
 export const FIGHTING_PHASE_DURATION = 40000
-export const ITEM_CAROUSEL_BASE_DURATION = 15000
-export const PORTAL_CAROUSEL_BASE_DURATION = 23000
+export const ITEM_CAROUSEL_BASE_DURATION = 25000 // 20000 + 5000
+export const PORTAL_CAROUSEL_BASE_DURATION = 33000 // 28000 + 5000
 
 export const ItemCarouselStages = [4, 12, 17, 22, 27, 34]
 export const ItemProposalStages = [3, 15]

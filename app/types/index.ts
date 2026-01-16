@@ -78,6 +78,7 @@ export enum Transfer {
   ADD_BOT = "ADD_BOT",
   REMOVE_BOT = "REMOVE_BOT",
   TOGGLE_READY = "TOGGLE_READY",
+  READY_STATUS_UPDATE = "READY_STATUS_UPDATE",
   CHANGE_NO_ELO = "CHANGE_NO_ELO",
   REFRESH = "REFRESH",
   SPECTATE = "SPECTATE",
@@ -323,6 +324,7 @@ export interface IPlayer {
   goldenEggChance: number
   lightX: number
   lightY: number
+  isReady: boolean
 }
 
 export interface IPokemon {

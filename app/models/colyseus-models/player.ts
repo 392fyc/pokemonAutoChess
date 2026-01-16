@@ -101,6 +101,7 @@ export default class Player extends Schema implements IPlayer {
   @type("uint16") elo: number
   @type("uint16") games: number // number of games played on this account
   @type("boolean") alive = true
+    @type("boolean") isReady = false // Ready for next stage (town or fight)
   @type([HistoryItem]) history = new ArraySchema<HistoryItem>()
   @type({ map: "uint8" }) pokemonCustoms: PokemonCustoms =
     new MapSchema<number>()
@@ -208,6 +209,7 @@ export default class Player extends Schema implements IPlayer {
       this.loadingProgress = 100
       this.lightX = 3
       this.lightY = 2
+      this.isReady = true // bots are always ready
     }
 
     if (state.specialGameRule === SpecialGameRule.DITTO_PARTY) {

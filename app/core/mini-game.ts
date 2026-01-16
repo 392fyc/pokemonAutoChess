@@ -290,16 +290,16 @@ export class MiniGame {
         retentionDelay
       )
 
-      if (player.isBot) {
-        avatar.targetX =
-          this.centerX +
-          Math.cos((2 * Math.PI * i) / this.alivePlayers.length) *
-            CAROUSEL_RADIUS_X
-        avatar.targetY =
-          this.centerY +
-          Math.sin((2 * Math.PI * i) / this.alivePlayers.length) *
-            CAROUSEL_RADIUS_Y
-      }
+      // if (player.isBot) {
+      //   avatar.targetX =
+      //     this.centerX +
+      //     Math.cos((2 * Math.PI * i) / this.alivePlayers.length) *
+      //       CAROUSEL_RADIUS_X
+      //   avatar.targetY =
+      //     this.centerY +
+      //     Math.sin((2 * Math.PI * i) / this.alivePlayers.length) *
+      //       CAROUSEL_RADIUS_Y
+      // }
 
       this.avatars!.set(avatar.id, avatar)
       const body = Bodies.circle(x, y, AVATAR_RADIUS)

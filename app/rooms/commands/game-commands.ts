@@ -1711,14 +1711,12 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
           // Update automatic evolutions and remove Unowns
           player.board.forEach((pokemon, key) => {
-            if (pokemon.evolutionRule) {
-              if (pokemon.evolutionRule instanceof HatchEvolutionRule) {
-                pokemon.evolutionRule.updateHatch(
-                  pokemon,
-                  player,
-                  this.state.stageLevel
-                )
-              }
+            if (pokemon.evolutionRule && pokemon.evolutionRule instanceof HatchEvolutionRule) {
+              pokemon.evolutionRule.updateHatch(
+                pokemon,
+                player,
+                this.state.stageLevel
+              )
             }
             if (pokemon.passive === Passive.UNOWN && !isOnBench(pokemon)) {
               // remove after one fight

@@ -111,6 +111,7 @@
     "@types/d3": "^7.4.3",
     "@types/elo-rank": "^1.0.3",
     "@types/fs-extra": "^11.0.4",
+    "@types/html2canvas": "^0.5.35",
     "@types/matter-js": "^0.20.0",
     "@types/node": "^24.10.1",
     "@types/node-fetch": "^2.6.11",

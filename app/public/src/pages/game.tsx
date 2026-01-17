@@ -121,22 +121,20 @@ export function cyclePlayers(amt: number) {
 export function playerClick(id: string) {
   const scene = getGameScene()
   gameContainer?.room?.send(Transfer.SPECTATE, id)
-  if (scene?.spectate) {
-    if (gameContainer?.room?.state?.players) {
-      const spectatedPlayer = gameContainer?.room?.state?.players.get(id)
-      if (spectatedPlayer) {
-        gameContainer.setPlayer(spectatedPlayer)
+  if (scene?.spectate && gameContainer?.room?.state?.players) {
+    const spectatedPlayer = gameContainer?.room?.state?.players.get(id)
+    if (spectatedPlayer) {
+      gameContainer.setPlayer(spectatedPlayer)
 
-        const simulation = gameContainer?.room?.state.simulations.get(
-          spectatedPlayer.simulationId
-        )
-        if (simulation) {
-          gameContainer.setSimulation(simulation)
-        }
+      const simulation = gameContainer?.room?.state.simulations.get(
+        spectatedPlayer.simulationId
+      )
+      if (simulation) {
+        gameContainer.setSimulation(simulation)
       }
-
-      gameContainer?.gameScene?.board?.updateScoutingAvatars()
     }
+
+    gameContainer?.gameScene?.board?.updateScoutingAvatars()
   }
 }
 

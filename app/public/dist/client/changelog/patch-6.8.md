@@ -108,13 +108,14 @@
 - Tiny mushroom is rebranded as Shed Shell. No change to the effect.
 - New dishes, Mushrooms: Tiny Mushroom, Big Mushroom, Balm mushroom
 - Buff Berserk Gene: Attack 5 → 10
-- Buff Explorer Kit: give 5 Attack, 5 Defense and 5 Special Defense as base stats
+- Buff Explorer Kit: give 3 Attack, 5 Defense and 5 Special Defense as base stats
 - Nerf Spell Tag: Curse duration increased: 9 → 10 seconds
 - Replace TM Brick Break with TM Return: deal 20/40/80 special damage, then gain 2 AP permanently.
 
 # Gameplay
 
 - Locked status now prevents dodging
+- Curse status on cleanse got its delay increased by ~~1~~ 2 seconds
 - Stage 15 component pick is back, and stage 2 no longer gives a random component as a reward. Instead, the rewards of stage 2 are the 1 out of 3 component pick proposed on stage 3.
 - Fire weather is renamed to Drought
 - Zenith is now the weather triggered by Grass synergy. New effect: +15% healing, -30% Sleep duration

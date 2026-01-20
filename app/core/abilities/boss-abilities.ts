@@ -1,6 +1,7 @@
 import { AbilityStrategy } from "./ability-strategy"
 import type { Board } from "../board"
 import { PokemonEntity } from "../pokemon-entity"
+import { DelayedCommand, RemoveEffectCommand, StatChangeCommand } from "../simulation-command"
 import { Ability } from "../../types/enum/Ability"
 import { EffectEnum } from "../../types/enum/Effect"
 import { AttackType, BossTrait } from "../../types/enum/Game"
@@ -124,12 +125,9 @@ export class BossTeleportStrategy extends AbilityStrategy {
     pokemon.effects.add(EffectEnum.TELEPORT_ENHANCEMENT)
 
     // 设置强化持续时间（例如2秒）
-    pokemon.simulation.addDelayedCommand({
-      type: "removeEffect",
-      targetId: pokemon.id,
-      effect: EffectEnum.TELEPORT_ENHANCEMENT,
-      delay: 2000
-    })
+    pokemon.simulation.addDelayedCommand(
+      new RemoveEffectCommand(pokemon.id, EffectEnum.TELEPORT_ENHANCEMENT, 2000, pokemon.simulation)
+    )
   }
 }
 
@@ -158,29 +156,18 @@ export class BossMeditateStrategy extends AbilityStrategy {
     pokemon.effects.add(EffectEnum.MEDITATE)
 
     // 设置效果持续时间（例如5秒）
-    pokemon.simulation.addDelayedCommand({
-      type: "removeEffect",
-      targetId: pokemon.id,
-      effect: EffectEnum.MEDITATE,
-      delay: 5000
-    })
+    pokemon.simulation.addDelayedCommand(
+      new RemoveEffectCommand(pokemon.id, EffectEnum.MEDITATE, 5000, pokemon.simulation)
+    )
 
     // 5秒后移除加成
-    pokemon.simulation.addDelayedCommand({
-      type: "statChange",
-      targetId: pokemon.id,
-      stat: "ap",
-      value: -spAtkIncrease,
-      delay: 5000
-    })
+    pokemon.simulation.addDelayedCommand(
+      new StatChangeCommand(pokemon.id, "ap", -spAtkIncrease, 5000, pokemon.simulation)
+    )
 
-    pokemon.simulation.addDelayedCommand({
-      type: "statChange",
-      targetId: pokemon.id,
-      stat: "speDef",
-      value: -spDefIncrease,
-      delay: 5000
-    })
+    pokemon.simulation.addDelayedCommand(
+      new StatChangeCommand(pokemon.id, "speDef", -spDefIncrease, 5000, pokemon.simulation)
+    )
 
     logger.debug(`BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease} and SpDef by ${spDefIncrease}`)
   }
@@ -254,9 +241,11 @@ export class BossPsychicStrategy extends AbilityStrategy {
 
     target.handleSpecialDamage(
       finalDamage,
+      board,
+      AttackType.SPECIAL,
       attacker,
       crit,
-      AttackType.SPECIAL
+      true
     )
   }
 }
@@ -316,9 +305,11 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
 
     target.handleSpecialDamage(
       finalDamage,
+      board,
+      AttackType.SPECIAL,
       attacker,
       crit,
-      AttackType.SPECIAL
+      true
     )
   }
 }

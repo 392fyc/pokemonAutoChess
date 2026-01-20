@@ -76,7 +76,7 @@ import {
   SoundCryEffect
 } from "./effects/synergies"
 import { getStrongestUnit, getUnitScore, PokemonEntity } from "./pokemon-entity"
-import { DelayedCommand } from "./simulation-command"
+import { DelayedCommand, RemoveEffectCommand, SimulationCommand, StatChangeCommand } from "./simulation-command"
 
 export default class Simulation extends Schema implements ISimulation {
   @type("string") weather: Weather = Weather.NEUTRAL
@@ -106,7 +106,7 @@ export default class Simulation extends Schema implements ISimulation {
   stormLightningTimer = 0
   tidalWaveTimer = 0
   tidalWaveCounter = 0
-  private delayedCommands: DelayedCommand[] = []
+  private delayedCommands: SimulationCommand[] = []
   // Boss技能管理器
   bossAbilityManager: BossAbilityManager | null = null
 

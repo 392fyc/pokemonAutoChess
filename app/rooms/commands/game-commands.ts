@@ -21,7 +21,6 @@ import {
   SynergyTriggers,
   UNOWN_ENCOUNTER_CHANCE
 } from "../../config"
-import { GameMode } from "../../types/enum/Game"
 import {
   OnItemDroppedEffect,
   OnStageStartEffect
@@ -43,9 +42,8 @@ import { getLevelUpCost } from "../../models/colyseus-models/experience-manager"
 import Player from "../../models/colyseus-models/player"
 import { Pokemon, PokemonClasses } from "../../models/colyseus-models/pokemon"
 import { Wanderer } from "../../models/colyseus-models/wanderer"
-import { IDetailledPokemon, IBot } from "../../models/mongo-models/bot-v2"
+import { IDetailledPokemon } from "../../models/mongo-models/bot-v2"
 import UserMetadata from "../../models/mongo-models/user-metadata"
-import { PVEBossStages } from "../../models/pve-boss-stages"
 import PokemonFactory, {
   getColorVariantForPlayer,
   getPokemonBaseline,
@@ -67,6 +65,7 @@ import { DungeonPMDO } from "../../types/enum/Dungeon"
 import { EffectEnum } from "../../types/enum/Effect"
 import {
   BattleResult,
+  GameMode,
   GamePhaseState,
   PokemonActionState,
   Team
@@ -1386,7 +1385,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
     this.state.players.forEach((p) => this.updatePlayerBetweenStages(p))
 
-    this.spawnWanderingPokemons()
+    this.room.spawnWanderingPokemons()
 
     // PvE stage initialization
     const pveStage = PVEStages[this.state.stageLevel]
@@ -1709,11 +1708,14 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
             }
           }
 
-          this.spawnBabyEggs(player, isPVE)
+          this.room.spawnBabyEggs(player, isPVE)
 
           // Update automatic evolutions and remove Unowns
           player.board.forEach((pokemon, key) => {
-            if (pokemon.evolutionRule && pokemon.evolutionRule instanceof HatchEvolutionRule) {
+            if (
+              pokemon.evolutionRule &&
+              pokemon.evolutionRule instanceof HatchEvolutionRule
+            ) {
               pokemon.evolutionRule.updateHatch(
                 pokemon,
                 player,
@@ -1850,491 +1852,12 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           simulation.start()
         }
       })
+    } else if (this.state.gameMode === GameMode.PVE_MODE) {
+      this.room.handlePveMatchups()
     } else {
-      // Handle PVE mode matchups
-      if (this.state.gameMode === GameMode.PVE_MODE) {
-        this.handlePveMatchups()
-      } else {
-        const matchups = selectMatchups(this.state)
-        this.state.simulationPaused = true // 2 seconds pause for portal transition animation
-
-        matchups.forEach((matchup) => {
-          const { bluePlayer, redPlayer, ghost } = matchup
-          const weather = getWeather(
-            bluePlayer,
-            redPlayer,
-            redPlayer.board,
-            ghost
-          )
-          const simulationId = nanoid()
-
-          bluePlayer.simulationId = simulationId
-          bluePlayer.team = Team.BLUE_TEAM
-          bluePlayer.opponents.set(
-            redPlayer.id,
-            (bluePlayer.opponents.get(redPlayer.id) ?? 0) + 1
-          )
-          bluePlayer.opponentId = redPlayer.id
-          bluePlayer.opponentName = matchup.ghost
-            ? `Ghost of ${redPlayer.name}`
-            : redPlayer.name
-          bluePlayer.opponentAvatar = redPlayer.avatar
-          bluePlayer.opponentTitle = redPlayer.title ?? ""
-
-          if (!matchup.ghost) {
-            redPlayer.simulationId = simulationId
-            redPlayer.team = Team.RED_TEAM
-            redPlayer.opponents.set(
-              bluePlayer.id,
-              (redPlayer.opponents.get(bluePlayer.id) ?? 0) + 1
-            )
-            redPlayer.opponentId = bluePlayer.id
-            redPlayer.opponentName = bluePlayer.name
-            redPlayer.opponentAvatar = bluePlayer.avatar
-            redPlayer.opponentTitle = bluePlayer.title ?? ""
-          }
-
-          const simulation = new Simulation(
-            simulationId,
-            this.room,
-            bluePlayer.board,
-            redPlayer.board,
-            bluePlayer,
-            redPlayer,
-            this.state.stageLevel,
-            weather,
-            matchup.ghost
-          )
-
-          this.state.simulations.set(simulation.id, simulation)
-          setTimeout(() => {
-            this.state.simulationPaused = false
-            simulation.start()
-          }, 2500) // 2 seconds for portal transition animation, 500 ms for latency
-        })
-      }
-    }
-  }
-
-  handlePveMatchups() {
-    this.state.simulationPaused = true // 2 seconds pause for portal transition animation
-
-    // Get all alive human players
-    const humanPlayers: Player[] = []
-    this.state.players.forEach((player: Player) => {
-      if (player.alive && !player.isBot) {
-        humanPlayers.push(player)
-      }
-    })
-
-    // Get all PVE bots that haven't been encountered
-    const availableBots: Player[] = []
-    this.state.players.forEach((player: Player) => {
-      if (player.alive && player.isBot && player.id.startsWith('pve_bot_')) {
-        // Check if this bot has been encountered by any human player
-        let encountered = false
-        humanPlayers.forEach((humanPlayer) => {
-          if (humanPlayer.pveBotsEncountered.includes(player.id)) {
-            encountered = true
-          }
-        })
-        if (!encountered) {
-          availableBots.push(player)
-        }
-      }
-    })
-
-    // Check if we should trigger sudden death phase (after stage 40)
-    const isSuddenDeathPhase = this.state.stageLevel >= 40 && this.state.phase === GamePhaseState.PVE_SUDDEN_DEATH
-
-    // If stage 40 or later and not in sudden death phase yet, switch to sudden death phase
-    if (this.state.stageLevel >= 40 && this.state.phase !== GamePhaseState.PVE_SUDDEN_DEATH) {
-      this.state.phase = GamePhaseState.PVE_SUDDEN_DEATH
-    }
-
-    // Check if we should trigger boss battle
-    const shouldTriggerBossBattle = availableBots.length === 0 || (this.state.stageLevel >= 40 && !isSuddenDeathPhase)
-
-    if (shouldTriggerBossBattle) {
-      // Trigger boss battle
-      this.triggerBossBattle(humanPlayers)
-    } else {
-      // Match each human player with a unique PVE bot
-      humanPlayers.forEach((humanPlayer) => {
-        if (availableBots.length === 0) return
-
-        // Select a random bot from available ones
-        const botIndex = Math.floor(Math.random() * availableBots.length)
-        const botPlayer = availableBots[botIndex]
-        availableBots.splice(botIndex, 1)
-
-        // Mark this bot as encountered by this player
-        humanPlayer.pveBotsEncountered.push(botPlayer.id)
-
-        // Create bot board from preset lineup if available
-        let botBoard = botPlayer.board
-        const botData = botPlayer.botData as IBot | undefined
-        if (botData?.presetLineup && botData.presetLineup.length > 0) {
-          // Create board from preset lineup
-          botBoard = PokemonFactory.makePveBoard(
-            botData.presetLineup,
-            false, // shinyEncounter
-            null   // townEncounter
-          )
-        }
-
-        // Create simulation for this matchup
-        const weather = getWeather(humanPlayer, botPlayer, botBoard, false)
-        const simulationId = nanoid()
-
-        humanPlayer.simulationId = simulationId
-        humanPlayer.team = Team.BLUE_TEAM
-        humanPlayer.opponentId = botPlayer.id
-        humanPlayer.opponentName = botPlayer.name
-        humanPlayer.opponentAvatar = botPlayer.avatar
-        humanPlayer.opponentTitle = botPlayer.title ?? ""
-
-        botPlayer.simulationId = simulationId
-        botPlayer.team = Team.RED_TEAM
-        botPlayer.opponentId = humanPlayer.id
-        botPlayer.opponentName = humanPlayer.name
-        botPlayer.opponentAvatar = humanPlayer.avatar
-        botPlayer.opponentTitle = humanPlayer.title ?? ""
-
-        const simulation = new Simulation(
-          simulationId,
-          this.room,
-          humanPlayer.board,
-          botBoard,
-          humanPlayer,
-          botPlayer,
-          this.state.stageLevel,
-          weather,
-          false,
-          false // isBossBattle
-        )
-
-        this.state.simulations.set(simulation.id, simulation)
-        setTimeout(() => {
-          this.state.simulationPaused = false
-          simulation.start()
-        }, 2500)
-      })
-    }
-  }
-
-  triggerBossBattle(humanPlayers: Player[]) {
-    // Find boss stage for current stage level
-    const bossStage = PVEBossStages[this.state.stageLevel]
-
-    if (!bossStage) {
-      // No boss stage defined for this level, use regular matchups
       const matchups = selectMatchups(this.state)
-      matchups.forEach((matchup) => {
-        const { bluePlayer, redPlayer, ghost } = matchup
-        const weather = getWeather(
-          bluePlayer,
-          redPlayer,
-          redPlayer.board,
-          ghost
-        )
-        const simulationId = nanoid()
-
-        bluePlayer.simulationId = simulationId
-        bluePlayer.team = Team.BLUE_TEAM
-        bluePlayer.opponents.set(
-          redPlayer.id,
-          (bluePlayer.opponents.get(redPlayer.id) ?? 0) + 1
-        )
-        bluePlayer.opponentId = redPlayer.id
-        bluePlayer.opponentName = matchup.ghost
-          ? `Ghost of ${redPlayer.name}`
-          : redPlayer.name
-        bluePlayer.opponentAvatar = redPlayer.avatar
-        bluePlayer.opponentTitle = redPlayer.title ?? ""
-
-        if (!matchup.ghost) {
-          redPlayer.simulationId = simulationId
-          redPlayer.team = Team.RED_TEAM
-          redPlayer.opponents.set(
-            bluePlayer.id,
-            (redPlayer.opponents.get(bluePlayer.id) ?? 0) + 1
-          )
-          redPlayer.opponentId = bluePlayer.id
-          redPlayer.opponentName = bluePlayer.name
-          redPlayer.opponentAvatar = bluePlayer.avatar
-          redPlayer.opponentTitle = bluePlayer.title ?? ""
-        }
-
-        const simulation = new Simulation(
-          simulationId,
-          this.room,
-          bluePlayer.board,
-          redPlayer.board,
-          bluePlayer,
-          redPlayer,
-          this.state.stageLevel,
-          weather,
-          matchup.ghost,
-          false // isBossBattle
-        )
-
-        this.state.simulations.set(simulation.id, simulation)
-        setTimeout(() => {
-          this.state.simulationPaused = false
-          simulation.start()
-        }, 2500)
-      })
-      return
-    }
-
-    // Create boss battle for each human player
-    humanPlayers.forEach((humanPlayer) => {
-      const bossBoard = PokemonFactory.makePveBoard(
-        bossStage,
-        this.state.shinyEncounter,
-        this.state.townEncounter
-      )
-
-      const weather = getWeather(humanPlayer, null, bossBoard)
-      const simulationId = nanoid()
-
-      humanPlayer.simulationId = simulationId
-      humanPlayer.team = Team.BLUE_TEAM
-      humanPlayer.opponentId = "boss"
-      humanPlayer.opponentName = bossStage.name
-      humanPlayer.opponentAvatar = getAvatarString(
-        PkmIndex[bossStage.avatar],
-        this.state.shinyEncounter,
-        bossStage.emotion
-      )
-      humanPlayer.opponentTitle = "BOSS"
-
-      const simulation = new Simulation(
-        simulationId,
-        this.room,
-        humanPlayer.board,
-        bossBoard,
-        humanPlayer,
-        undefined,
-        this.state.stageLevel,
-        weather,
-        false,
-        true // isBossBattle
-      )
-
-      this.state.simulations.set(simulation.id, simulation)
-      setTimeout(() => {
-        this.state.simulationPaused = false
-        simulation.start()
-      }, 2500)
-    })
-  }
-
-  handleRegularMatchups(matchups: any[]) {
-    matchups.forEach((matchup) => {
-      const { bluePlayer, redPlayer, ghost } = matchup
-      const weather = getWeather(
-        bluePlayer,
-        redPlayer,
-        redPlayer.board,
-        ghost
-      )
-      const simulationId = nanoid()
-
-      bluePlayer.simulationId = simulationId
-      bluePlayer.team = Team.BLUE_TEAM
-      bluePlayer.opponents.set(
-        redPlayer.id,
-        (bluePlayer.opponents.get(redPlayer.id) ?? 0) + 1
-      )
-      bluePlayer.opponentId = redPlayer.id
-      bluePlayer.opponentName = matchup.ghost
-        ? `Ghost of ${redPlayer.name}`
-        : redPlayer.name
-      bluePlayer.opponentAvatar = redPlayer.avatar
-      bluePlayer.opponentTitle = redPlayer.title ?? ""
-
-      if (!matchup.ghost) {
-        redPlayer.simulationId = simulationId
-        redPlayer.team = Team.RED_TEAM
-        redPlayer.opponents.set(
-          bluePlayer.id,
-          (redPlayer.opponents.get(bluePlayer.id) ?? 0) + 1
-        )
-        redPlayer.opponentId = bluePlayer.id
-        redPlayer.opponentName = bluePlayer.name
-        redPlayer.opponentAvatar = bluePlayer.avatar
-        redPlayer.opponentTitle = bluePlayer.title ?? ""
-      }
-
-      const simulation = new Simulation(
-        simulationId,
-        this.room,
-        bluePlayer.board,
-        redPlayer.board,
-        bluePlayer,
-        redPlayer,
-        this.state.stageLevel,
-        weather,
-        matchup.ghost,
-        false // isBossBattle
-      )
-
-      this.state.simulations.set(simulation.id, simulation)
-      setTimeout(() => {
-        this.state.simulationPaused = false
-        simulation.start()
-      }, 2500)
-    })
-  }
-
-  spawnWanderingPokemons() {
-    const isPVE = this.state.stageLevel in PVEStages
-
-    this.state.players.forEach((player: Player) => {
-      if (player.alive && !player.isBot) {
-        const client = this.room.clients.find(
-          (cli) => cli.auth.uid === player.id
-        )
-        if (!client) return
-
-        if (chance(UNOWN_ENCOUNTER_CHANCE)) {
-          const pkm = pickRandomIn(Unowns)
-          const shiny = chance(SHINY_UNOWN_ENCOUNTER_CHANCE)
-          const id = nanoid()
-          const wanderer = new Wanderer({
-            id,
-            pkm,
-            shiny,
-            type: WandererType.UNOWN,
-            behavior: WandererBehavior.RUN_THROUGH
-          })
-
-          this.clock.setTimeout(
-            () => player.wanderers.set(id, wanderer),
-            Math.round((5 + 15 * Math.random()) * 1000)
-          )
-        }
-
-        if (
-          isPVE &&
-          this.state.specialGameRule === SpecialGameRule.GOTTA_CATCH_EM_ALL
-        ) {
-          const nbPokemonsToSpawn = Math.ceil(this.state.stageLevel / 2)
-          for (let i = 0; i < nbPokemonsToSpawn; i++) {
-            const id = nanoid()
-            const pkm = this.state.shop.pickPokemon(
-              player,
-              this.state,
-              -1,
-              true
-            )
-            const wanderer = new Wanderer({
-              id,
-              pkm,
-              shiny: chance(0.01),
-              type: WandererType.CATCHABLE,
-              behavior: WandererBehavior.RUN_THROUGH
-            })
-
-            this.clock.setTimeout(
-              () => player.wanderers.set(id, wanderer),
-              4000 + i * 400
-            )
-          }
-        }
-      }
-    })
-  }
-
-  spawnBabyEggs(player: Player, isPVE: boolean) {
-    const hasBabyActive =
-      player.effects.has(EffectEnum.HATCHER) ||
-      player.effects.has(EffectEnum.BREEDER) ||
-      player.effects.has(EffectEnum.GOLDEN_EGGS)
-    const hasLostLastBattle =
-      player.history.at(-1)?.result === BattleResult.DEFEAT
-    const eggsOnBench = values(player.board).filter((p) => p.name === Pkm.EGG)
-    const nbOfGoldenEggsOnBench = eggsOnBench.filter((p) => p.shiny).length
-    let nbEggsFound = 0
-    let goldenEggFound = false
-
-    if (hasLostLastBattle && hasBabyActive) {
-      const EGG_CHANCE = 0.1
-      const GOLDEN_EGG_CHANCE = 0.05
-      const playerEggChanceStacked = player.eggChance
-      const playerGoldenEggChanceStacked = player.goldenEggChance
-      const babies = values(player.board).filter(
-        (p) => !isOnBench(p) && p.types.has(Synergy.BABY)
-      )
-
-      for (const baby of babies) {
-        if (
-          player.effects.has(EffectEnum.GOLDEN_EGGS) &&
-          nbOfGoldenEggsOnBench === 0 &&
-          chance(GOLDEN_EGG_CHANCE, baby)
-        ) {
-          nbEggsFound++
-          goldenEggFound = true
-        } else if (chance(EGG_CHANCE, baby)) {
-          nbEggsFound++
-        }
-        if (player.effects.has(EffectEnum.GOLDEN_EGGS) && !goldenEggFound) {
-          player.goldenEggChance += max(0.1)(
-            Math.pow(GOLDEN_EGG_CHANCE, 1 - baby.luck / 200)
-          )
-        } else if (
-          player.effects.has(EffectEnum.HATCHER) &&
-          nbEggsFound === 0
-        ) {
-          player.eggChance += max(0.2)(
-            Math.pow(EGG_CHANCE, 1 - baby.luck / 100)
-          )
-        }
-      }
-
-      // Second chance with chance stacked after lose streaks
-      if (
-        nbEggsFound === 0 &&
-        (player.effects.has(EffectEnum.BREEDER) ||
-          player.effects.has(EffectEnum.GOLDEN_EGGS) ||
-          chance(playerEggChanceStacked))
-      ) {
-        nbEggsFound = 1 // baby >= 5 guarantees at least 1 egg after a defeat
-      }
-      if (
-        goldenEggFound === false &&
-        player.effects.has(EffectEnum.GOLDEN_EGGS) &&
-        nbOfGoldenEggsOnBench === 0 &&
-        chance(playerGoldenEggChanceStacked)
-      ) {
-        goldenEggFound = true
-      }
-    } else if (!isPVE) {
-      // winning a PvP fight resets the stacked egg chance
-      player.eggChance = 0
-      player.goldenEggChance = 0
-    }
-
-    if (
-      this.state.specialGameRule === SpecialGameRule.OMELETTE_COOK &&
-      [2, 3, 4].includes(this.state.stageLevel)
-    ) {
-      nbEggsFound = 1
-    }
-
-    for (let i = 0; i < nbEggsFound; i++) {
-      if (getFreeSpaceOnBench(player.board) === 0) continue
-      const isGoldenEgg =
-        goldenEggFound && i === 0 && nbOfGoldenEggsOnBench === 0
-      giveRandomEgg(player, isGoldenEgg)
-      if (player.effects.has(EffectEnum.HATCHER)) {
-        player.eggChance = 0 // getting an egg resets the stacked egg chance
-      }
-      if (player.effects.has(EffectEnum.GOLDEN_EGGS) && isGoldenEgg) {
-        player.goldenEggChance = 0 // getting a golden egg resets the stacked egg chance
-      }
+      this.state.simulationPaused = true // 2 seconds pause for portal transition animation
+      this.room.handleRegularMatchups(matchups)
     }
   }
 }

@@ -1,13 +1,13 @@
 import ItemsStatistic, {
   IItemsStatisticV2
 } from "../models/mongo-models/items-statistic-v2"
+import MetaV2, { IMetaV2 } from "../models/mongo-models/meta-v2"
 import PokemonsStatistics, {
   IPokemonsStatisticV2
 } from "../models/mongo-models/pokemons-statistic-v2"
 import RegionStatistic, {
   IRegionStatistic
 } from "../models/mongo-models/regions-statistic"
-import MetaV2, { IMetaV2 } from "../models/mongo-models/meta-v2"
 import ReportMetadata, {
   IReportMetadata
 } from "../models/mongo-models/report-metadata"

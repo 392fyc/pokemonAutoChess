@@ -1,5 +1,5 @@
 import { Dispatcher } from "@colyseus/command"
-import { MapSchema } from "@colyseus/schema"
+import { MapSchema, SetSchema } from "@colyseus/schema"
 import { Client, Room } from "colyseus"
 import admin from "firebase-admin"
 import { nanoid } from "nanoid"
@@ -14,10 +14,16 @@ import {
   MAX_SIMULATION_DELTA_TIME,
   MinStageForGameToCount,
   PortalCarouselStages,
+  SHARDS_PER_SHINY_UNOWN_WANDERER,
+  SHARDS_PER_UNOWN_WANDERER,
+  SHINY_UNOWN_ENCOUNTER_CHANCE,
+  UNOWN_ENCOUNTER_CHANCE,
   UniquePool
 } from "../config"
+import { giveRandomEgg } from "../core/eggs"
 import { computeElo } from "../core/elo"
 import { CountEvolutionRule, ItemEvolutionRule } from "../core/evolution-rules"
+import { selectMatchups } from "../core/matchmaking"
 import { MiniGame } from "../core/mini-game"
 import {
   clearPendingGame,
@@ -26,9 +32,10 @@ import {
   givePlayerTimeout,
   setPendingGame
 } from "../core/pending-game-manager"
+import Simulation from "../core/simulation"
 import { IGameUser } from "../models/colyseus-models/game-user"
 import Player from "../models/colyseus-models/player"
-import { Pokemon } from "../models/colyseus-models/pokemon"
+import { Pokemon, PokemonClasses } from "../models/colyseus-models/pokemon"
 import { Wanderer } from "../models/colyseus-models/wanderer"
 import { BotV2, IBot, IDetailledPokemon } from "../models/mongo-models/bot-v2"
 import DetailledStatistic from "../models/mongo-models/detailled-statistic-v2"
@@ -39,6 +46,8 @@ import {
   PRECOMPUTED_REGIONAL_MONS
 } from "../models/precomputed/precomputed-pokemon-data"
 import { PRECOMPUTED_POKEMONS_PER_RARITY } from "../models/precomputed/precomputed-rarity"
+import { PVEBossStages } from "../models/pve-boss-stages"
+import { PVEStages } from "../models/pve-stages"
 import { getAdditionalsTier1, getSellPrice } from "../models/shop"
 import { fetchEventLeaderboard } from "../services/leaderboard"
 import {
@@ -56,8 +65,15 @@ import {
   Transfer
 } from "../types"
 import { CloseCodes } from "../types/enum/CloseCodes"
+import { EffectEnum } from "../types/enum/Effect"
 import { EloRank } from "../types/enum/EloRank"
-import { GameMode, GamePhaseState, PokemonActionState } from "../types/enum/Game"
+import {
+  BattleResult,
+  GameMode,
+  GamePhaseState,
+  PokemonActionState,
+  Team
+} from "../types/enum/Game"
 import { Item } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import {
@@ -66,7 +82,8 @@ import {
   PkmDuos,
   PkmIndex,
   PkmProposition,
-  PkmRegionalVariants
+  PkmRegionalVariants,
+  Unowns
 } from "../types/enum/Pokemon"
 import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy } from "../types/enum/Synergy"
@@ -76,14 +93,16 @@ import { removeInArray } from "../utils/array"
 import { getAvatarString } from "../utils/avatar"
 import {
   getFirstAvailablePositionInBench,
-  getFreeSpaceOnBench
+  getFreeSpaceOnBench,
+  isOnBench
 } from "../utils/board"
 import { isValidDate } from "../utils/date"
 import { formatMinMaxRanks } from "../utils/elo"
 import { logger } from "../utils/logger"
 import { clamp } from "../utils/number"
-import { chance, shuffleArray } from "../utils/random"
-import { values } from "../utils/schemas"
+import { chance, pickRandomIn, shuffleArray } from "../utils/random"
+import { resetArraySchema, values } from "../utils/schemas"
+import { getWeather } from "../utils/weather"
 import {
   OnBuyPokemonCommand,
   OnDragDropCombineCommand,
@@ -625,8 +644,10 @@ export default class GameRoom extends Room<GameState> {
           // 只在PICK阶段允许切换准备状态
           if (this.state.phase === GamePhaseState.PICK) {
             player.isReady = !player.isReady
-            
-            logger.debug(`Player ${player.name} ready status: ${player.isReady}`)
+
+            logger.debug(
+              `Player ${player.name} ready status: ${player.isReady}`
+            )
 
             // 检查是否所有真人玩家都准备好
             this.checkAllPlayersReady()
@@ -643,16 +664,16 @@ export default class GameRoom extends Room<GameState> {
     const humanPlayers = values(this.state.players).filter(
       (p) => !p.isBot && p.alive
     )
-    
+
     if (humanPlayers.length === 0) return
 
     const readyPlayers = humanPlayers.filter((p) => p.isReady)
     const allReady = readyPlayers.length === humanPlayers.length
-    
+
     logger.debug(
       `Ready check: ${readyPlayers.length}/${humanPlayers.length} players ready`
     )
-    
+
     if (allReady && this.state.phase === GamePhaseState.PICK) {
       // 所有真人玩家都准备好,立即跳过准备阶段
       logger.info("All players ready, skipping to fight phase")
@@ -664,7 +685,7 @@ export default class GameRoom extends Room<GameState> {
     if (this.state.gameLoaded) return // already started
     this.state.gameLoaded = true
     this.setSimulationInterval((deltaTime: number) => {
-      /* in case of lag spikes, the game should feel slower, 
+      /* in case of lag spikes, the game should feel slower,
       but this max simulation dt helps preserving the correctness of simulation result */
       deltaTime = Math.min(MAX_SIMULATION_DELTA_TIME, deltaTime)
       if (!this.state.gameFinished && !this.state.simulationPaused) {
@@ -756,13 +777,13 @@ export default class GameRoom extends Room<GameState> {
           otherHumans.length >= 1 &&
           player.role !== Role.ADMIN
         ) {
-          /* if a user leaves a game before the end, 
+          /* if a user leaves a game before the end,
           they cannot join another in the next 5 minutes */
           // givePlayerTimeout(this.presence, client.auth.uid)
         }
 
         if (player && this.state.stageLevel <= 5 && !consented) {
-          /* 
+          /*
           if player left game during the loading screen or before stage 6,
           we consider they didn't play the game and presume a technical issue
           we remove it from the players and don't give them any rewards
@@ -1540,7 +1561,382 @@ export default class GameRoom extends Room<GameState> {
     const client = this.clients.find((cli) => cli.auth.uid === player.id)
     if (!client) return
     const id = nanoid()
-    const wanderer = new Wanderer({ id, pkm, type, behavior, shiny: chance(0.01) })
+    const wanderer = new Wanderer({
+      id,
+      pkm,
+      type,
+      behavior,
+      shiny: chance(0.01)
+    })
     player.wanderers.set(id, wanderer)
+  }
+
+  handlePveMatchups() {
+    this.state.simulationPaused = true // 2 seconds pause for portal transition animation
+
+    // Get all alive human players
+    const humanPlayers: Player[] = []
+    this.state.players.forEach((player: Player) => {
+      if (player.alive && !player.isBot) {
+        humanPlayers.push(player)
+      }
+    })
+
+    // Get all PVE bots that haven't been encountered
+    const availableBots: Player[] = []
+    this.state.players.forEach((player: Player) => {
+      if (player.alive && player.isBot && player.id.startsWith("pve_bot_")) {
+        // Check if this bot has been encountered by any human player
+        let encountered = false
+        humanPlayers.forEach((humanPlayer) => {
+          if (humanPlayer.pveBotsEncountered.includes(player.id)) {
+            encountered = true
+          }
+        })
+        if (!encountered) {
+          availableBots.push(player)
+        }
+      }
+    })
+
+    // Check if we should trigger sudden death phase (after stage 40)
+    const isSuddenDeathPhase =
+      this.state.stageLevel >= 40 &&
+      this.state.phase === GamePhaseState.PVE_SUDDEN_DEATH
+
+    // If stage 40 or later and not in sudden death phase yet, switch to sudden death phase
+    if (
+      this.state.stageLevel >= 40 &&
+      this.state.phase !== GamePhaseState.PVE_SUDDEN_DEATH
+    ) {
+      this.state.phase = GamePhaseState.PVE_SUDDEN_DEATH
+    }
+
+    // Check if we should trigger boss battle
+    const shouldTriggerBossBattle =
+      availableBots.length === 0 ||
+      (this.state.stageLevel >= 40 && !isSuddenDeathPhase)
+
+    if (shouldTriggerBossBattle) {
+      this.triggerBossBattle(humanPlayers)
+    } else {
+      // Match each human player with a unique PVE bot
+      humanPlayers.forEach((humanPlayer) => {
+        if (availableBots.length === 0) return
+
+        // Select a random bot from available ones
+        const botIndex = Math.floor(Math.random() * availableBots.length)
+        const botPlayer = availableBots[botIndex]
+        availableBots.splice(botIndex, 1)
+
+        // Mark this bot as encountered by this player
+        humanPlayer.pveBotsEncountered.push(botPlayer.id)
+
+        // Create bot board from preset lineup if available
+        let botBoard = botPlayer.board
+        const botData = botPlayer.botData as IBot | undefined
+        if (botData?.presetLineup && botData.presetLineup.length > 0) {
+          // Create board from preset lineup
+          botBoard = PokemonFactory.makePveBoard(
+            botData.presetLineup,
+            false, // shinyEncounter
+            null // townEncounter
+          )
+        }
+
+        // Create simulation for this matchup
+        const weather = getWeather(humanPlayer, botPlayer, botBoard, false)
+        const simulationId = nanoid()
+
+        humanPlayer.simulationId = simulationId
+        humanPlayer.team = Team.BLUE_TEAM
+        humanPlayer.opponentId = botPlayer.id
+        humanPlayer.opponentName = botPlayer.name
+        humanPlayer.opponentAvatar = botPlayer.avatar
+        humanPlayer.opponentTitle = botPlayer.title ?? ""
+
+        botPlayer.simulationId = simulationId
+        botPlayer.team = Team.RED_TEAM
+        botPlayer.opponentId = humanPlayer.id
+        botPlayer.opponentName = humanPlayer.name
+        botPlayer.opponentAvatar = humanPlayer.avatar
+        botPlayer.opponentTitle = humanPlayer.title ?? ""
+
+        const simulation = new Simulation(
+          simulationId,
+          this,
+          humanPlayer.board,
+          botBoard,
+          humanPlayer,
+          botPlayer,
+          this.state.stageLevel,
+          weather,
+          false,
+          false // isBossBattle
+        )
+
+        this.state.simulations.set(simulation.id, simulation)
+        this.clock.setTimeout(() => {
+          if (this.state) this.state.simulationPaused = false
+          simulation.start()
+        }, 2500)
+      })
+    }
+  }
+
+  triggerBossBattle(humanPlayers: Player[]) {
+    // Find boss stage for current stage level
+    const bossStage = PVEBossStages[this.state.stageLevel]
+
+    if (!bossStage) {
+      // No boss stage defined for this level, use regular matchups
+      const matchups = selectMatchups(this.state)
+      this.handleRegularMatchups(matchups)
+      return
+    }
+
+    // Create boss battle for each human player
+    humanPlayers.forEach((humanPlayer) => {
+      const bossBoard = PokemonFactory.makePveBoard(
+        bossStage,
+        this.state.shinyEncounter,
+        this.state.townEncounter
+      )
+
+      const weather = getWeather(humanPlayer, null, bossBoard)
+      const simulationId = nanoid()
+
+      humanPlayer.simulationId = simulationId
+      humanPlayer.team = Team.BLUE_TEAM
+      humanPlayer.opponentId = "boss"
+      humanPlayer.opponentName = bossStage.name
+      humanPlayer.opponentAvatar = getAvatarString(
+        PkmIndex[bossStage.avatar],
+        this.state.shinyEncounter,
+        bossStage.emotion
+      )
+      humanPlayer.opponentTitle = "BOSS"
+
+      const simulation = new Simulation(
+        simulationId,
+        this,
+        humanPlayer.board,
+        bossBoard,
+        humanPlayer,
+        undefined,
+        this.state.stageLevel,
+        weather,
+        false,
+        true // isBossBattle
+      )
+
+      this.state.simulations.set(simulation.id, simulation)
+      this.clock.setTimeout(() => {
+        if (this.state) this.state.simulationPaused = false
+        simulation.start()
+      }, 2500)
+    })
+  }
+
+  handleRegularMatchups(matchups: any[]) {
+    matchups.forEach((matchup) => {
+      const { bluePlayer, redPlayer, ghost } = matchup
+      const weather = getWeather(bluePlayer, redPlayer, redPlayer.board, ghost)
+      const simulationId = nanoid()
+
+      bluePlayer.simulationId = simulationId
+      bluePlayer.team = Team.BLUE_TEAM
+      bluePlayer.opponents.set(
+        redPlayer.id,
+        (bluePlayer.opponents.get(redPlayer.id) ?? 0) + 1
+      )
+      bluePlayer.opponentId = redPlayer.id
+      bluePlayer.opponentName = matchup.ghost
+        ? `Ghost of ${redPlayer.name}`
+        : redPlayer.name
+      bluePlayer.opponentAvatar = redPlayer.avatar
+      bluePlayer.opponentTitle = redPlayer.title ?? ""
+
+      if (!matchup.ghost) {
+        redPlayer.simulationId = simulationId
+        redPlayer.team = Team.RED_TEAM
+        redPlayer.opponents.set(
+          bluePlayer.id,
+          (redPlayer.opponents.get(bluePlayer.id) ?? 0) + 1
+        )
+        redPlayer.opponentId = bluePlayer.id
+        redPlayer.opponentName = bluePlayer.name
+        redPlayer.opponentAvatar = bluePlayer.avatar
+        redPlayer.opponentTitle = bluePlayer.title ?? ""
+      }
+
+      const simulation = new Simulation(
+        simulationId,
+        this,
+        bluePlayer.board,
+        redPlayer.board,
+        bluePlayer,
+        redPlayer,
+        this.state.stageLevel,
+        weather,
+        matchup.ghost,
+        false // isBossBattle
+      )
+
+      this.state.simulations.set(simulation.id, simulation)
+      this.clock.setTimeout(() => {
+        if (this.state) this.state.simulationPaused = false
+        simulation.start()
+      }, 2500)
+    })
+  }
+
+  spawnWanderingPokemons() {
+    const isPVE = this.state.stageLevel in PVEStages
+
+    this.state.players.forEach((player: Player) => {
+      if (player.alive && !player.isBot) {
+        const client = this.clients.find((cli) => cli.auth.uid === player.id)
+        if (!client) return
+
+        if (chance(UNOWN_ENCOUNTER_CHANCE)) {
+          const pkm = pickRandomIn(Unowns)
+          const shiny = chance(SHINY_UNOWN_ENCOUNTER_CHANCE)
+          const id = nanoid()
+          const wanderer = new Wanderer({
+            id,
+            pkm,
+            shiny,
+            type: WandererType.UNOWN,
+            behavior: WandererBehavior.RUN_THROUGH
+          })
+
+          this.clock.setTimeout(
+            () => player.wanderers.set(id, wanderer),
+            Math.round((5 + 15 * Math.random()) * 1000)
+          )
+        }
+
+        if (
+          isPVE &&
+          this.state.specialGameRule === SpecialGameRule.GOTTA_CATCH_EM_ALL
+        ) {
+          const nbPokemonsToSpawn = Math.ceil(this.state.stageLevel / 2)
+          for (let i = 0; i < nbPokemonsToSpawn; i++) {
+            const id = nanoid()
+            const pkm = this.state.shop.pickPokemon(
+              player,
+              this.state,
+              -1,
+              true
+            )
+            const wanderer = new Wanderer({
+              id,
+              pkm,
+              shiny: chance(0.01),
+              type: WandererType.CATCHABLE,
+              behavior: WandererBehavior.RUN_THROUGH
+            })
+
+            this.clock.setTimeout(
+              () => player.wanderers.set(id, wanderer),
+              4000 + i * 400
+            )
+          }
+        }
+      }
+    })
+  }
+
+  spawnBabyEggs(player: Player, isPVE: boolean) {
+    const hasBabyActive =
+      player.effects.has(EffectEnum.HATCHER) ||
+      player.effects.has(EffectEnum.BREEDER) ||
+      player.effects.has(EffectEnum.GOLDEN_EGGS)
+    const hasLostLastBattle =
+      player.history.at(-1)?.result === BattleResult.DEFEAT
+    const eggsOnBench = values(player.board).filter((p) => p.name === Pkm.EGG)
+    const nbOfGoldenEggsOnBench = eggsOnBench.filter((p) => p.shiny).length
+    let nbEggsFound = 0
+    let goldenEggFound = false
+
+    if (hasLostLastBattle && hasBabyActive) {
+      const EGG_CHANCE = 0.1
+      const GOLDEN_EGG_CHANCE = 0.05
+      const playerEggChanceStacked = player.eggChance
+      const playerGoldenEggChanceStacked = player.goldenEggChance
+      const babies = values(player.board).filter(
+        (p) => !isOnBench(p) && p.types.has(Synergy.BABY)
+      )
+
+      for (const baby of babies) {
+        if (
+          player.effects.has(EffectEnum.GOLDEN_EGGS) &&
+          nbOfGoldenEggsOnBench === 0 &&
+          chance(GOLDEN_EGG_CHANCE, baby)
+        ) {
+          nbEggsFound++
+          goldenEggFound = true
+        } else if (chance(EGG_CHANCE, baby)) {
+          nbEggsFound++
+        }
+        if (player.effects.has(EffectEnum.GOLDEN_EGGS) && !goldenEggFound) {
+          player.goldenEggChance += Math.max(
+            0.1,
+            Math.pow(GOLDEN_EGG_CHANCE, 1 - baby.luck / 200)
+          )
+        } else if (
+          player.effects.has(EffectEnum.HATCHER) &&
+          nbEggsFound === 0
+        ) {
+          player.eggChance += Math.max(
+            0.2,
+            Math.pow(EGG_CHANCE, 1 - baby.luck / 100)
+          )
+        }
+      }
+
+      // Second chance with chance stacked after lose streaks
+      if (
+        nbEggsFound === 0 &&
+        (player.effects.has(EffectEnum.BREEDER) ||
+          player.effects.has(EffectEnum.GOLDEN_EGGS) ||
+          chance(playerEggChanceStacked))
+      ) {
+        nbEggsFound = 1 // baby >= 5 guarantees at least 1 egg after a defeat
+      }
+      if (
+        goldenEggFound === false &&
+        player.effects.has(EffectEnum.GOLDEN_EGGS) &&
+        nbOfGoldenEggsOnBench === 0 &&
+        chance(playerGoldenEggChanceStacked)
+      ) {
+        goldenEggFound = true
+      }
+    } else if (!isPVE) {
+      // winning a PvP fight resets the stacked egg chance
+      player.eggChance = 0
+      player.goldenEggChance = 0
+    }
+
+    if (
+      this.state.specialGameRule === SpecialGameRule.OMELETTE_COOK &&
+      [2, 3, 4].includes(this.state.stageLevel)
+    ) {
+      nbEggsFound = 1
+    }
+
+    for (let i = 0; i < nbEggsFound; i++) {
+      if (getFreeSpaceOnBench(player.board) === 0) continue
+      const isGoldenEgg =
+        goldenEggFound && i === 0 && nbOfGoldenEggsOnBench === 0
+      giveRandomEgg(player, isGoldenEgg)
+      if (player.effects.has(EffectEnum.HATCHER)) {
+        player.eggChance = 0 // getting an egg resets the stacked egg chance
+      }
+      if (player.effects.has(EffectEnum.GOLDEN_EGGS) && isGoldenEgg) {
+        player.goldenEggChance = 0 // getting a golden egg resets the stacked egg chance
+      }
+    }
   }
 }

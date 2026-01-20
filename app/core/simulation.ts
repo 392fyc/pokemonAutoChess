@@ -253,7 +253,7 @@ export default class Simulation extends Schema implements ISimulation {
     }
   }
 
-  addDelayedCommand(command: DelayedCommand) {
+  addDelayedCommand(command: SimulationCommand) {
     this.delayedCommands.push(command)
   }
 

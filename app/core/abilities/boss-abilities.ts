@@ -203,7 +203,7 @@ export class BossPsychicStrategy extends AbilityStrategy {
 
     // 对每个目标造成伤害
     targets.forEach(targetEntity => {
-      this.dealDamage(pokemon, targetEntity, damagePerTarget, crit)
+      this.dealDamage(pokemon, targetEntity, board, damagePerTarget, crit)
     })
 
     logger.debug(`PsychicStrategy: ${pokemon.name} dealt ${totalDamage} total damage to ${targets.length} targets`)
@@ -234,6 +234,7 @@ export class BossPsychicStrategy extends AbilityStrategy {
   private dealDamage(
     attacker: PokemonEntity,
     target: PokemonEntity,
+    board: Board,
     damage: number,
     crit: boolean
   ): void {
@@ -277,7 +278,7 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
 
     // 对每个目标造成伤害
     targets.forEach(targetEntity => {
-      this.dealAuraSphereDamage(pokemon, targetEntity, baseDamage, crit)
+      this.dealAuraSphereDamage(pokemon, targetEntity, board, baseDamage, crit)
     })
 
     logger.debug(`AuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} damage to ${targets.length} enemies`)
@@ -298,6 +299,7 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
   private dealAuraSphereDamage(
     attacker: PokemonEntity,
     target: PokemonEntity,
+    board: Board,
     damage: number,
     crit: boolean
   ): void {

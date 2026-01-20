@@ -2808,6 +2808,20 @@ export class ThunderShockStrategy extends AbilityStrategy {
   }
 }
 
+export class QuickAttackStrategy extends AbilityStrategy {
+  process(
+    pokemon: PokemonEntity,
+    board: Board,
+    target: PokemonEntity,
+    crit: boolean
+  ) {
+    super.process(pokemon, board, target, crit)
+    // QuickAttack deals physical damage
+    const damage = [20, 40, 80][pokemon.stars - 1] ?? 80 // Adjust damage values as needed
+    this.dealDamage(pokemon, target, board, damage, crit, AttackType.PHYSICAL)
+  }
+}
+
 export class ThunderStrategy extends AbilityStrategy {
   process(
     pokemon: PokemonEntity,
@@ -15851,6 +15865,7 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.HEAT_WAVE]: new HeatWaveStrategy(),
   [Ability.FLAMETHROWER]: new FlameThrowerStrategy(),
   [Ability.THUNDER_SHOCK]: new ThunderShockStrategy(),
+  [Ability.QUICK_ATTACK]: new QuickAttackStrategy(),
   [Ability.THUNDER]: new ThunderStrategy(),
   [Ability.HYDRO_PUMP]: new HydroPumpStrategy(),
   [Ability.DRACO_METEOR]: new DracoMeteorStrategy(),

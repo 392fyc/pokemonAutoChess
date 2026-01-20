@@ -2818,7 +2818,14 @@ export class QuickAttackStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit)
     // QuickAttack deals physical damage
     const damage = [20, 40, 80][pokemon.stars - 1] ?? 80 // Adjust damage values as needed
-    this.dealDamage(pokemon, target, board, damage, crit, AttackType.PHYSICAL)
+    target.handleDamage({
+      damage,
+      board,
+      attackType: AttackType.PHYSICAL,
+      attacker: pokemon,
+      shouldTargetGainMana: true,
+      crit,
+    })
   }
 }
 

@@ -10,8 +10,8 @@ import Player from "./colyseus-models/player"
 import { Pokemon, PokemonClasses } from "./colyseus-models/pokemon"
 import { getPkmWithCustom } from "./colyseus-models/pokemon-customs"
 import { IDetailledPokemon } from "./mongo-models/bot-v2"
-import { PVEStage } from "./pve-stages"
 import { PVEBossStage } from "./pve-boss-stages"
+import { PVEStage } from "./pve-stages"
 
 export default class PokemonFactory {
   static makePveBoard(
@@ -56,7 +56,7 @@ export default class PokemonFactory {
 
         // Apply items if present
         if (pokemonData.items && pokemonData.items.length > 0) {
-          pokemonData.items.forEach(item => pokemon.items.add(item))
+          pokemonData.items.forEach((item) => pokemon.items.add(item))
         }
 
         pokemons.set(pokemon.id, pokemon)
@@ -72,41 +72,45 @@ export default class PokemonFactory {
         pokemon.positionY = y
 
         // Apply stat boosts for regular PVE stages
-        if ('statBoosts' in stage && stage.statBoosts) {
+        if ("statBoosts" in stage && stage.statBoosts) {
           for (const stat in stage.statBoosts) {
             pokemon.applyStat(stat as Stat, stage.statBoosts[stat], undefined)
           }
         }
 
         // Apply boss stat multipliers
-        if ('statMultipliers' in stage && stage.statMultipliers) {
+        if ("statMultipliers" in stage && stage.statMultipliers) {
           const baseHp = pokemon.hp
           const baseAtk = pokemon.atk
           const baseDef = pokemon.def
           const baseSpAtk = pokemon.ap
 
           pokemon.hp = Math.floor(stage.baseStats.hp * stage.statMultipliers.hp)
-          pokemon.atk = Math.floor(stage.baseStats.atk * stage.statMultipliers.atk)
-          pokemon.def = Math.floor(stage.baseStats.def * stage.statMultipliers.def)
+          pokemon.atk = Math.floor(
+            stage.baseStats.atk * stage.statMultipliers.atk
+          )
+          pokemon.def = Math.floor(
+            stage.baseStats.def * stage.statMultipliers.def
+          )
           pokemon.ap = Math.floor(stage.baseStats.ap * stage.statMultipliers.ap)
           pokemon.maxHP = pokemon.hp
 
           // Apply boss abilities if present
-          if ('abilities' in stage && stage.abilities) {
+          if ("abilities" in stage && stage.abilities) {
             pokemon.skill = stage.abilities[0] // 使用第一个技能作为主要技能
           }
         }
 
-      if (
-        townEncounter === TownEncounters.MAROWAK &&
-        'marowakItems' in stage &&
-        stage.marowakItems &&
-        index in stage.marowakItems
-      ) {
-        stage.marowakItems[index]!.forEach((item) => pokemon.items.add(item))
-      }
-      pokemons.set(pokemon.id, pokemon)
-    })
+        if (
+          townEncounter === TownEncounters.MAROWAK &&
+          "marowakItems" in stage &&
+          stage.marowakItems &&
+          index in stage.marowakItems
+        ) {
+          stage.marowakItems[index]!.forEach((item) => pokemon.items.add(item))
+        }
+        pokemons.set(pokemon.id, pokemon)
+      })
     }
     return pokemons
   }

@@ -73,9 +73,10 @@ const LEGACY_DOM_TO_PHASER: Record<string, string> = {
   ARROWRIGHT: "RIGHT"
 }
 
-function migrateLegacyKeybindings(
-  stored: any
-): { migrated: any; changed: boolean } {
+function migrateLegacyKeybindings(stored: any): {
+  migrated: any
+  changed: boolean
+} {
   const keybindings = stored?.keybindings
   if (!keybindings || typeof keybindings !== "object") {
     return { migrated: stored, changed: false }
@@ -94,7 +95,10 @@ function migrateLegacyKeybindings(
   }
 
   if (!changed) return { migrated: stored, changed: false }
-  return { migrated: { ...stored, keybindings: migratedKeybindings }, changed: true }
+  return {
+    migrated: { ...stored, keybindings: migratedKeybindings },
+    changed: true
+  }
 }
 
 function loadPreferences(): IPreferencesState {

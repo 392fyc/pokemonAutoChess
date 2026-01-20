@@ -870,8 +870,8 @@ export default class BoardManager {
   changePokemon<F extends NonFunctionPropNames<IPokemon>>(
     pokemon: IPokemon,
     field: F,
-    value: IPokemon[F],
-    previousValue?: IPokemon[F]
+    value: any,
+    previousValue?: any
   ) {
     const pokemonUI = this.pokemons.get(pokemon.id)
     let coordinates: number[]

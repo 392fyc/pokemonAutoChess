@@ -37,6 +37,7 @@ import GameContainer from "../game/game-container"
 import GameScene from "../game/scenes/game-scene"
 import { selectCurrentPlayer, useAppDispatch, useAppSelector } from "../hooks"
 import { authenticateUser } from "../network"
+import { preference } from "../preferences"
 import store from "../stores"
 import {
   addDpsMeter,
@@ -90,7 +91,6 @@ import { MainSidebar } from "./component/main-sidebar/main-sidebar"
 import { ConnectionStatusNotification } from "./component/system/connection-status-notification"
 import { playMusic, preloadMusic } from "./utils/audio"
 import { LocalStoreKeys, localStore } from "./utils/store"
-import { preference } from "../preferences"
 
 const MAX_ATTEMPS_RECONNECT = 10 // 添加这个常量定义
 
@@ -284,7 +284,7 @@ export default function Game() {
           rerollCount: p.rerollCount
         }
 
-        const allSynergies = new Array<{ name: Synergy, value: number }>()
+        const allSynergies = new Array<{ name: Synergy; value: number }>()
         p.synergies.forEach((v, k) => {
           allSynergies.push({ name: k as Synergy, value: v })
         })

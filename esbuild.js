@@ -31,6 +31,15 @@ let hashIndexPlugin = {
   }
 }
 
+const externalAssetsPlugin = {
+  name: "external-assets-plugin",
+  setup(build) {
+    build.onResolve({ filter: /^\/assets\// }, (args) => {
+      return { path: args.path, external: true }
+    })
+  }
+}
+
 context({
   entryPoints: ["./app/public/src/index.tsx"],
   entryNames: "[dir]/[name]-[hash]",
@@ -41,7 +50,7 @@ context({
   metafile: true,
   minify: isProdBuild,
   sourcemap: isProdBuild,
-  plugins: [hashIndexPlugin],
+  plugins: [hashIndexPlugin, externalAssetsPlugin],
   target: "es2016",
   define: {
     "process.env.FIREBASE_API_KEY": `"${process.env.FIREBASE_API_KEY}"`,

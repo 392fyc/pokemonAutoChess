@@ -23,7 +23,7 @@ export function RoomSelectionMenu(props: {
             onClick={() => props.onSelectMode(GameMode.CLASSIC)}
           >
             <img
-              src="assets/ui/game_modes/classic.png"
+              src="/assets/ui/game_modes/classic.png"
               alt={t(`game_modes.${GameMode.CLASSIC}`)}
               draggable="false"
             />
@@ -35,7 +35,7 @@ export function RoomSelectionMenu(props: {
             onClick={() => props.onSelectMode(GameMode.RANKED)}
           >
             <img
-              src="assets/ui/game_modes/ranked.png"
+              src="/assets/ui/game_modes/ranked.png"
               alt={t(`game_modes.${GameMode.RANKED}`)}
               draggable="false"
             />
@@ -47,7 +47,7 @@ export function RoomSelectionMenu(props: {
             onClick={() => props.onSelectMode(GameMode.SCRIBBLE)}
           >
             <img
-              src="assets/ui/game_modes/scribble.png"
+              src="/assets/ui/game_modes/scribble.png"
               alt={t(`game_modes.${GameMode.SCRIBBLE}`)}
               draggable="false"
             />
@@ -59,12 +59,24 @@ export function RoomSelectionMenu(props: {
             onClick={() => props.onSelectMode(GameMode.CUSTOM_LOBBY)}
           >
             <img
-              src="assets/ui/game_modes/custom_lobby.png"
+              src="/assets/ui/game_modes/custom_lobby.png"
               alt={t(`game_modes.${GameMode.CUSTOM_LOBBY}`)}
               draggable="false"
             />
             <h2>{t(`game_modes.${GameMode.CUSTOM_LOBBY}`)}</h2>
             <p>{t(`game_modes_descriptions.${GameMode.CUSTOM_LOBBY}`)}</p>
+          </li>
+          <li
+            className="my-box"
+            onClick={() => props.onSelectMode(GameMode.PVE_MODE)}
+          >
+            <img
+              src="/assets/ui/game_modes/pve_mode.png"
+              alt={t(`game_modes.${GameMode.PVE_MODE}`)}
+              draggable="false"
+            />
+            <h2>{t(`game_modes.${GameMode.PVE_MODE}`)}</h2>
+            <p>{t(`game_modes_descriptions.${GameMode.PVE_MODE}`)}</p>
           </li>
         </ul>
       }

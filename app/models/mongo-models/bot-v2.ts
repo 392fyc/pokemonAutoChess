@@ -26,6 +26,7 @@ export interface IBot {
   name: string
   id: string
   approved: boolean
+  presetLineup?: IDetailledPokemon[] // Optional preset lineup for PVE bots
 }
 
 export type IBotLight = Omit<IBot, "steps"> & { valid: boolean }
@@ -99,7 +100,8 @@ const bot = new Schema(
       type: Number,
       required: true
     },
-    steps: [step]
+    steps: [step],
+    presetLineup: [pkm]
   },
   {
     toJSON: {

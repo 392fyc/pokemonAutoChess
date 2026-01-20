@@ -9,34 +9,105 @@ import { logger } from "../utils/logger"
 import Player from "./colyseus-models/player"
 import { Pokemon, PokemonClasses } from "./colyseus-models/pokemon"
 import { getPkmWithCustom } from "./colyseus-models/pokemon-customs"
+import { IDetailledPokemon } from "./mongo-models/bot-v2"
 import { PVEStage } from "./pve-stages"
+import { PVEBossStage } from "./pve-boss-stages"
 
 export default class PokemonFactory {
   static makePveBoard(
     pveStage: PVEStage,
     shinyEncounter: boolean,
     townEncounter: TownEncounter | null
+  ): MapSchema<Pokemon>
+  static makePveBoard(
+    bossStage: PVEBossStage,
+    shinyEncounter: boolean,
+    townEncounter: TownEncounter | null
+  ): MapSchema<Pokemon>
+  static makePveBoard(
+    stage: PVEStage | PVEBossStage,
+    shinyEncounter: boolean,
+    townEncounter: TownEncounter | null
+  ): MapSchema<Pokemon>
+  static makePveBoard(
+    presetLineup: IDetailledPokemon[],
+    shinyEncounter: boolean,
+    townEncounter: TownEncounter | null
+  ): MapSchema<Pokemon>
+  static makePveBoard(
+    stage: PVEStage | PVEBossStage | IDetailledPokemon[],
+    shinyEncounter: boolean,
+    townEncounter: TownEncounter | null
   ): MapSchema<Pokemon> {
     const pokemons = new MapSchema<Pokemon>()
-    pveStage.board.forEach(([pkm, x, y], index) => {
-      const pokemon = PokemonFactory.createPokemonFromName(pkm, {
-        emotion: pveStage.emotion ?? Emotion.NORMAL,
-        shiny: shinyEncounter
+
+    // Handle different input types
+    if (Array.isArray(stage)) {
+      // Handle preset lineup array
+      stage.forEach((pokemonData, index) => {
+        const pokemon = PokemonFactory.createPokemonFromName(pokemonData.name, {
+          emotion: pokemonData.emotion ?? Emotion.NORMAL,
+          shiny: (shinyEncounter || pokemonData.shiny) ?? false
+        })
+        pokemon.positionX = pokemonData.x
+        pokemon.positionY = pokemonData.y
+        // Note: IDetailledPokemon doesn't have stars property, default to 1 star
+        pokemon.stars = 1
+
+        // Apply items if present
+        if (pokemonData.items && pokemonData.items.length > 0) {
+          pokemonData.items.forEach(item => pokemon.items.add(item))
+        }
+
+        pokemons.set(pokemon.id, pokemon)
       })
-      pokemon.positionX = x
-      pokemon.positionY = y
-      for (const stat in pveStage.statBoosts) {
-        pokemon.applyStat(stat as Stat, pveStage.statBoosts[stat], undefined)
-      }
+    } else {
+      // Handle PVEStage or PVEBossStage
+      stage.board.forEach(([pkm, x, y], index) => {
+        const pokemon = PokemonFactory.createPokemonFromName(pkm, {
+          emotion: stage.emotion ?? Emotion.NORMAL,
+          shiny: shinyEncounter
+        })
+        pokemon.positionX = x
+        pokemon.positionY = y
+
+        // Apply stat boosts for regular PVE stages
+        if ('statBoosts' in stage && stage.statBoosts) {
+          for (const stat in stage.statBoosts) {
+            pokemon.applyStat(stat as Stat, stage.statBoosts[stat], undefined)
+          }
+        }
+
+        // Apply boss stat multipliers
+        if ('statMultipliers' in stage && stage.statMultipliers) {
+          const baseHp = pokemon.hp
+          const baseAtk = pokemon.atk
+          const baseDef = pokemon.def
+          const baseSpAtk = pokemon.ap
+
+          pokemon.hp = Math.floor(stage.baseStats.hp * stage.statMultipliers.hp)
+          pokemon.atk = Math.floor(stage.baseStats.atk * stage.statMultipliers.atk)
+          pokemon.def = Math.floor(stage.baseStats.def * stage.statMultipliers.def)
+          pokemon.ap = Math.floor(stage.baseStats.ap * stage.statMultipliers.ap)
+          pokemon.maxHP = pokemon.hp
+
+          // Apply boss abilities if present
+          if ('abilities' in stage && stage.abilities) {
+            pokemon.skill = stage.abilities[0] // 使用第一个技能作为主要技能
+          }
+        }
+
       if (
         townEncounter === TownEncounters.MAROWAK &&
-        pveStage.marowakItems &&
-        index in pveStage.marowakItems
+        'marowakItems' in stage &&
+        stage.marowakItems &&
+        index in stage.marowakItems
       ) {
-        pveStage.marowakItems[index]!.forEach((item) => pokemon.items.add(item))
+        stage.marowakItems[index]!.forEach((item) => pokemon.items.add(item))
       }
       pokemons.set(pokemon.id, pokemon)
     })
+    }
     return pokemons
   }
 

@@ -75,6 +75,12 @@ import {
   HiddenPowerYStrategy,
   HiddenPowerZStrategy
 } from "./hidden-power"
+import {
+  BossTeleportStrategy,
+  BossMeditateStrategy,
+  BossPsychicStrategy,
+  BossAuraSphereStrategy
+} from "./boss-abilities"
 
 export class BlueFlareStrategy extends AbilityStrategy {
   process(
@@ -16334,7 +16340,12 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.EAR_DIG]: new EarDigStrategy(),
   [Ability.POWDER_SNOW]: new PowderSnowStrategy(),
   [Ability.POWDER]: new PowderStrategy(),
-  [Ability.LINGERING_AROMA]: new LingeringAromaStrategy()
+  [Ability.LINGERING_AROMA]: new LingeringAromaStrategy(),
+  // Boss专属技能
+  [Ability.BOSS_TELEPORT]: new BossTeleportStrategy(),
+  [Ability.BOSS_MEDITATE]: new BossMeditateStrategy(),
+  [Ability.BOSS_PSYCHIC]: new BossPsychicStrategy(),
+  [Ability.BOSS_AURASPHERE]: new BossAuraSphereStrategy()
 }
 
 export function castAbility(

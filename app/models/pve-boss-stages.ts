@@ -1,6 +1,16 @@
 
+import { Item } from "../types/enum/Item"
+import { Pkm } from "../types/enum/Pokemon"
+import { Emotion } from "../types/enum/Emotion"
+import { Ability } from "../types/enum/Ability"
+import { BossTrait } from "../types/enum/Game"
+
 export interface PVEBossStage {
+  name: string;
+  avatar: Pkm;
+  emotion?: Emotion;
   stageLevel: number;
+  board: [pkm: Pkm, x: number, y: number][]; // Boss board layout
   baseStats: {
     hp: number;
     atk: number;
@@ -13,9 +23,18 @@ export interface PVEBossStage {
     def: number;
     ap: number;
   };
-  abilities: string[]; // Boss-specific abilities
+  abilities: Ability[]; // Boss-specific abilities
+  bossTraits?: BossTrait[]; // Boss专属特性
+  bossAbilityConfigs?: {
+    ability: Ability;
+    triggerType: "periodic" | "hpThreshold" | "mpControl" | "passive";
+    triggerValue: number; // 时间间隔(ms) / 血量阈值(%) / MP阈值
+    cooldown?: number; // 冷却时间(ms)
+    delay?: number; // 顺延时间(ms)
+    priority?: number; // 触发优先级
+  }[];
   rewards: {
-    itemId: string;
+    itemId: Item;
     chance: number; // Probability of dropping this item (0 to 1)
     quantity: number;
   }[];
@@ -26,7 +45,13 @@ export interface PVEBossStage {
 }
 
 export const pikachuBossStage: PVEBossStage = {
+  name: "Boss Pikachu",
+  avatar: Pkm.PIKACHU,
+  emotion: Emotion.ANGRY,
   stageLevel: 1,
+  board: [
+    [Pkm.PIKACHU, 3, 2], // Center position for the boss Pikachu
+  ],
   baseStats: {
     hp: 1000,
     atk: 50,
@@ -39,14 +64,113 @@ export const pikachuBossStage: PVEBossStage = {
     def: 1.02,
     ap: 1.08,
   },
-  abilities: ["ThunderShock", "QuickAttack"],
+  abilities: [Ability.THUNDER_SHOCK, Ability.QUICK_ATTACK],
   rewards: [
-    { itemId: "item_thunderstone", chance: 0.5, quantity: 1 },
-    { itemId: "item_gold", chance: 1.0, quantity: 100 },
-    { itemId: "item_exp_share", chance: 0.3, quantity: 1 },
+    { itemId: Item.THUNDER_STONE, chance: 0.5, quantity: 1 },
+    { itemId: Item.COIN, chance: 1.0, quantity: 100 },
+    { itemId: Item.EXP_SHARE, chance: 0.3, quantity: 1 },
   ],
   triggerCondition: {
     minWave: 5,
     playerLevel: 5,
   },
+};
+
+// Export as PVEBossStages object to match the import in game-commands.ts
+export const mewtwoBossStage: PVEBossStage = {
+  name: "Boss Mewtwo",
+  avatar: Pkm.MEWTWO,
+  emotion: Emotion.ANGRY,
+  stageLevel: 10,
+  board: [[Pkm.MEWTWO, 3, 2]], // 中心位置，实际占用2x2区域
+  baseStats: {
+    hp: 5000,
+    atk: 100,
+    def: 80,
+    ap: 150,
+  },
+  statMultipliers: {
+    hp: 1.5,
+    atk: 1.3,
+    def: 1.2,
+    ap: 1.4,
+  },
+  abilities: [
+    Ability.BOSS_TELEPORT,
+    Ability.BOSS_MEDITATE,
+    Ability.BOSS_PSYCHIC,
+    Ability.BOSS_AURASPHERE,
+  ],
+  bossTraits: [
+    BossTrait.LEGENDARY_POKEMON,
+    BossTrait.SIZE_2X2,
+    BossTrait.IGNORE_SYNERGIES,
+    BossTrait.HALF_STATUS_EFFECT,
+    BossTrait.INCREASED_RANGE,
+  ],
+  bossAbilityConfigs: [
+    {
+      ability: Ability.BOSS_TELEPORT,
+      triggerType: "periodic",
+      triggerValue: 8000, // 每8秒触发
+      cooldown: 8000,
+      priority: 1,
+    },
+    {
+      ability: Ability.BOSS_MEDITATE,
+      triggerType: "periodic",
+      triggerValue: 5000, // 每5秒触发
+      cooldown: 5000,
+      priority: 2,
+    },
+    {
+      ability: Ability.BOSS_PSYCHIC,
+      triggerType: "mpControl",
+      triggerValue: 100, // MP满时触发
+      cooldown: 3000,
+      priority: 3,
+    },
+    {
+      ability: Ability.BOSS_AURASPHERE,
+      triggerType: "hpThreshold",
+      triggerValue: 100, // 100%血量触发
+      delay: 5000, // 5秒顺延
+      priority: 4,
+    },
+    {
+      ability: Ability.BOSS_AURASPHERE,
+      triggerType: "hpThreshold",
+      triggerValue: 75, // 75%血量触发
+      delay: 5000,
+      priority: 4,
+    },
+    {
+      ability: Ability.BOSS_AURASPHERE,
+      triggerType: "hpThreshold",
+      triggerValue: 50, // 50%血量触发
+      delay: 5000,
+      priority: 4,
+    },
+    {
+      ability: Ability.BOSS_AURASPHERE,
+      triggerType: "hpThreshold",
+      triggerValue: 25, // 25%血量触发
+      delay: 5000,
+      priority: 4,
+    },
+  ],
+  rewards: [
+    { itemId: Item.MASTER_BALL, chance: 0.1, quantity: 1 },
+    { itemId: Item.COIN, chance: 1.0, quantity: 500 },
+    { itemId: Item.RARE_CANDY, chance: 0.5, quantity: 3 },
+  ],
+  triggerCondition: {
+    minWave: 20,
+    playerLevel: 15,
+  },
+};
+
+export const PVEBossStages = {
+  1: pikachuBossStage,
+  10: mewtwoBossStage,
 };

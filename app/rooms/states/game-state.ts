@@ -60,6 +60,7 @@ export default class GameState extends Schema {
   pveRewardsPropositions: Item[] = []
   minRank: EloRank | null = null
   maxRank: EloRank | null = null
+  pveDifficulty: EloRank | null = null
 
   constructor(
     preparationId: string,
@@ -68,7 +69,8 @@ export default class GameState extends Schema {
     gameMode: GameMode,
     minRank: EloRank | null,
     maxRank: EloRank | null,
-    specialGameRule: SpecialGameRule | null
+    specialGameRule: SpecialGameRule | null,
+    pveDifficulty: EloRank | null = null
   ) {
     super()
     this.preparationId = preparationId
@@ -78,6 +80,7 @@ export default class GameState extends Schema {
     this.gameMode = gameMode
     this.minRank = minRank
     this.maxRank = maxRank
+    this.pveDifficulty = pveDifficulty
     this.weather = Weather.NEUTRAL
 
     if (gameMode === GameMode.SCRIBBLE) {

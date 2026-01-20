@@ -6,6 +6,7 @@ import { nanoid } from "nanoid"
 import {
   AdditionalPicksStages,
   ALLOWED_GAME_RECONNECTION_TIME,
+  EloRankThreshold,
   EventPointsPerRank,
   ExpPlace,
   LegendaryPool,
@@ -29,7 +30,7 @@ import { IGameUser } from "../models/colyseus-models/game-user"
 import Player from "../models/colyseus-models/player"
 import { Pokemon } from "../models/colyseus-models/pokemon"
 import { Wanderer } from "../models/colyseus-models/wanderer"
-import { BotV2, IDetailledPokemon } from "../models/mongo-models/bot-v2"
+import { BotV2, IBot, IDetailledPokemon } from "../models/mongo-models/bot-v2"
 import DetailledStatistic from "../models/mongo-models/detailled-statistic-v2"
 import UserMetadata from "../models/mongo-models/user-metadata"
 import PokemonFactory from "../models/pokemon-factory"
@@ -130,7 +131,8 @@ export default class GameRoom extends Room<GameState> {
     minRank,
     maxRank,
     tournamentId,
-    bracketId
+    bracketId,
+    pveDifficulty = null
   }: {
     users: Record<string, IGameUser>
     preparationId: string
@@ -143,6 +145,7 @@ export default class GameRoom extends Room<GameState> {
     maxRank: EloRank | null
     tournamentId: string | null
     bracketId: string | null
+    pveDifficulty?: EloRank | null
   }) {
     logger.info("Create Game ", this.roomId)
 
@@ -176,7 +179,8 @@ export default class GameRoom extends Room<GameState> {
       gameMode,
       minRank,
       maxRank,
-      specialGameRule
+      specialGameRule,
+      pveDifficulty
     )
     this.miniGame.create(
       this.state.avatars,
@@ -254,11 +258,20 @@ export default class GameRoom extends Room<GameState> {
       )
     }
 
+    // Add PVE bots if in PVE mode
+    if (this.state.gameMode === GameMode.PVE_MODE && this.state.pveDifficulty) {
+      await this.addPveBots()
+    }
+
     await Promise.all(
       Object.keys(users).map(async (id) => {
         const user = users[id]
         //logger.debug(`init player`, user)
         if (user.isBot) {
+          // Skip adding bots from initial users list in PVE mode
+          if (this.state.gameMode === GameMode.PVE_MODE) {
+            return
+          }
           const player = new Player(
             user.uid,
             user.name,
@@ -1337,7 +1350,8 @@ export default class GameRoom extends Room<GameState> {
 
   computeRoundDamage(
     opponentTeam: MapSchema<IPokemonEntity>,
-    stageLevel: number
+    stageLevel: number,
+    isBossBattle?: boolean
   ) {
     let damage = Math.ceil(stageLevel / 2)
     if (opponentTeam.size > 0) {
@@ -1347,7 +1361,129 @@ export default class GameRoom extends Room<GameState> {
         }
       })
     }
+
+    // Apply 2x damage multiplier for PVE mode (except boss battles)
+    if (this.state.gameMode === GameMode.PVE_MODE && !isBossBattle) {
+      damage *= 2
+    }
+
+    // Apply additional multiplier for sudden death phase
+    if (this.state.phase === GamePhaseState.PVE_SUDDEN_DEATH) {
+      damage *= 2
+    }
+
     return damage
+  }
+
+  async addPveBots() {
+    if (!this.state.pveDifficulty) return
+
+    // Get bots with appropriate Elo range for the selected difficulty
+    const minElo = EloRankThreshold[this.state.pveDifficulty]
+    const maxElo = minElo + 100 // Allow some variation
+
+    try {
+      // Find bots with Elo in the appropriate range and with preset lineups
+      const bots = await BotV2.find({
+        elo: { $gte: minElo, $lte: maxElo },
+        presetLineup: { $exists: true, $ne: [] },
+        approved: true
+      }).limit(20) // Get more than we need to have variety
+
+      if (bots.length === 0) {
+        // Fallback to any bots with appropriate Elo
+        const fallbackBots = await BotV2.find({
+          elo: { $gte: minElo, $lte: maxElo },
+          approved: true
+        }).limit(20)
+
+        if (fallbackBots.length === 0) {
+          // Create basic bots as last resort
+          this.createBasicPveBots()
+          return
+        }
+
+        // Use fallback bots
+        this.assignPveBots(fallbackBots)
+      } else {
+        // Use bots with preset lineups
+        this.assignPveBots(bots)
+      }
+    } catch (error) {
+      logger.error("Error loading PVE bots:", error)
+      // Create basic bots as fallback
+      this.createBasicPveBots()
+    }
+  }
+
+  assignPveBots(bots: IBot[]) {
+    // Shuffle bots to get random selection
+    const shuffledBots = [...bots].sort(() => Math.random() - 0.5)
+
+    // Take first 8 bots or all available if less than 8
+    const selectedBots = shuffledBots.slice(0, 8)
+
+    for (let i = 0; i < selectedBots.length; i++) {
+      const botData = selectedBots[i]
+      const botId = `pve_bot_${i}`
+      const botName = botData.name || `PVE Bot ${i + 1}`
+
+      const pveBot = new Player(
+        botId,
+        botName,
+        botData.elo,
+        0,
+        botData.avatar,
+        true,
+        this.state.players.size + 1,
+        new Map<string, IPokemonCollectionItemMongo>(),
+        "",
+        Role.BOT,
+        this.state
+      )
+
+      // Store bot data for later use in creating board
+      pveBot.botData = botData
+
+      this.state.players.set(botId, pveBot)
+      this.state.botManager.addBot(pveBot)
+    }
+
+    // If we have less than 8 bots, fill remaining slots with basic bots
+    if (selectedBots.length < 8) {
+      for (let i = selectedBots.length; i < 8; i++) {
+        this.createBasicPveBot(i)
+      }
+    }
+  }
+
+  createBasicPveBots() {
+    for (let i = 0; i < 8; i++) {
+      this.createBasicPveBot(i)
+    }
+  }
+
+  createBasicPveBot(index: number) {
+    const botId = `pve_bot_${index}`
+    const botName = `PVE Bot ${index + 1}`
+    const botElo = EloRankThreshold[this.state.pveDifficulty!]
+
+    const pveBot = new Player(
+      botId,
+      botName,
+      botElo,
+      0,
+      "bot_avatar",
+      true,
+      this.state.players.size + 1,
+      new Map<string, IPokemonCollectionItemMongo>(),
+      "",
+      Role.BOT,
+      this.state
+    )
+
+    this.state.players.set(botId, pveBot)
+    this.state.botManager.addBot(pveBot)
   }
 
   rankPlayers() {

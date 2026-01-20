@@ -1,101 +1,130 @@
-# CLAUDE.md
+# Global CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 核心原则
 
-# Project: Smart Insights
+### 文件编码 (IMPORTANT)
+- **所有生成的文件必须使用 UTF-8 编码（无 BOM）**
+- 禁止使用 GBK/GB2312/Shift-JIS 等编码
+- 特别注意：.md、.json、.yaml、.txt、plan 文件
 
-## Architecture Overview
-- Frontend: React + TypeScript (with Esbuild for bundling) + Ant Design
-- Backend: FastAPI + LangGraph for general services, with Colyseus (Node.js) for real-time game logic and state synchronization.
-- Database: PostgreSQL + Redis
-- Core Game Logic (`app/core/`): Handles Pokemon entities, game mechanics (abilities, effects, items, board, collection), game flow, state management, and AI/bot logic.
-- Data Models (`app/models/`): Includes Colyseus models for real-time player and game state synchronization.
-- Networking and Game Rooms (`app/rooms/`): `game-room.ts` manages game instances; `commands/game-commands.ts` implements the Command pattern for in-game actions.
-- Frontend State Management (`app/public/src/stores/`): `GameStore.ts` manages client-side UI state.
+### 语言偏好
+- 代码注释和变量名：英文
+- 与用户交流：中文（除非用户用英文提问）
+- 文档内容：根据项目需求
 
-## Development Guidelines
-- Use pnpm instead of npm
-- TypeScript strict mode
-- Functional components + Hooks
-- API routes follow RESTful naming
-- Run `pnpm format` regularly to ensure consistent code style.
+## 错误处理规则 (CRITICAL)
 
-## Common Development Commands
-- `pnpm dev` - Start client and server in development mode.
-- `pnpm build` - Build both client and server for production.
-- `pnpm lint` - Perform code linting.
-- `pnpm typecheck` - Perform TypeScript type checking.
+### 失败重试策略
+- 文件编辑失败时，**必须**尝试至少 3 种不同方法
+- 方法 1：重新读取文件，确认内容后再编辑
+- 方法 2：使用不同的编辑策略（整体替换 vs 局部修改）
+- 方法 3：写入到用户指定的备用路径
 
-### Fallback Commands (if pnpm unavailable)
-- `pnpm typecheck` → `npx tsc --noEmit`
-- `pnpm lint` → `npx eslint .` or `npx @biomejs/biome lint .`
-- `pnpm test` → `npm test` or `npx jest`
-- `pnpm build` → `npm run build`
+### 备用方案执行
+- **当用户提供了备用方案时，必须执行**
+- 禁止在失败后静默停止或放弃任务
+- 每次失败后必须：报告原因 → 尝试下一种方法 → 或执行备用方案
 
-## Testing Commands
-- `pnpm test` - Run unit tests
+### 错误报告
+- 明确说明失败的具体原因
+- 列出已尝试的方法
+- 提出下一步建议或请求用户指导
 
-## Verification Methods
-- After frontend changes, run `pnpm build` to confirm no compilation errors
-- After API changes, run `pytest tests/` to confirm tests pass
+## 开发规范
 
-## Git Workflow
+### 通用命令 (按优先级)
+```bash
+# 包管理器优先级
+pnpm > npm > yarn
 
-### Commit Message Convention
-- feat: New feature
-- fix: Bug fix
-- chore: Miscellaneous (build, config, etc.)
-- docs: Documentation update
-- refactor: Code refactoring
-- test: Test related
-- style: Code formatting (no functional change)
+# 常用命令
+pnpm dev          # 开发模式
+pnpm build        # 构建
+pnpm test         # 测试
+pnpm lint         # 代码检查
+pnpm typecheck    # 类型检查
+pnpm format       # 代码格式化
+```
 
-### Merge Conflict Resolution
-1. **Business code conflicts**: Analyze carefully, preserve valuable changes from both sides
-2. **Lock file conflicts** (package-lock.json, pnpm-lock.yaml):
-   - Use `git checkout --theirs <file>` or `git checkout --ours <file>`
-   - Then run `pnpm install` to regenerate
-3. **Generated file conflicts** (dist/, build/, *.meta.json):
-   - Usually accept upstream version
-   - Or delete and rebuild
+### 代码风格
+- 使用 ES Modules (import/export)，非 CommonJS (require)
+- 优先使用解构导入：`import { foo } from 'bar'`
+- TypeScript 严格模式
+- 函数式组件 + Hooks（React 项目）
 
-### Pre-commit Checklist
-After completing a task, always verify:
-1. `git status` - Confirm no uncommitted changes
-2. `git log -3` - Confirm commit history is correct
-3. If untracked files exist, decide whether to add to .gitignore
+## Git 工作流
 
-## Large File Handling
+### Commit 消息格式
+```
+feat: 新功能
+fix: Bug 修复
+docs: 文档更新
+refactor: 代码重构
+test: 测试相关
+chore: 构建/配置
+style: 代码格式（无功能变化）
+```
 
-**Do NOT attempt to read these files directly:**
-- package-lock.json
-- pnpm-lock.yaml
-- yarn.lock
-- *.min.js
-- Files under dist/ directory
-- Anything under node_modules/
+### 提交前检查
+1. `git status` - 确认变更内容
+2. `git diff` - 检查具体修改
+3. 确保没有敏感信息（.env、密钥等）
 
-**Handling strategy:**
-- Use git commands instead of reading content
-- Use `head -100 <file>` to view partial content if needed
+### 冲突解决
+- 业务代码：仔细分析，保留双方有价值的变更
+- Lock 文件：使用 `git checkout --theirs` 后重新 install
+- 生成文件：接受上游版本或删除重建
 
-## Task Execution Principles
+## 禁止读取的文件
 
-1. **Autonomous execution**: Complete all steps independently unless encountering destructive operations or uncertainty
-2. **Error recovery**: Attempt self-repair when errors occur, rather than stopping to ask
-3. **Minimize interruptions**: Follow user's overall requirements, reduce mid-task confirmations
-4. **Completeness check**: Verify all steps are completed before ending task
+以下文件过大或无意义，请勿直接读取：
+- `package-lock.json` / `pnpm-lock.yaml` / `yarn.lock`
+- `*.min.js` / `*.min.css`
+- `dist/` / `build/` / `node_modules/` 目录下的文件
+- 二进制文件
 
-## Common Mistakes (Continuously Updated)
+**替代方案**：
+- 使用 `head -100 <file>` 查看部分内容
+- 使用 git 命令查看变更
+- 使用 grep 搜索特定内容
 
-### TypeScript/React
-- ❌ Do not call async functions directly in useEffect
-- ❌ Do not use any type
-- ❌ Do not create new objects/functions in render
-- ✅ Use useMemo/useCallback to optimize performance
+## 任务执行原则
 
-### Git
-- ❌ Do not force push to shared branches
-- ❌ Do not commit .env files
-- ✅ Check git status before committing
-- ✅ Verify final state after merge operations
+### 自主执行
+- 独立完成所有步骤
+- 遇到错误时尝试自我修复
+- 最小化中途确认，减少打断用户
+- **禁止在任务中途无故停止**
+
+### 多步骤任务
+- 明确列出所有步骤
+- 按顺序执行，完成一步确认一步
+- 遇到阻塞时，先尝试绕过，再报告
+
+### 完成验证
+- 任务完成后验证所有步骤
+- 运行相关测试确保没有破坏现有功能
+- 检查 git status 确认状态
+
+## 常见错误提醒
+
+### TypeScript/JavaScript
+- ❌ useEffect 中直接调用 async 函数
+- ❌ 使用 any 类型
+- ❌ 在 render 中创建新对象/函数
+- ✅ 使用 useMemo/useCallback 优化
+- ✅ 正确处理 Promise 错误
+
+### 文件操作
+- ❌ 不检查文件是否存在就操作
+- ❌ 硬编码绝对路径
+- ❌ 编辑失败后直接放弃
+- ✅ 使用相对路径或环境变量
+- ✅ 操作前检查文件/目录存在性
+- ✅ 失败时尝试备用方案
+
+### 安全
+- ❌ 提交 .env 文件
+- ❌ 在代码中硬编码密钥
+- ❌ 对共享分支 force push
+- ✅ 使用环境变量管理敏感信息

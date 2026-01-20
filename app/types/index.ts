@@ -1,4 +1,5 @@
-import { ArraySchema, MapSchema, Schema, SetSchema } from "@colyseus/schema"
+import { MapSchema, Schema, SetSchema } from "@colyseus/schema"
+import { BossTrait } from "./enum/Game"
 import type { Board } from "../core/board"
 import Dps from "../core/dps"
 import { Effect as EffectClass } from "../core/effects/effect"
@@ -370,6 +371,8 @@ export interface IPokemon {
   killCount: number
   readonly hasEvolution: boolean
   supercharged: boolean
+  size?: "SIZE_1X1" | "SIZE_2X2"
+  bossTraits?: SetSchema<BossTrait>
 }
 
 export interface IExperienceManager {

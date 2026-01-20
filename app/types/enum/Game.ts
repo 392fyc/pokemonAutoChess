@@ -15,13 +15,15 @@ export enum GameMode {
   CLASSIC = "CLASSIC",
   RANKED = "RANKED",
   SCRIBBLE = "SCRIBBLE",
-  TOURNAMENT = "TOURNAMENT"
+  TOURNAMENT = "TOURNAMENT",
+  PVE_MODE = "PVE_MODE"
 }
 
 export enum GamePhaseState {
   PICK,
   FIGHT,
-  TOWN
+  TOWN,
+  PVE_SUDDEN_DEATH
 }
 
 export enum PokemonActionState {
@@ -154,4 +156,17 @@ export enum Damage {
 export enum Team {
   BLUE_TEAM = 0,
   RED_TEAM = 1
+}
+
+export enum EntitySize {
+  SIZE_1X1 = "SIZE_1X1",
+  SIZE_2X2 = "SIZE_2X2"
+}
+
+export enum BossTrait {
+  LEGENDARY_POKEMON = "LEGENDARY_POKEMON",
+  SIZE_2X2 = "SIZE_2X2",
+  IGNORE_SYNERGIES = "IGNORE_SYNERGIES",
+  HALF_STATUS_EFFECT = "HALF_STATUS_EFFECT",
+  INCREASED_RANGE = "INCREASED_RANGE"
 }

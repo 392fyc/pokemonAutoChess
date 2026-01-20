@@ -98,14 +98,14 @@ export default class Player extends Schema implements IPlayer {
   @type("string") opponentTitle: string = ""
   @type("string") spectatedPlayerId: string
   @type("uint8") boardSize: number = 0
-  @type(["string"]) pveBotsEncountered = new ArraySchema<string>(); // PVE模式中已遭遇的bot ID列表
-  botData?: any; // 存储Bot的原始数据，包括presetLineup等
+  @type(["string"]) pveBotsEncountered = new ArraySchema<string>() // PVE模式中已遭遇的bot ID列表
+  botData?: any // 存储Bot的原始数据，包括presetLineup等
   @type(["string"]) items = new ArraySchema<Item>()
   @type("uint8") rank: number
   @type("uint16") elo: number
   @type("uint16") games: number // number of games played on this account
   @type("boolean") alive = true
-    @type("boolean") isReady = false // Ready for next stage (town or fight)
+  @type("boolean") isReady = false // Ready for next stage (town or fight)
   @type([HistoryItem]) history = new ArraySchema<HistoryItem>()
   @type({ map: "uint8" }) pokemonCustoms: PokemonCustoms =
     new MapSchema<number>()
@@ -279,13 +279,7 @@ export default class Player extends Schema implements IPlayer {
     weather: Weather | undefined
   ) {
     this.history.push(
-      new HistoryItem(
-        id,
-        name,
-        result,
-        avatar,
-        weather ?? Weather.NEUTRAL
-      )
+      new HistoryItem(id, name, result, avatar, weather ?? Weather.NEUTRAL)
     )
   }
 

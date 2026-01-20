@@ -1,3 +1,4 @@
+import { FIGHTING_PHASE_DURATION } from "../config"
 import { Title } from "../types"
 import { EffectEnum } from "../types/enum/Effect"
 import { Berries, Dishes, Item } from "../types/enum/Item"
@@ -14,7 +15,6 @@ import {
   OnSpawnEffect,
   PeriodicEffect
 } from "./effects/effect"
-import { FIGHTING_PHASE_DURATION } from "../config"
 
 export const DishByPkm: { [pkm in Pkm]?: Item } = {
   [Pkm.LICKITUNG]: Item.RAGE_CANDY_BAR,

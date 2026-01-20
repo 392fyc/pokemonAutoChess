@@ -1,8 +1,8 @@
 import { ISimulationCommand } from "../types"
-import type { Board } from "./board"
-import { PokemonEntity } from "./pokemon-entity"
 import { EffectEnum } from "../types/enum/Effect"
 import { logger } from "../utils/logger"
+import type { Board } from "./board"
+import { PokemonEntity } from "./pokemon-entity"
 
 export abstract class SimulationCommand implements ISimulationCommand {
   delay: number
@@ -60,7 +60,12 @@ export class RemoveEffectCommand extends SimulationCommand {
   effect: EffectEnum
   simulation: any // To avoid circular dependency with Simulation class
 
-  constructor(targetId: string, effect: EffectEnum, delay: number, simulation: any) {
+  constructor(
+    targetId: string,
+    effect: EffectEnum,
+    delay: number,
+    simulation: any
+  ) {
     super(delay)
     this.targetId = targetId
     this.effect = effect
@@ -68,10 +73,14 @@ export class RemoveEffectCommand extends SimulationCommand {
   }
 
   execute(): void {
-    const targetEntity = this.simulation.board.getEntityById(this.targetId) as PokemonEntity
+    const targetEntity = this.simulation.board.getEntityById(
+      this.targetId
+    ) as PokemonEntity
     if (targetEntity) {
       targetEntity.effects.delete(this.effect)
-      logger.debug(`RemoveEffectCommand: Removed effect ${this.effect} from ${targetEntity.name}`)
+      logger.debug(
+        `RemoveEffectCommand: Removed effect ${this.effect} from ${targetEntity.name}`
+      )
     }
   }
 }
@@ -97,7 +106,9 @@ export class StatChangeCommand extends SimulationCommand {
   }
 
   execute(): void {
-    const targetEntity = this.simulation.board.getEntityById(this.targetId) as PokemonEntity
+    const targetEntity = this.simulation.board.getEntityById(
+      this.targetId
+    ) as PokemonEntity
     if (targetEntity) {
       switch (this.stat) {
         case "ap":
@@ -119,7 +130,9 @@ export class StatChangeCommand extends SimulationCommand {
           targetEntity.maxHP += this.value
           break
       }
-      logger.debug(`StatChangeCommand: Changed ${this.stat} of ${targetEntity.name} by ${this.value}. New value: ${targetEntity[this.stat]}`)
+      logger.debug(
+        `StatChangeCommand: Changed ${this.stat} of ${targetEntity.name} by ${this.value}. New value: ${targetEntity[this.stat]}`
+      )
     }
   }
 }

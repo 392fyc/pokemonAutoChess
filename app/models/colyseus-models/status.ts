@@ -4,7 +4,7 @@ import type { Board } from "../../core/board"
 import { PokemonEntity } from "../../core/pokemon-entity"
 import { IPokemonEntity, ISimulation, IStatus, Transfer } from "../../types"
 import { EffectEnum } from "../../types/enum/Effect"
-import { AttackType, Stat, Team } from "../../types/enum/Game"
+import { AttackType, BossTrait, Stat, Team } from "../../types/enum/Game"
 import { Item } from "../../types/enum/Item"
 import { Passive } from "../../types/enum/Passive"
 import { Weather } from "../../types/enum/Weather"
@@ -424,6 +424,12 @@ export default class Status extends Schema implements IStatus {
     if (this.burnDamageCooldown - dt <= 0) {
       if (this.burnOrigin) {
         let burnDamage = pkm.maxHP * 0.05
+
+        // Legendary resistance: reduce burn damage to 0.05% of max HP
+        if (pkm.bossTraits.has(BossTrait.LEGENDARY_RESISTANCE)) {
+          burnDamage = pkm.maxHP * 0.0005
+        }
+
         if (pkm.simulation.weather === Weather.DROUGHT) {
           burnDamage *= 1.3
           const nbHeatRocks = pkm.player

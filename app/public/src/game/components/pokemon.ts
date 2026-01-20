@@ -1636,9 +1636,19 @@ export function loadCompressedAtlas(
     return lazyLoadingRequests[index]
   }
   lazyLoadingRequests[index] = new Promise((resolve) => {
+    scene.load.once(`loaderror`, (file) => {
+      if (file.key !== `pokemon-atlas-${index}`) return
+      delete lazyLoadingRequests[index]
+      resolve()
+    })
     scene.load.once(
       `filecomplete-json-pokemon-atlas-${index}`,
       (key, type, data) => {
+        if (!data || !data.i || !data.s || !data.a) {
+          delete lazyLoadingRequests[index]
+          resolve()
+          return
+        }
         const image = data.i
 
         function traverse(obj: any, path: string, frames) {

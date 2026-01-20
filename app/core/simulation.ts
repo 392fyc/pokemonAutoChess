@@ -450,7 +450,7 @@ export default class Simulation extends Schema implements ISimulation {
     pokemon: IPokemon,
     team: Team
   ): { x: number; y: number } | null {
-    const positionX = pokemon.positionX
+    const { positionX } = pokemon
     const positionY =
       team === Team.BLUE_TEAM
         ? pokemon.positionY - 1
@@ -1411,7 +1411,7 @@ export default class Simulation extends Schema implements ISimulation {
       }
 
       case EffectEnum.WINDY: {
-        const player = pokemonEntity.player
+        const { player } = pokemonEntity
         const nbFloatStones = player ? count(player.items, Item.FLOAT_STONE) : 0
         pokemonEntity.addSpeed(
           (pokemonEntity.types.has(Synergy.FLYING) ? 20 : 10) + nbFloatStones * 10,
@@ -1442,7 +1442,7 @@ export default class Simulation extends Schema implements ISimulation {
       }
 
       case EffectEnum.NIGHT: {
-        const player = pokemonEntity.player
+        const { player } = pokemonEntity
         const nbBlackAugurite = player
           ? count(player.items, Item.BLACK_AUGURITE)
           : 0
@@ -1452,7 +1452,7 @@ export default class Simulation extends Schema implements ISimulation {
       }
 
       case EffectEnum.MURKY: {
-        const player = pokemonEntity.player
+        const { player } = pokemonEntity
         const nbOddStones = player ? count(player.items, Item.ODD_KEYSTONE) : 0
         const luckDebuff =
           10 * nbOddStones - (pokemonEntity.types.has(Synergy.GHOST) ? 0 : 30)
@@ -1461,7 +1461,7 @@ export default class Simulation extends Schema implements ISimulation {
       }
 
       case EffectEnum.MISTY: {
-        const player = pokemonEntity.player
+        const { player } = pokemonEntity
         const nbMistStones = player ? count(player.items, Item.MIST_STONE) : 0
         if (nbMistStones > 0) {
           pokemonEntity.addSpecialDefense(3 * nbMistStones, pokemonEntity, 0, false)
@@ -1680,8 +1680,7 @@ export default class Simulation extends Schema implements ISimulation {
           player.addMoney(1, true, null)
           client?.send(Transfer.PLAYER_INCOME, 1)
         }
-      } else {
-        if (this.isBossBattle) {
+      } else if (this.isBossBattle) {
           player.life = 0; // Immediate defeat for boss battles
           client?.send(Transfer.PLAYER_DAMAGE, 100); // Send max damage to signify defeat
         } else {

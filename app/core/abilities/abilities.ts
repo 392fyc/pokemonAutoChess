@@ -256,8 +256,7 @@ export class PickupStrategy extends AbilityStrategy {
         target.removeItem(item)
         pokemon.addItem(item)
       }
-    } else {
-      if (target.player) {
+    } else if (target.player) {
         const moneyStolen = max(target.player.money)(pokemon.stars)
         target.player.addMoney(-moneyStolen, false, target)
         if (pokemon.player) {
@@ -2574,7 +2573,7 @@ export class RockSlideStrategy extends AbilityStrategy {
     }
 
     if (target.types.has(Synergy.FLYING)) {
-      damage = damage * 2
+      damage *= 2
     }
     target.handleSpecialDamage(damage, board, AttackType.SPECIAL, pokemon, crit)
   }
@@ -2777,7 +2776,7 @@ export class SolarBeamStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit)
     let damage = [25, 50, 100][pokemon.stars - 1] ?? 100
     if (pokemon.simulation.weather === Weather.ZENITH || pokemon.status.light) {
-      damage = damage * 1.3
+      damage *= 1.3
       pokemon.addPP(20, pokemon, 0, false)
     }
     effectInLine(board, pokemon, target, (cell) => {
@@ -4236,7 +4235,7 @@ export class VenoshockStrategy extends AbilityStrategy {
     }
 
     if (pokemon.status.poisonStacks > 0) {
-      damage = damage * 2
+      damage *= 2
     }
 
     target.handleSpecialDamage(damage, board, AttackType.SPECIAL, pokemon, crit)
@@ -5291,7 +5290,7 @@ export class HexStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit)
     let damage = pokemon.stars === 3 ? 80 : pokemon.stars === 2 ? 40 : 20
     if (target.status.hasNegativeStatus()) {
-      damage = damage * 2
+      damage *= 2
     }
     target.handleSpecialDamage(damage, board, AttackType.SPECIAL, pokemon, crit)
   }
@@ -5866,8 +5865,8 @@ export class MagmaStormStrategy extends AbilityStrategy {
       pokemon.commands.push(
         new DelayedCommand(() => {
           const board = pokemon.simulation.board
-          const nextEnemies = board
-            .getAdjacentCells(currentTarget.positionX, currentTarget.positionY)
+          const { positionX, positionY } = currentTarget;
+          const nextEnemies = board.getAdjacentCells(positionX, positionY)
             .filter(
               (cell) =>
                 cell.value &&
@@ -7897,7 +7896,7 @@ export class GoldRushStrategy extends AbilityStrategy {
     crit: boolean
   ) {
     super.process(pokemon, board, target, crit, true)
-    const goldDamage = pokemon.player?.money ? pokemon.player?.money : 0
+    const goldDamage = pokemon.player?.money ?? 0
     const damage = 20 + goldDamage
     if (pokemon.player) {
       pokemon.player.addMoney(2, true, pokemon)
@@ -7921,7 +7920,7 @@ export class MakeItRainStrategy extends AbilityStrategy {
     crit: boolean
   ) {
     super.process(pokemon, board, target, crit, true)
-    const goldDamage = pokemon.player?.money ? pokemon.player?.money : 0
+    const goldDamage = pokemon.player?.money ?? 0
     const damage = 100 + goldDamage
 
     target.handleSpecialDamage(
@@ -9497,10 +9496,11 @@ class DarkHarvestEffect extends PeriodicEffect {
     super(
       (pokemon) => {
         pokemon.broadcastAbility({ skill: Ability.DARK_HARVEST })
-        const board = pokemon.simulation.board
-        const crit = pokemon.effects.has(EffectEnum.ABILITY_CRIT)
-          ? chance(pokemon.critChance / 100, pokemon)
-          : false
+        const { board } = pokemon.simulation;
+        const { effects, critChance } = pokemon;
+        const crit = effects.has(EffectEnum.ABILITY_CRIT)
+          ? chance(critChance / 100, pokemon)
+          : false;
         const darkHarvestDamage = [5, 10, 20][pokemon.stars - 1] ?? 20
         const healFactor = 0.3
         board
@@ -12201,12 +12201,11 @@ export class SaltCureStrategy extends AbilityStrategy {
         if (cell.value.team === pokemon.team) {
           cell.value.addShield(shield, pokemon, 1, crit)
           cell.value.status.clearNegativeStatus()
-        } else {
-          if (
-            cell.value.types.has(Synergy.WATER) ||
-            cell.value.types.has(Synergy.STEEL) ||
-            cell.value.types.has(Synergy.GHOST)
-          ) {
+        } else if (
+          cell.value.types.has(Synergy.WATER) ||
+          cell.value.types.has(Synergy.STEEL) ||
+          cell.value.types.has(Synergy.GHOST)
+        ) {
             cell.value.status.triggerBurn(5000, cell.value, pokemon)
           }
         }
@@ -12431,8 +12430,7 @@ export class DragonClawStrategy extends AbilityStrategy {
     let lowestHp = 9999
     let lowestHpTarget: PokemonEntity | undefined
     for (const cell of cells) {
-      if (cell.value && cell.value.team !== pokemon.team) {
-        if (cell.value.maxHP < lowestHp) {
+      if (cell.value && cell.value.team !== pokemon.team && cell.value.maxHP < lowestHp) {
           lowestHp = cell.value.maxHP
           lowestHpTarget = cell.value
         }
@@ -14716,14 +14714,15 @@ export class MoonblastStrategy extends AbilityStrategy {
     let moonsRemaining = 6
     let moonIndex = 0
 
-    function sendMoon() {
-      if (!currentTarget) return
+    const sendMoon = () => {
+      if (!currentTarget) return;
       pokemon.broadcastAbility({
         positionX: pokemon.positionX,
         positionY: pokemon.positionY,
         targetX: currentTarget.positionX,
-        targetY: currentTarget.positionY
-      })
+        targetY: currentTarget.positionY,
+      });
+    };
 
       moonIndex++
 

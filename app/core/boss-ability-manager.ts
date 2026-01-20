@@ -83,8 +83,7 @@ export class BossAbilityManager {
 
         case "hpThreshold":
           // 血量阈值触发
-          if (!this.hpThresholdsTriggered.has(config.triggerValue)) {
-            if (currentHpPercent <= config.triggerValue) {
+          if (!this.hpThresholdsTriggered.has(config.triggerValue) && currentHpPercent <= config.triggerValue) {
               shouldTrigger = true
               this.hpThresholdsTriggered.add(config.triggerValue)
               // 如果有顺延时间，设置延迟触发

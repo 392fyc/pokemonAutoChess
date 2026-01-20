@@ -284,7 +284,7 @@ export default class Player extends Schema implements IPlayer {
         name,
         result,
         avatar,
-        weather ? weather : Weather.NEUTRAL
+        weather ?? Weather.NEUTRAL
       )
     )
   }
@@ -703,7 +703,7 @@ export default class Player extends Schema implements IPlayer {
       this.regionalPokemons,
       newRegionalPokemons.filter((p, index, array) => {
         const pkm = getPokemonData(PkmFamily[p])
-        const evolution = pkm.evolution
+        const { evolution } = pkm
         const baseVariant = PkmRegionalBaseVariants[p]
         if (baseVariant) {
           const basePkm = getPokemonData(baseVariant)
@@ -774,7 +774,7 @@ export default class Player extends Schema implements IPlayer {
   collectMulch(amount: number) {
     this.mulch += amount
     if (this.mulch >= this.mulchCap) {
-      this.mulch = this.mulch % this.mulchCap
+      this.mulch %= this.mulchCap
       const index = MulchStockCaps.indexOf(this.mulchCap)
       this.mulchCap = MulchStockCaps[index + 1] ?? MulchStockCaps.at(-1)
       const mulchCollected =

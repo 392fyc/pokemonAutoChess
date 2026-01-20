@@ -907,7 +907,7 @@ export default class GameRoom extends Room<GameState> {
       (this.state.stageLevel >= MinStageForGameToCount || hasLeftBeforeEnd) &&
       humans.length >= 2
 
-    const rank = player.rank
+    const { rank } = player
     const exp = ExpPlace[rank - 1]
 
     const usr = await UserMetadata.findOne({ uid: player.id })
@@ -917,11 +917,11 @@ export default class GameRoom extends Room<GameState> {
         if (usr.exp + exp >= expThreshold) {
           usr.level += 1
           usr.booster += 1
-          usr.exp = usr.exp + exp - expThreshold
+          usr.exp += exp - expThreshold
         } else {
-          usr.exp = usr.exp + exp
+          usr.exp += exp
         }
-        usr.exp = !isNaN(usr.exp) ? usr.exp : 0
+        usr.exp = isNaN(usr.exp) ? 0 : usr.exp
       }
 
       usr.games += 1
@@ -1061,7 +1061,7 @@ export default class GameRoom extends Room<GameState> {
         const index = PkmIndex[pkm]
         const pokemonCollectionItem = usr.pokemonCollection.get(index)
         if (pokemonCollectionItem) {
-          pokemonCollectionItem.played = pokemonCollectionItem.played + 1
+          pokemonCollectionItem.played += 1
           usr.markModified(`pokemonCollection.${index}.played`)
         } else {
           const newConfig: IPokemonCollectionItemMongo = {
@@ -1207,12 +1207,11 @@ export default class GameRoom extends Room<GameState> {
       pokemon.evolutionRule &&
       pokemon.evolutionRule instanceof ItemEvolutionRule
     ) {
-      const pokemonEvolved = pokemon.evolutionRule.tryEvolve(
+      return pokemon.evolutionRule.tryEvolve(
         pokemon,
         player,
         this.state.stageLevel
       )
-      return pokemonEvolved
     }
   }
 

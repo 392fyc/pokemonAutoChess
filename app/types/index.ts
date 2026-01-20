@@ -1,5 +1,4 @@
-import { MapSchema, Schema, SetSchema } from "@colyseus/schema"
-import { BossTrait } from "./enum/Game"
+import { ArraySchema, MapSchema, Schema, SetSchema } from "@colyseus/schema"
 import type { Board } from "../core/board"
 import Dps from "../core/dps"
 import { Effect as EffectClass } from "../core/effects/effect"
@@ -25,6 +24,7 @@ import { DungeonPMDO } from "./enum/Dungeon"
 import { BoardEffect, EffectEnum } from "./enum/Effect"
 import { Emotion } from "./enum/Emotion"
 import {
+  BossTrait,
   GameMode,
   Orientation,
   PokemonActionState,
@@ -373,6 +373,11 @@ export interface IPokemon {
   supercharged: boolean
   size?: "SIZE_1X1" | "SIZE_2X2"
   bossTraits?: SetSchema<BossTrait>
+  canBeBenched: boolean
+  canBeSold: boolean
+  dodge: number
+  doesCountForTeamSize: boolean
+  final: boolean
 }
 
 export interface IExperienceManager {

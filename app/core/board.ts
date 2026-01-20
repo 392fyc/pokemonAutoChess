@@ -580,6 +580,73 @@ export class Board {
   }
 
   /**
+   * Check if a 2x2 area is available for placement
+   * @param x Top-left corner x coordinate
+   * @param y Top-left corner y coordinate
+   * @returns true if all 4 cells are free and on board
+   */
+  check2x2Area(x: number, y: number): boolean {
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        const checkX = x + dx
+        const checkY = y + dy
+        if (
+          !this.isOnBoard(checkX, checkY) ||
+          this.getEntityOnCell(checkX, checkY) !== undefined
+        ) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  /**
+   * Get all cells occupied by a 2x2 entity
+   * @param x Top-left corner x coordinate
+   * @param y Top-left corner y coordinate
+   * @returns Array of {x, y} coordinates for all 4 cells
+   */
+  get2x2Cells(x: number, y: number): Array<{ x: number; y: number }> {
+    const cells: Array<{ x: number; y: number }> = []
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        cells.push({ x: x + dx, y: y + dy })
+      }
+    }
+    return cells
+  }
+
+  /**
+   * Set a 2x2 entity on the board, occupying all 4 cells
+   * @param x Top-left corner x coordinate
+   * @param y Top-left corner y coordinate
+   * @param entity The entity to place
+   */
+  set2x2Entity(x: number, y: number, entity: PokemonEntity | undefined) {
+    const cells = this.get2x2Cells(x, y)
+    for (const cell of cells) {
+      this.setEntityOnCell(cell.x, cell.y, entity)
+    }
+    if (entity) {
+      entity.positionX = x
+      entity.positionY = y
+    }
+  }
+
+  /**
+   * Remove a 2x2 entity from the board, clearing all 4 cells
+   * @param x Top-left corner x coordinate
+   * @param y Top-left corner y coordinate
+   */
+  clear2x2Entity(x: number, y: number) {
+    const cells = this.get2x2Cells(x, y)
+    for (const cell of cells) {
+      this.setEntityOnCell(cell.x, cell.y, undefined)
+    }
+  }
+
+  /**
    * Finds and returns the closest enemy `PokemonEntity` to the specified position.
    *
    * @param positionX - The X coordinate from which to search for the closest enemy.

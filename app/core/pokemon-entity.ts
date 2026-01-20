@@ -1,6 +1,5 @@
 import { Schema, SetSchema, type } from "@colyseus/schema"
 import { nanoid } from "nanoid"
-import { BossTrait } from "../types/enum/Game"
 import {
   ARMOR_FACTOR,
   DEFAULT_CRIT_CHANCE,
@@ -24,6 +23,7 @@ import { Ability } from "../types/enum/Ability"
 import { EffectEnum } from "../types/enum/Effect"
 import {
   AttackType,
+  BossTrait,
   Orientation,
   PokemonActionState,
   Rarity,
@@ -203,7 +203,14 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     this.healDone = 0
     this.shieldDone = 0
     this.size = pokemon.size ?? "SIZE_1X1"
-    this.bossTraits = new SetSchema<BossTrait>(pokemon.bossTraits ?? [])
+    if (pokemon.bossTraits && Array.isArray(pokemon.bossTraits)) {
+      this.bossTraits = new SetSchema<BossTrait>()
+      pokemon.bossTraits.forEach((trait) => this.bossTraits.add(trait))
+    } else if (pokemon.bossTraits) {
+      this.bossTraits = pokemon.bossTraits
+    } else {
+      this.bossTraits = new SetSchema<BossTrait>()
+    }
     this.resetCooldown(500)
 
     pokemon.types.forEach((type) => {

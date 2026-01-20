@@ -6,6 +6,7 @@ import { SynergyEffects } from "../models/effects"
 import PokemonFactory from "../models/pokemon-factory"
 import { getPokemonData } from "../models/precomputed/precomputed-pokemon-data"
 import { PRECOMPUTED_POKEMONS_PER_TYPE } from "../models/precomputed/precomputed-types"
+import { PVEBossStage, PVEBossStages } from "../models/pve-boss-stages"
 import GameRoom from "../rooms/game-room"
 import {
   IPokemon,
@@ -19,11 +20,11 @@ import { EffectEnum } from "../types/enum/Effect"
 import {
   AttackType,
   BattleResult,
+  BossTrait,
   Orientation,
   PokemonActionState,
   Rarity,
-  Team,
-  BossTrait
+  Team
 } from "../types/enum/Game"
 import {
   CraftableItemsNoScarves,
@@ -49,11 +50,10 @@ import {
   randomBetween,
   shuffleArray
 } from "../utils/random"
-import { BossAbilityManager } from "./boss-ability-manager"
-import { PVEBossStage, PVEBossStages } from "../models/pve-boss-stages"
 import { values } from "../utils/schemas"
 import { AbilityStrategies, SurfStrategy } from "./abilities/abilities"
 import { Board } from "./board"
+import { BossAbilityManager } from "./boss-ability-manager"
 import { DishEffects } from "./dishes"
 import Dps from "./dps"
 import {
@@ -76,7 +76,12 @@ import {
   SoundCryEffect
 } from "./effects/synergies"
 import { getStrongestUnit, getUnitScore, PokemonEntity } from "./pokemon-entity"
-import { DelayedCommand, RemoveEffectCommand, SimulationCommand, StatChangeCommand } from "./simulation-command"
+import {
+  DelayedCommand,
+  RemoveEffectCommand,
+  SimulationCommand,
+  StatChangeCommand
+} from "./simulation-command"
 
 export default class Simulation extends Schema implements ISimulation {
   @type("string") weather: Weather = Weather.NEUTRAL
@@ -221,7 +226,9 @@ export default class Simulation extends Schema implements ISimulation {
     // 获取Boss关卡配置
     const bossStage = PVEBossStages[this.stageLevel]
     if (!bossStage || !bossStage.bossAbilityConfigs) {
-      logger.warn(`No boss stage or ability configs found for level ${this.stageLevel}`)
+      logger.warn(
+        `No boss stage or ability configs found for level ${this.stageLevel}`
+      )
       return
     }
 
@@ -236,13 +243,16 @@ export default class Simulation extends Schema implements ISimulation {
     this.applyBossTraits(bossEntity, bossStage)
   }
 
-  private applyBossTraits(bossEntity: PokemonEntity, bossStage: PVEBossStage): void {
+  private applyBossTraits(
+    bossEntity: PokemonEntity,
+    bossStage: PVEBossStage
+  ): void {
     if (!bossStage.bossTraits) {
       return
     }
 
     // 设置Boss特性
-    bossStage.bossTraits.forEach(trait => {
+    bossStage.bossTraits.forEach((trait) => {
       bossEntity.bossTraits?.add(trait)
     })
 
@@ -1235,7 +1245,8 @@ export default class Simulation extends Schema implements ISimulation {
       case EffectEnum.GOOGLE_SPECS:
         if (types.has(Synergy.ARTIFICIAL) && pokemonEntity.items.size > 0) {
           const nbItems = max(3)(
-            pokemonEntity.items.size + (pokemonEntity.items.has(Item.WONDER_BOX) ? 1 : 0)
+            pokemonEntity.items.size +
+              (pokemonEntity.items.has(Item.WONDER_BOX) ? 1 : 0)
           )
           const attackBoost = {
             [EffectEnum.DUBIOUS_DISC]: 0,
@@ -1252,9 +1263,24 @@ export default class Simulation extends Schema implements ISimulation {
             [EffectEnum.LINK_CABLE]: (5 / 100) * pokemonEntity.maxHP,
             [EffectEnum.GOOGLE_SPECS]: (10 / 100) * pokemonEntity.maxHP
           }[effect]
-          pokemonEntity.addAttack(attackBoost * nbItems, pokemonEntity, 0, false)
-          pokemonEntity.addAbilityPower(apBoost * nbItems, pokemonEntity, 0, false)
-          pokemonEntity.addShield(shieldBoost * nbItems, pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            attackBoost * nbItems,
+            pokemonEntity,
+            0,
+            false
+          )
+          pokemonEntity.addAbilityPower(
+            apBoost * nbItems,
+            pokemonEntity,
+            0,
+            false
+          )
+          pokemonEntity.addShield(
+            shieldBoost * nbItems,
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.effects.add(effect)
         }
         break
@@ -1291,7 +1317,12 @@ export default class Simulation extends Schema implements ISimulation {
         if (pokemonEntity.inSpotlight) {
           pokemonEntity.status.light = true
           pokemonEntity.effects.add(EffectEnum.SHINING_RAY)
-          pokemonEntity.addAttack(Math.ceil(pokemonEntity.atk * 0.2), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(pokemonEntity.atk * 0.2),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addAbilityPower(20, pokemonEntity, 0, false)
         }
         break
@@ -1300,7 +1331,12 @@ export default class Simulation extends Schema implements ISimulation {
         if (pokemonEntity.inSpotlight) {
           pokemonEntity.status.light = true
           pokemonEntity.effects.add(EffectEnum.LIGHT_PULSE)
-          pokemonEntity.addAttack(Math.ceil(pokemonEntity.atk * 0.2), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(pokemonEntity.atk * 0.2),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addAbilityPower(20, pokemonEntity, 0, false)
         }
         break
@@ -1309,11 +1345,26 @@ export default class Simulation extends Schema implements ISimulation {
         if (pokemonEntity.inSpotlight) {
           pokemonEntity.status.light = true
           pokemonEntity.effects.add(EffectEnum.ETERNAL_LIGHT)
-          pokemonEntity.addAttack(Math.ceil(pokemonEntity.atk * 0.2), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(pokemonEntity.atk * 0.2),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addAbilityPower(20, pokemonEntity, 0, false)
           pokemonEntity.status.triggerRuneProtect(8000)
-          pokemonEntity.addDefense(0.5 * pokemonEntity.baseDef, pokemonEntity, 0, false)
-          pokemonEntity.addSpecialDefense(0.5 * pokemonEntity.baseSpeDef, pokemonEntity, 0, false)
+          pokemonEntity.addDefense(
+            0.5 * pokemonEntity.baseDef,
+            pokemonEntity,
+            0,
+            false
+          )
+          pokemonEntity.addSpecialDefense(
+            0.5 * pokemonEntity.baseSpeDef,
+            pokemonEntity,
+            0,
+            false
+          )
         }
         break
 
@@ -1321,11 +1372,26 @@ export default class Simulation extends Schema implements ISimulation {
         if (pokemonEntity.inSpotlight) {
           pokemonEntity.status.light = true
           pokemonEntity.effects.add(EffectEnum.MAX_ILLUMINATION)
-          pokemonEntity.addAttack(Math.ceil(pokemonEntity.atk * 0.2), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(pokemonEntity.atk * 0.2),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addAbilityPower(20, pokemonEntity, 0, false)
           pokemonEntity.status.triggerRuneProtect(8000)
-          pokemonEntity.addDefense(0.5 * pokemonEntity.baseDef, pokemonEntity, 0, false)
-          pokemonEntity.addSpecialDefense(0.5 * pokemonEntity.baseSpeDef, pokemonEntity, 0, false)
+          pokemonEntity.addDefense(
+            0.5 * pokemonEntity.baseDef,
+            pokemonEntity,
+            0,
+            false
+          )
+          pokemonEntity.addSpecialDefense(
+            0.5 * pokemonEntity.baseSpeDef,
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addShield(100, pokemonEntity, 0, false)
           pokemonEntity.status.addResurrection(pokemonEntity)
         }
@@ -1348,7 +1414,12 @@ export default class Simulation extends Schema implements ISimulation {
       case EffectEnum.HUSTLE:
         if (types.has(Synergy.WILD)) {
           pokemonEntity.effects.add(EffectEnum.HUSTLE)
-          pokemonEntity.addAttack(Math.ceil(0.2 * pokemonEntity.baseAtk), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(0.2 * pokemonEntity.baseAtk),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addSpeed(50, pokemonEntity, 0, false)
         }
         break
@@ -1356,7 +1427,12 @@ export default class Simulation extends Schema implements ISimulation {
       case EffectEnum.BERSERK:
         if (types.has(Synergy.WILD)) {
           pokemonEntity.effects.add(EffectEnum.BERSERK)
-          pokemonEntity.addAttack(Math.ceil(0.4 * pokemonEntity.baseAtk), pokemonEntity, 0, false)
+          pokemonEntity.addAttack(
+            Math.ceil(0.4 * pokemonEntity.baseAtk),
+            pokemonEntity,
+            0,
+            false
+          )
           pokemonEntity.addSpeed(50, pokemonEntity, 0, false)
           pokemonEntity.status.enrageDelay -= 5000
         }
@@ -1414,7 +1490,8 @@ export default class Simulation extends Schema implements ISimulation {
         const { player } = pokemonEntity
         const nbFloatStones = player ? count(player.items, Item.FLOAT_STONE) : 0
         pokemonEntity.addSpeed(
-          (pokemonEntity.types.has(Synergy.FLYING) ? 20 : 10) + nbFloatStones * 10,
+          (pokemonEntity.types.has(Synergy.FLYING) ? 20 : 10) +
+            nbFloatStones * 10,
           pokemonEntity,
           0,
           false
@@ -1433,11 +1510,18 @@ export default class Simulation extends Schema implements ISimulation {
 
       case EffectEnum.SMOG: {
         const opponentPlayer =
-          pokemonEntity.team === Team.BLUE_TEAM ? this.redPlayer : this.bluePlayer
+          pokemonEntity.team === Team.BLUE_TEAM
+            ? this.redPlayer
+            : this.bluePlayer
         const nbSmellyClays = opponentPlayer
           ? count(opponentPlayer.items, Item.SMELLY_CLAY)
           : 0
-        pokemonEntity.addDodgeChance(0.15 - 0.05 * nbSmellyClays, pokemonEntity, 0, false)
+        pokemonEntity.addDodgeChance(
+          0.15 - 0.05 * nbSmellyClays,
+          pokemonEntity,
+          0,
+          false
+        )
         break
       }
 
@@ -1447,7 +1531,12 @@ export default class Simulation extends Schema implements ISimulation {
           ? count(player.items, Item.BLACK_AUGURITE)
           : 0
 
-        pokemonEntity.addCritChance(10 + 5 * nbBlackAugurite, pokemonEntity, 0, false)
+        pokemonEntity.addCritChance(
+          10 + 5 * nbBlackAugurite,
+          pokemonEntity,
+          0,
+          false
+        )
         break
       }
 
@@ -1464,7 +1553,12 @@ export default class Simulation extends Schema implements ISimulation {
         const { player } = pokemonEntity
         const nbMistStones = player ? count(player.items, Item.MIST_STONE) : 0
         if (nbMistStones > 0) {
-          pokemonEntity.addSpecialDefense(3 * nbMistStones, pokemonEntity, 0, false)
+          pokemonEntity.addSpecialDefense(
+            3 * nbMistStones,
+            pokemonEntity,
+            0,
+            false
+          )
         }
         break
       }
@@ -1681,26 +1775,25 @@ export default class Simulation extends Schema implements ISimulation {
           client?.send(Transfer.PLAYER_INCOME, 1)
         }
       } else if (this.isBossBattle) {
-          player.life = 0; // Immediate defeat for boss battles
-          client?.send(Transfer.PLAYER_DAMAGE, 100); // Send max damage to signify defeat
-        } else {
-          const playerDamage = this.room.computeRoundDamage(
-            opponentTeam,
-            this.stageLevel,
-            this.isBossBattle
-          )
-          player.life -= playerDamage
-          if (playerDamage > 0) {
-            client?.send(Transfer.PLAYER_DAMAGE, playerDamage)
-          }
-          if (opponentPlayer) {
-            opponentPlayer.totalPlayerDamageDealt += playerDamage
-            if (
-              opponentPlayer.items.includes(Item.MISSION_ORDER_RED) &&
-              opponentPlayer.totalPlayerDamageDealt >= 100
-            ) {
-              opponentPlayer.completeMissionOrder(Item.MISSION_ORDER_RED)
-            }
+        player.life = 0 // Immediate defeat for boss battles
+        client?.send(Transfer.PLAYER_DAMAGE, 100) // Send max damage to signify defeat
+      } else {
+        const playerDamage = this.room.computeRoundDamage(
+          opponentTeam,
+          this.stageLevel,
+          this.isBossBattle
+        )
+        player.life -= playerDamage
+        if (playerDamage > 0) {
+          client?.send(Transfer.PLAYER_DAMAGE, playerDamage)
+        }
+        if (opponentPlayer) {
+          opponentPlayer.totalPlayerDamageDealt += playerDamage
+          if (
+            opponentPlayer.items.includes(Item.MISSION_ORDER_RED) &&
+            opponentPlayer.totalPlayerDamageDealt >= 100
+          ) {
+            opponentPlayer.completeMissionOrder(Item.MISSION_ORDER_RED)
           }
         }
       }

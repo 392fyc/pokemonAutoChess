@@ -1,7 +1,7 @@
-import { PokemonEntity } from "./pokemon-entity"
-import { Board } from "./board"
-import { BossTrait } from "../types/enum/Game"
 import { Ability } from "../types/enum/Ability"
+import { BossTrait } from "../types/enum/Game"
+import { Board } from "./board"
+import { PokemonEntity } from "./pokemon-entity"
 
 export interface BossAbilityConfig {
   ability: Ability
@@ -24,7 +24,11 @@ export class BossAbilityManager {
   }> = []
   private hpThresholdsTriggered: Set<number> = new Set()
 
-  constructor(boss: PokemonEntity, board: Board, abilityConfigs: BossAbilityConfig[]) {
+  constructor(
+    boss: PokemonEntity,
+    board: Board,
+    abilityConfigs: BossAbilityConfig[]
+  ) {
     this.boss = boss
     this.board = board
     this.abilityConfigs = abilityConfigs
@@ -32,7 +36,7 @@ export class BossAbilityManager {
   }
 
   private initializeCooldowns(): void {
-    this.abilityConfigs.forEach(config => {
+    this.abilityConfigs.forEach((config) => {
       if (config.cooldown) {
         this.cooldowns.set(config.ability, 0)
       }
@@ -73,23 +77,26 @@ export class BossAbilityManager {
       let triggerTime = currentTime
 
       switch (config.triggerType) {
-        case "periodic":
+        case "periodic": {
           // 周期性触发：检查时间间隔
           const lastTriggerTime = this.cooldowns.get(config.ability) || 0
           if (currentTime - lastTriggerTime >= config.triggerValue) {
             shouldTrigger = true
           }
           break
+        }
 
         case "hpThreshold":
           // 血量阈值触发
-          if (!this.hpThresholdsTriggered.has(config.triggerValue) && currentHpPercent <= config.triggerValue) {
-              shouldTrigger = true
-              this.hpThresholdsTriggered.add(config.triggerValue)
-              // 如果有顺延时间，设置延迟触发
-              if (config.delay) {
-                triggerTime = currentTime + config.delay
-              }
+          if (
+            !this.hpThresholdsTriggered.has(config.triggerValue) &&
+            currentHpPercent <= config.triggerValue
+          ) {
+            shouldTrigger = true
+            this.hpThresholdsTriggered.add(config.triggerValue)
+            // 如果有顺延时间，设置延迟触发
+            if (config.delay) {
+              triggerTime = currentTime + config.delay
             }
           }
           break
@@ -107,15 +114,23 @@ export class BossAbilityManager {
       }
 
       if (shouldTrigger) {
-        this.addPendingAbility(config.ability, triggerTime, config.priority || 0)
+        this.addPendingAbility(
+          config.ability,
+          triggerTime,
+          config.priority || 0
+        )
         if (config.cooldown) {
-          this.cooldowns.set(config.ability, config.cooldown ?? 0)
+          this.cooldowns.set(config.ability, config.cooldown)
         }
       }
     }
   }
 
-  private addPendingAbility(ability: Ability, triggerTime: number, priority: number): void {
+  private addPendingAbility(
+    ability: Ability,
+    triggerTime: number,
+    priority: number
+  ): void {
     this.pendingAbilities.push({
       ability,
       triggerTime,
@@ -135,7 +150,10 @@ export class BossAbilityManager {
     const currentTime = Date.now()
 
     // 执行所有已到触发时间的技能
-    while (this.pendingAbilities.length > 0 && this.pendingAbilities[0].triggerTime <= currentTime) {
+    while (
+      this.pendingAbilities.length > 0 &&
+      this.pendingAbilities[0].triggerTime <= currentTime
+    ) {
       const pendingAbility = this.pendingAbilities.shift()
       if (pendingAbility) {
         this.executeAbility(pendingAbility.ability)
@@ -149,7 +167,7 @@ export class BossAbilityManager {
     this.boss.broadcastAbility({ skill: ability })
 
     // 记录技能触发时间
-    const config = this.abilityConfigs.find(c => c.ability === ability)
+    const config = this.abilityConfigs.find((c) => c.ability === ability)
     if (config && config.triggerType === "periodic") {
       this.cooldowns.set(ability, Date.now())
     }
@@ -167,11 +185,13 @@ export class BossAbilityManager {
 
   // 获取技能配置
   getAbilityConfig(ability: Ability): BossAbilityConfig | undefined {
-    return this.abilityConfigs.find(config => config.ability === ability)
+    return this.abilityConfigs.find((config) => config.ability === ability)
   }
 
   // 获取所有激活的技能配置
   getActiveAbilityConfigs(): BossAbilityConfig[] {
-    return this.abilityConfigs.filter(config => config.triggerType !== "passive")
+    return this.abilityConfigs.filter(
+      (config) => config.triggerType !== "passive"
+    )
   }
 }

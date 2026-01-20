@@ -1,13 +1,17 @@
-import { AbilityStrategy } from "./ability-strategy"
-import type { Board } from "../board"
-import { PokemonEntity } from "../pokemon-entity"
-import { DelayedCommand, RemoveEffectCommand, StatChangeCommand } from "../simulation-command"
 import { Ability } from "../../types/enum/Ability"
 import { EffectEnum } from "../../types/enum/Effect"
 import { AttackType, BossTrait } from "../../types/enum/Game"
 import { distanceC, distanceM } from "../../utils/distance"
-import { pickRandomIn } from "../../utils/random"
 import { logger } from "../../utils/logger"
+import { pickRandomIn } from "../../utils/random"
+import type { Board } from "../board"
+import { PokemonEntity } from "../pokemon-entity"
+import {
+  DelayedCommand,
+  RemoveEffectCommand,
+  StatChangeCommand
+} from "../simulation-command"
+import { AbilityStrategy } from "./ability-strategy"
 
 // 瞬间移动技能
 export class BossTeleportStrategy extends AbilityStrategy {
@@ -47,12 +51,19 @@ export class BossTeleportStrategy extends AbilityStrategy {
     pokemon.targetEntityId = farthestEnemy.id
   }
 
-  private findFarthestEnemy(pokemon: PokemonEntity, board: Board): PokemonEntity | null {
+  private findFarthestEnemy(
+    pokemon: PokemonEntity,
+    board: Board
+  ): PokemonEntity | null {
     let farthestEnemy: PokemonEntity | null = null
     let maxDistance = 0
 
     board.forEach((x, y, entity) => {
-      if (entity && entity.team !== pokemon.team && entity.isTargettableBy(pokemon, true, false)) {
+      if (
+        entity &&
+        entity.team !== pokemon.team &&
+        entity.isTargettableBy(pokemon, true, false)
+      ) {
         const distance = distanceM(pokemon.positionX, pokemon.positionY, x, y)
         if (distance > maxDistance) {
           maxDistance = distance
@@ -70,8 +81,11 @@ export class BossTeleportStrategy extends AbilityStrategy {
     target: PokemonEntity
   ): { x: number; y: number } | null {
     // 获取目标周围的可用格子
-    const adjacentCells = board.getAdjacentCells(target.positionX, target.positionY)
-    const availableCells = adjacentCells.filter(cell => !cell.value)
+    const adjacentCells = board.getAdjacentCells(
+      target.positionX,
+      target.positionY
+    )
+    const availableCells = adjacentCells.filter((cell) => !cell.value)
 
     if (availableCells.length === 0) {
       return null
@@ -89,16 +103,25 @@ export class BossTeleportStrategy extends AbilityStrategy {
   ): void {
     // 检查2x2实体是否可以移动到目标位置
     if (pokemon.size === "SIZE_2X2") {
-      const canMove = this.check2x2Movement(pokemon, board, teleportCell.x, teleportCell.y)
+      const canMove = this.check2x2Movement(
+        pokemon,
+        board,
+        teleportCell.x,
+        teleportCell.y
+      )
       if (!canMove) {
-        logger.warn("BossTeleportStrategy: 2x2 entity cannot move to target cell")
+        logger.warn(
+          "BossTeleportStrategy: 2x2 entity cannot move to target cell"
+        )
         return
       }
     }
 
     // 移动到目标位置
     board.setEntityOnCell(teleportCell.x, teleportCell.y, pokemon)
-    logger.debug(`BossTeleportStrategy: ${pokemon.name} teleported to (${teleportCell.x}, ${teleportCell.y})`)
+    logger.debug(
+      `BossTeleportStrategy: ${pokemon.name} teleported to (${teleportCell.x}, ${teleportCell.y})`
+    )
   }
 
   private check2x2Movement(
@@ -126,7 +149,12 @@ export class BossTeleportStrategy extends AbilityStrategy {
 
     // 设置强化持续时间（例如2秒）
     pokemon.simulation.addDelayedCommand(
-      new RemoveEffectCommand(pokemon.id, EffectEnum.TELEPORT_ENHANCEMENT, 2000, pokemon.simulation)
+      new RemoveEffectCommand(
+        pokemon.id,
+        EffectEnum.TELEPORT_ENHANCEMENT,
+        2000,
+        pokemon.simulation
+      )
     )
   }
 }
@@ -157,19 +185,38 @@ export class BossMeditateStrategy extends AbilityStrategy {
 
     // 设置效果持续时间（例如5秒）
     pokemon.simulation.addDelayedCommand(
-      new RemoveEffectCommand(pokemon.id, EffectEnum.MEDITATE, 5000, pokemon.simulation)
+      new RemoveEffectCommand(
+        pokemon.id,
+        EffectEnum.MEDITATE,
+        5000,
+        pokemon.simulation
+      )
     )
 
     // 5秒后移除加成
     pokemon.simulation.addDelayedCommand(
-      new StatChangeCommand(pokemon.id, "ap", -spAtkIncrease, 5000, pokemon.simulation)
+      new StatChangeCommand(
+        pokemon.id,
+        "ap",
+        -spAtkIncrease,
+        5000,
+        pokemon.simulation
+      )
     )
 
     pokemon.simulation.addDelayedCommand(
-      new StatChangeCommand(pokemon.id, "speDef", -spDefIncrease, 5000, pokemon.simulation)
+      new StatChangeCommand(
+        pokemon.id,
+        "speDef",
+        -spDefIncrease,
+        5000,
+        pokemon.simulation
+      )
     )
 
-    logger.debug(`BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease} and SpDef by ${spDefIncrease}`)
+    logger.debug(
+      `BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease} and SpDef by ${spDefIncrease}`
+    )
   }
 }
 
@@ -202,14 +249,19 @@ export class BossPsychicStrategy extends AbilityStrategy {
     const damagePerTarget = totalDamage / targets.length
 
     // 对每个目标造成伤害
-    targets.forEach(targetEntity => {
+    targets.forEach((targetEntity) => {
       this.dealDamage(pokemon, targetEntity, board, damagePerTarget, crit)
     })
 
-    logger.debug(`PsychicStrategy: ${pokemon.name} dealt ${totalDamage} total damage to ${targets.length} targets`)
+    logger.debug(
+      `PsychicStrategy: ${pokemon.name} dealt ${totalDamage} total damage to ${targets.length} targets`
+    )
   }
 
-  private getTargetsInRange(pokemon: PokemonEntity, board: Board): PokemonEntity[] {
+  private getTargetsInRange(
+    pokemon: PokemonEntity,
+    board: Board
+  ): PokemonEntity[] {
     const targets: PokemonEntity[] = []
 
     // 获取周围1格内的所有格子
@@ -222,7 +274,11 @@ export class BossPsychicStrategy extends AbilityStrategy {
         if (dx === 0 && dy === 0) continue // 跳过自己
 
         const entity = board.getEntityOnCell(x, y)
-        if (entity && entity.team !== pokemon.team && entity.isTargettableBy(pokemon, true, false)) {
+        if (
+          entity &&
+          entity.team !== pokemon.team &&
+          entity.isTargettableBy(pokemon, true, false)
+        ) {
           targets.push(entity)
         }
       }
@@ -277,18 +333,24 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
     const baseDamage = pokemon.ap * damageMultiplier
 
     // 对每个目标造成伤害
-    targets.forEach(targetEntity => {
+    targets.forEach((targetEntity) => {
       this.dealAuraSphereDamage(pokemon, targetEntity, board, baseDamage, crit)
     })
 
-    logger.debug(`AuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} damage to ${targets.length} enemies`)
+    logger.debug(
+      `AuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} damage to ${targets.length} enemies`
+    )
   }
 
   private getAllEnemies(pokemon: PokemonEntity, board: Board): PokemonEntity[] {
     const enemies: PokemonEntity[] = []
 
     board.forEach((x, y, entity) => {
-      if (entity && entity.team !== pokemon.team && entity.isTargettableBy(pokemon, true, false)) {
+      if (
+        entity &&
+        entity.team !== pokemon.team &&
+        entity.isTargettableBy(pokemon, true, false)
+      ) {
         enemies.push(entity)
       }
     })
@@ -340,7 +402,10 @@ export class LegendaryPokemonPassive {
     logger.debug(`LegendaryPokemonPassive applied to ${pokemon.name}`)
   }
 
-  static handleStatusEffect(pokemon: PokemonEntity, effectValue: number): number {
+  static handleStatusEffect(
+    pokemon: PokemonEntity,
+    effectValue: number
+  ): number {
     // 异常效果减半
     if (pokemon.bossTraits?.has(BossTrait.HALF_STATUS_EFFECT)) {
       return effectValue * 0.5

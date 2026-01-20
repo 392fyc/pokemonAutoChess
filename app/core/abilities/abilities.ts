@@ -46,6 +46,12 @@ import { getStrongestUnit, PokemonEntity } from "../pokemon-entity"
 import { DelayedCommand } from "../simulation-command"
 import { AbilityStrategy } from "./ability-strategy"
 import {
+  BossAuraSphereStrategy,
+  BossMeditateStrategy,
+  BossPsychicStrategy,
+  BossTeleportStrategy
+} from "./boss-abilities"
+import {
   HiddenPowerAStrategy,
   HiddenPowerBStrategy,
   HiddenPowerCStrategy,
@@ -75,12 +81,6 @@ import {
   HiddenPowerYStrategy,
   HiddenPowerZStrategy
 } from "./hidden-power"
-import {
-  BossTeleportStrategy,
-  BossMeditateStrategy,
-  BossPsychicStrategy,
-  BossAuraSphereStrategy
-} from "./boss-abilities"
 
 export class BlueFlareStrategy extends AbilityStrategy {
   process(
@@ -257,12 +257,11 @@ export class PickupStrategy extends AbilityStrategy {
         pokemon.addItem(item)
       }
     } else if (target.player) {
-        const moneyStolen = max(target.player.money)(pokemon.stars)
-        target.player.addMoney(-moneyStolen, false, target)
-        if (pokemon.player) {
-          pokemon.player.addMoney(moneyStolen, true, pokemon)
-          pokemon.count.moneyCount += moneyStolen
-        }
+      const moneyStolen = max(target.player.money)(pokemon.stars)
+      target.player.addMoney(-moneyStolen, false, target)
+      if (pokemon.player) {
+        pokemon.player.addMoney(moneyStolen, true, pokemon)
+        pokemon.count.moneyCount += moneyStolen
       }
     }
 
@@ -2822,7 +2821,7 @@ export class QuickAttackStrategy extends AbilityStrategy {
       board,
       attackType: AttackType.PHYSICAL,
       attacker: pokemon,
-      shouldTargetGainMana: true,
+      shouldTargetGainMana: true
     })
   }
 }
@@ -5865,8 +5864,9 @@ export class MagmaStormStrategy extends AbilityStrategy {
       pokemon.commands.push(
         new DelayedCommand(() => {
           const board = pokemon.simulation.board
-          const { positionX, positionY } = currentTarget;
-          const nextEnemies = board.getAdjacentCells(positionX, positionY)
+          const { positionX, positionY } = currentTarget
+          const nextEnemies = board
+            .getAdjacentCells(positionX, positionY)
             .filter(
               (cell) =>
                 cell.value &&
@@ -9496,11 +9496,11 @@ class DarkHarvestEffect extends PeriodicEffect {
     super(
       (pokemon) => {
         pokemon.broadcastAbility({ skill: Ability.DARK_HARVEST })
-        const { board } = pokemon.simulation;
-        const { effects, critChance } = pokemon;
+        const { board } = pokemon.simulation
+        const { effects, critChance } = pokemon
         const crit = effects.has(EffectEnum.ABILITY_CRIT)
           ? chance(critChance / 100, pokemon)
-          : false;
+          : false
         const darkHarvestDamage = [5, 10, 20][pokemon.stars - 1] ?? 20
         const healFactor = 0.3
         board
@@ -12206,8 +12206,7 @@ export class SaltCureStrategy extends AbilityStrategy {
           cell.value.types.has(Synergy.STEEL) ||
           cell.value.types.has(Synergy.GHOST)
         ) {
-            cell.value.status.triggerBurn(5000, cell.value, pokemon)
-          }
+          cell.value.status.triggerBurn(5000, cell.value, pokemon)
         }
       }
     })
@@ -12430,10 +12429,13 @@ export class DragonClawStrategy extends AbilityStrategy {
     let lowestHp = 9999
     let lowestHpTarget: PokemonEntity | undefined
     for (const cell of cells) {
-      if (cell.value && cell.value.team !== pokemon.team && cell.value.maxHP < lowestHp) {
-          lowestHp = cell.value.maxHP
-          lowestHpTarget = cell.value
-        }
+      if (
+        cell.value &&
+        cell.value.team !== pokemon.team &&
+        cell.value.maxHP < lowestHp
+      ) {
+        lowestHp = cell.value.maxHP
+        lowestHpTarget = cell.value
       }
     }
     if (!lowestHpTarget) {
@@ -14715,14 +14717,13 @@ export class MoonblastStrategy extends AbilityStrategy {
     let moonIndex = 0
 
     const sendMoon = () => {
-      if (!currentTarget) return;
+      if (!currentTarget) return
       pokemon.broadcastAbility({
         positionX: pokemon.positionX,
         positionY: pokemon.positionY,
         targetX: currentTarget.positionX,
-        targetY: currentTarget.positionY,
-      });
-    };
+        targetY: currentTarget.positionY
+      })
 
       moonIndex++
 

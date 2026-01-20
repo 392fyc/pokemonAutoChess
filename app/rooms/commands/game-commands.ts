@@ -8,10 +8,13 @@ import {
   BOARD_WIDTH,
   FIGHTING_PHASE_DURATION,
   GOLDEN_BERRY_TREE_TYPES,
+  getAltFormForPlayer,
   ITEM_CAROUSEL_BASE_DURATION,
   ItemCarouselStages,
   ItemSellPricesAtTown,
   MAX_PLAYERS_PER_GAME,
+  OUTLAW_GOLD_REWARD,
+  PkmAltFormsByPkm,
   PORTAL_CAROUSEL_BASE_DURATION,
   PortalCarouselStages,
   SHARDS_PER_SHINY_UNOWN_WANDERER,
@@ -37,7 +40,6 @@ import { getFlowerPotsUnlocked } from "../../core/flower-pots"
 import { selectMatchups } from "../../core/matchmaking"
 import { canSell } from "../../core/pokemon-entity"
 import Simulation from "../../core/simulation"
-import { TownEncounters } from "../../core/town-encounters"
 import { getLevelUpCost } from "../../models/colyseus-models/experience-manager"
 import Player from "../../models/colyseus-models/player"
 import { Pokemon, PokemonClasses } from "../../models/colyseus-models/pokemon"
@@ -45,9 +47,7 @@ import { Wanderer } from "../../models/colyseus-models/wanderer"
 import { IDetailledPokemon } from "../../models/mongo-models/bot-v2"
 import UserMetadata from "../../models/mongo-models/user-metadata"
 import PokemonFactory, {
-  getColorVariantForPlayer,
-  getPokemonBaseline,
-  PkmColorVariantsByPkm
+  getPokemonBaseline
 } from "../../models/pokemon-factory"
 import { PVEStages } from "../../models/pve-stages"
 import { getBuyPrice, getSellPrice } from "../../models/shop"
@@ -98,6 +98,7 @@ import {
 } from "../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
+import { TownEncounters } from "../../types/enum/TownEncounter"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
 import { isIn, removeInArray } from "../../utils/array"
 import { getAvatarString } from "../../utils/avatar"
@@ -112,7 +113,12 @@ import {
 import { repeat } from "../../utils/function"
 import { logger } from "../../utils/logger"
 import { max } from "../../utils/number"
-import { chance, pickNRandomIn, pickRandomIn } from "../../utils/random"
+import {
+  chance,
+  pickNRandomIn,
+  pickRandomIn,
+  randomBetween
+} from "../../utils/random"
 import { resetArraySchema, values } from "../../utils/schemas"
 import { getWeather } from "../../utils/weather"
 import GameRoom from "../game-room"
@@ -266,6 +272,9 @@ export class OnPokemonCatchCommand extends Command<
         pokemon.onAcquired(player)
         this.room.checkEvolutionsAfterPokemonAcquired(playerId)
       }
+    } else if (wanderer.type === WandererType.OUTLAW) {
+      player.addMoney(OUTLAW_GOLD_REWARD, true, null)
+      removeInArray(player.items, Item.WANTED_NOTICE)
     }
   }
 }
@@ -315,8 +324,8 @@ export class OnDragDropPokemonCommand extends Command<
           if (pokemonToClone && pokemonToClone.canBeCloned) {
             dittoReplaced = true
             let pkm = getPokemonBaseline(pokemonToClone.name)
-            if (pkm in PkmColorVariantsByPkm) {
-              pkm = getColorVariantForPlayer(pkm, player)
+            if (pkm in PkmAltFormsByPkm) {
+              pkm = getAltFormForPlayer(pkm, player)
             }
             const replaceDitto = PokemonFactory.createPokemonFromName(
               pkm,
@@ -1935,6 +1944,57 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
             () => player.wanderers.set(id, wanderer),
             Math.round((5 + 15 * Math.random()) * 1000)
           )
+        }
+
+        if (this.state.outlawStage != null) {
+          if (this.state.stageLevel === this.state.outlawStage) {
+            const id = nanoid()
+            const wanderer = new Wanderer({
+              id,
+              pkm: Pkm.DROWZEE,
+              shiny: false,
+              type: WandererType.OUTLAW,
+              behavior: WandererBehavior.RUN_THROUGH
+            })
+
+            this.clock.setTimeout(
+              () => player.wanderers.set(id, wanderer),
+              Math.round((5 + 15 * Math.random()) * 1000)
+            )
+          } else if (this.state.stageLevel < this.state.outlawStage) {
+            const magnezoneChance = chance(this.state.stageLevel * 0.04)
+            if (magnezoneChance) {
+              const id = nanoid()
+              const wanderer = new Wanderer({
+                id,
+                pkm: Pkm.MAGNEZONE,
+                shiny: false,
+                type: WandererType.DIALOG,
+                behavior: WandererBehavior.RUN_THROUGH
+              })
+              this.clock.setTimeout(
+                () => player.wanderers.set(id, wanderer),
+                Math.round((5 + 15 * Math.random()) * 1000)
+              )
+            } else {
+              for (let i = 0; i < randomBetween(1, 3); i++) {
+                const id = nanoid()
+                const wanderer = new Wanderer({
+                  id,
+                  pkm: Pkm.MAGNEMITE,
+                  shiny: false,
+                  type: WandererType.DIALOG,
+                  behavior: WandererBehavior.RUN_THROUGH
+                })
+                this.clock.setTimeout(
+                  () => player.wanderers.set(id, wanderer),
+                  Math.round((5 + 15 * Math.random()) * 1000)
+                )
+              }
+            }
+          } else if (this.state.stageLevel > this.state.outlawStage) {
+            removeInArray(player.items, Item.WANTED_NOTICE)
+          }
         }
 
         if (

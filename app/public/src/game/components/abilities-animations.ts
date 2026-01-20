@@ -994,6 +994,10 @@ export const AbilitiesAnimations: {
     scale: 4
   }),
   [Ability.TORMENT]: onCaster({ positionOffset: [0, -50] }),
+  [Ability.RAGING_BULL]: onCaster({
+    positionOffset: [0, -50],
+    ability: Ability.TORMENT
+  }),
   [Ability.RAGE]: onCaster({
     ability: Ability.TORMENT,
     positionOffset: [0, -50],
@@ -1334,6 +1338,7 @@ export const AbilitiesAnimations: {
   [Ability.WOOD_HAMMER]: onTarget({ scale: 1, origin: [0.5, 1] }),
   [Ability.TRICK_OR_TREAT]: onTarget({ origin: [0.5, 1] }),
   [Ability.HEADBUTT]: onTarget({ ability: "FIGHTING_KNOCKBACK" }),
+  [Ability.DIZZY_PUNCH]: onTarget({ ability: "FIGHTING_KNOCKBACK" }),
   [Ability.HEAD_SMASH]: onTarget({
     ability: "FIGHTING_KNOCKBACK",
     tint: 0xffffa0
@@ -2460,13 +2465,13 @@ export const AbilitiesAnimations: {
           x: topCoords[0],
           y: topCoords[1],
           rotation: angle2,
-          duration: 750,
+          duration: 500,
           ease: Phaser.Math.Easing.Quadratic.Out
         },
         {
           x: coordinatesTarget[0],
           y: coordinatesTarget[1],
-          duration: 750,
+          duration: 500,
           ease: Phaser.Math.Easing.Quadratic.In
         }
       ],

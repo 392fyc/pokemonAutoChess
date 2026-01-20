@@ -12,7 +12,9 @@ import {
 import {
   ItemCarouselStages,
   PortalCarouselStages,
-  RegionDetails
+  RegionDetails,
+  TownEncounterSellPrice,
+  TownEncountersByStage
 } from "../config"
 import { FloatingItem } from "../models/colyseus-models/floating-item"
 import Player from "../models/colyseus-models/player"
@@ -38,6 +40,7 @@ import {
 } from "../types/enum/Item"
 import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy, SynergyArray } from "../types/enum/Synergy"
+import { TownEncounter, TownEncounters } from "../types/enum/TownEncounter"
 import { isIn } from "../utils/array"
 import { clamp, max } from "../utils/number"
 import { getOrientation } from "../utils/orientation"
@@ -52,11 +55,6 @@ import {
 import { keys, values } from "../utils/schemas"
 import { giveRandomEgg } from "./eggs"
 import { spawnDIAYAvatar } from "./scribbles"
-import {
-  TownEncounterSellPrice,
-  TownEncounters,
-  TownEncountersByStage
-} from "./town-encounters"
 
 const PLAYER_VELOCITY = 2
 const ITEM_ROTATION_SPEED = 0.0004
@@ -321,7 +319,7 @@ export class MiniGame {
       let encounter = randomWeighted(
         TownEncountersByStage[stageLevel],
         state.specialGameRule === SpecialGameRule.TOWN_FESTIVAL ? undefined : 1
-      )
+      ) as TownEncounter | null
       if (
         encounter != null &&
         state.townEncounters.has(encounter) &&
@@ -383,6 +381,11 @@ export class MiniGame {
             : Item.BRONZE_DOJO_TICKET
       this.alivePlayers.forEach((player) => {
         player.items.push(ticket)
+      })
+    } else if (state.townEncounter === TownEncounters.MAGNEZONE) {
+      state.outlawStage = randomBetween(5, 15)
+      this.alivePlayers.forEach((player) => {
+        player.items.push(Item.WANTED_NOTICE)
       })
     }
   }
@@ -632,10 +635,15 @@ export class MiniGame {
         )*/
 
         let candidatesSymbols: Synergy[] = []
-        const MIN_SYMBOLS_POOL_SIZE = stageLevel <= 10 ? 4 : 5
-        const MAX_SYMBOLS_POOL_SIZE = stageLevel <= 10 ? 4 : 7
+        const MIN_SYMBOLS_POOL_SIZE = 4
+        const MAX_SYMBOLS_POOL_SIZE = 7
+        const MAX_SYMBOLS_OF_THE_SAME_TYPE = this.alivePlayers.length
+        const getNbOfType = (type: Synergy) =>
+          candidatesSymbols.filter((t) => t === type).length
+
         synergiesTriggerLevels.forEach(([type, level]) => {
           // add as many symbols as synergy levels reached
+          if (getNbOfType(type) >= MAX_SYMBOLS_OF_THE_SAME_TYPE) return
           candidatesSymbols.push(...new Array(level).fill(type))
         })
         //logger.debug("symbols from synergies", candidatesSymbols)
@@ -643,7 +651,10 @@ export class MiniGame {
           // complete with random other incomplete synergies
           const incompleteSynergies = synergiesTriggerLevels
             .filter(
-              ([type, level]) => level === 0 && player.synergies.get(type)! > 0
+              ([type, level]) =>
+                level === 0 &&
+                player.synergies.get(type)! > 0 &&
+                getNbOfType(type) < MAX_SYMBOLS_OF_THE_SAME_TYPE
             )
             .map(([type, _level]) => type)
           candidatesSymbols.push(
@@ -659,7 +670,13 @@ export class MiniGame {
         }
         while (candidatesSymbols.length < MIN_SYMBOLS_POOL_SIZE) {
           // if still incomplete, complete with random
-          candidatesSymbols.push(pickRandomIn(synergiesUsable))
+          candidatesSymbols.push(
+            pickRandomIn(
+              synergiesUsable.filter(
+                (type) => getNbOfType(type) < MAX_SYMBOLS_OF_THE_SAME_TYPE
+              )
+            )
+          )
           /*logger.debug(
             "completing symbols with random synergies",
             candidatesSymbols

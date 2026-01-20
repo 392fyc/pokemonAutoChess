@@ -1,10 +1,10 @@
 import * as d3 from "d3"
 import React, { Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { IMetaV2 } from "../../../../../models/mongo-models/meta-v2"
-import { Synergy } from "../../../../../types/enum/Synergy"
-import { clamp } from "../../../../../utils/number"
 import { PkmIndex } from "../../../../../types/enum/Pokemon"
+import { Synergy } from "../../../../../types/enum/Synergy"
 import { getPortraitSrc } from "../../../../../utils/avatar"
+import { clamp } from "../../../../../utils/number"
 import "./meta-chart.css"
 import { rankType } from "./team-comp"
 

@@ -28,7 +28,7 @@ export default function EmailAuth({ onCancel }: EmailAuthProps) {
         const userCredential = await firebase
           .auth()
           .createUserWithEmailAndPassword(email, password)
-        
+
         // Set display name
         if (userCredential.user) {
           await userCredential.user.updateProfile({ displayName })
@@ -142,8 +142,8 @@ export default function EmailAuth({ onCancel }: EmailAuthProps) {
           {loading
             ? "Loading..."
             : mode === "login"
-            ? "Sign In"
-            : "Create Account"}
+              ? "Sign In"
+              : "Create Account"}
         </button>
       </form>
 

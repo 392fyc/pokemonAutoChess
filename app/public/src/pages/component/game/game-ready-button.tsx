@@ -17,7 +17,7 @@ export default function GameReadyButton({
   totalCount
 }: GameReadyButtonProps) {
   const { t } = useTranslation()
-  
+
   return (
     <div className="game-ready-container">
       <button

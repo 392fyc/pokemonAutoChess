@@ -8,7 +8,7 @@ import { throttle } from "../../../../../utils/function"
 import { joinLobbyRoom } from "../../../game/lobby-logic"
 import { useAppDispatch, useAppSelector } from "../../../hooks"
 import { logIn, logOut } from "../../../stores/NetworkStore"
-import EmailAuth from "./email-auth"  // Import new component
+import EmailAuth from "./email-auth" // Import new component
 
 import "./login.css"
 
@@ -21,7 +21,7 @@ export default function Login() {
   const email = useAppSelector((state) => state.network.email)
   const [prejoining, setPrejoining] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [showEmailAuth, setShowEmailAuth] = useState(false)  // New state
+  const [showEmailAuth, setShowEmailAuth] = useState(false) // New state
 
   const preJoinLobby = throttle(async function prejoin() {
     setPrejoining(true)
@@ -33,9 +33,11 @@ export default function Login() {
   // Initialize Firebase
   if (!firebase.apps.length) {
     firebase.initializeApp(FIREBASE_CONFIG)
-    
+
     // Enable persistence for maintaining login state
-    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    firebase
+      .auth()
+      .setPersistence(firebase.auth.Auth.Persistence.LOCAL)
       .then(() => {
         console.log("Firebase persistence enabled")
       })
@@ -90,7 +92,15 @@ export default function Login() {
           Pokemon Auto Chess
         </h1>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "300px", margin: "0 auto" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+            maxWidth: "300px",
+            margin: "0 auto"
+          }}
+        >
           <button
             className="bubbly blue"
             onClick={handleGoogleSignIn}

@@ -12,7 +12,7 @@ export function GameRegionalPokemonsIcon() {
   return (
     <div className="my-box" style={{ padding: "5px" }}>
       <img
-        src={`assets/ui/regional.png`}
+        src={`/assets/ui/regional.png`}
         style={{ width: "2em", height: "2em" }}
         data-tooltip-id={"game-regional-pokemons"}
       />

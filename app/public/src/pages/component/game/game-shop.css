@@ -202,17 +202,17 @@
 }
 
 #game-money-info {
-  background-image: url("assets/ui/money-bg.png");
+  background-image: url("/assets/ui/money-bg.png");
   background-size: 70px 40px;
 }
 
 #game-life-info {
-  background-image: url("assets/ui/heart-bg.png");
+  background-image: url("/assets/ui/heart-bg.png");
   background-size: 48px 38px;
 }
 
 #game-team-info {
-  background-image: url("assets/ui/pokeball-bg.png");
+  background-image: url("/assets/ui/pokeball-bg.png");
   background-size: 70px 40px;
 }
 

@@ -69,21 +69,21 @@ export default function GameDpsMeter() {
         <TabList>
           <Tab key="damage_dealt">
             <img
-              src="assets/icons/ATK.png"
+              src="/assets/icons/ATK.png"
               title={t("damage_dealt")}
               alt={t("damage_dealt")}
             ></img>
           </Tab>
           <Tab key="damage_blocked">
             <img
-              src="assets/icons/SHIELD.png"
+              src="/assets/icons/SHIELD.png"
               title={t("damage_blocked")}
               alt={t("damage_blocked")}
             ></img>
           </Tab>
           <Tab key="heal">
             <img
-              src="assets/icons/HP.png"
+              src="/assets/icons/HP.png"
               title={t("heal_shield")}
               alt={t("heal_shield")}
             ></img>

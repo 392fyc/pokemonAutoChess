@@ -212,15 +212,15 @@ export default function BotBuilder() {
         <div className="spacer"></div>
         {isBotManager && (
           <button onClick={() => navigate("/bot-admin")} className="bubbly red">
-            <img src="assets/ui/bot.svg" />
+            <img src="/assets/ui/bot.svg" />
             {t("bot_admin")}
           </button>
         )}
         <button className="bubbly dark" onClick={saveFile}>
-          <img src="assets/ui/save.svg" /> {t("save")}
+          <img src="/assets/ui/save.svg" /> {t("save")}
         </button>
         <button className="bubbly dark" onClick={loadFile}>
-          <img src="assets/ui/load.svg" /> {t("load")}
+          <img src="/assets/ui/load.svg" /> {t("load")}
         </button>
         <button
           onClick={() => {
@@ -248,13 +248,13 @@ export default function BotBuilder() {
       <div className="step-info my-container">
         <div className="step-control">
           <button onClick={prevStep} disabled={currentStage <= 0}>
-            <img src="assets/ui/arrow-left.svg" alt="←" />
+            <img src="/assets/ui/arrow-left.svg" alt="←" />
           </button>
           <span>
             {t("stage")} {currentStage}
           </span>
           <button onClick={nextStep} disabled={currentStage >= MAX_BOTS_STAGE}>
-            <img src="assets/ui/arrow-right.svg" alt="→" />
+            <img src="/assets/ui/arrow-right.svg" alt="→" />
           </button>
         </div>
         <span

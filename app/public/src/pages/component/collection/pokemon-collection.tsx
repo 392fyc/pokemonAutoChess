@@ -199,7 +199,7 @@ export default function PokemonCollection() {
               )
             })}
             <Tab key="?">
-              <img src="assets/ui/unown.svg" alt="?" className="unown-icon" />
+              <img src="/assets/ui/unown.svg" alt="?" className="unown-icon" />
             </Tab>
           </TabList>
 

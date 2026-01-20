@@ -9,7 +9,7 @@ export default function PolicyButton() {
       target="_blank"
     >
       <button type="button" className="bubbly dark">
-        <img width={32} height={32} src={`assets/ui/meta.svg`} />
+        <img width={32} height={32} src={`/assets/ui/meta.svg`} />
         {t("policy")}
       </button>
     </a>

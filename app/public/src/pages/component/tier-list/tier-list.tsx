@@ -300,7 +300,7 @@ export default function TierList(props: {
     } else {
       return (
         <img
-          src={`assets/item/${item}.png`}
+          src={`/assets/item/${item}.png`}
           alt={item}
           className="tier-list-item-icon"
         />

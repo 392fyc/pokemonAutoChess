@@ -39,7 +39,7 @@ export default function AnonymousButton() {
           style={{ display: "flex", alignItems: "center" }}
           onClick={signIn}
         >
-          <img style={{ width: "30px" }} src="assets/ui/unown.svg" />
+          <img style={{ width: "30px" }} src="/assets/ui/unown.svg" />
           <span
             style={{ color: "#464646", paddingLeft: "5px" }}
             className="firebaseui-idp-text"

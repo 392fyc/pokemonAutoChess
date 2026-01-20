@@ -12,7 +12,7 @@ export function GameAdditionalPokemonsIcon() {
   return (
     <div className="my-box" style={{ padding: "5px" }}>
       <img
-        src="assets/ui/addpicks.png"
+        src="/assets/ui/addpicks.png"
         style={{ width: "2em", height: "2em" }}
         data-tooltip-id={"game-additional-pokemons"}
       />

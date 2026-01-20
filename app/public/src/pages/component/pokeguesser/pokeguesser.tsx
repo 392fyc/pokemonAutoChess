@@ -107,7 +107,7 @@ export default function Pokeguesser(props: {
       </h2>
       {difficulty === "hard" && !found ? (
         <img
-          src="assets/ui/missing-portrait.png"
+          src="/assets/ui/missing-portrait.png"
           className="pokemon-portrait"
         />
       ) : (
@@ -338,7 +338,7 @@ export function PokemonAttempt({
       >
         {" "}
         {Array.from({ length: pokemon.stars }, (_, i) => (
-          <img src="assets/ui/star.svg" height="24" key={"star" + i}></img>
+          <img src="/assets/ui/star.svg" height="24" key={"star" + i}></img>
         ))}
       </span>
       {(difficulty === "easy" || index >= 8) && (
@@ -364,7 +364,7 @@ export function PokemonAttempt({
       ))}
       <span className={cc("stat", { valid: pokemonStat === solutionStat })}>
         <img
-          src={`assets/icons/${randomStat.toUpperCase()}.png`}
+          src={`/assets/icons/${randomStat.toUpperCase()}.png`}
           alt={t(`stat.${randomStat}`)}
           title={t(`stat.${randomStat}`)}
           height="32"

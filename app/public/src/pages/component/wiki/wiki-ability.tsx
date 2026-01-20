@@ -110,7 +110,7 @@ export default function WikiAbility() {
                       data-tooltip-content={tmPerAbility[ability]}
                     >
                       <img
-                        src={`assets/item/${TMs.includes(tmPerAbility[ability]) ? "TM" : "HM"}.png`}
+                        src={`/assets/item/${TMs.includes(tmPerAbility[ability]) ? "TM" : "HM"}.png`}
                         className="item"
                       />
                     </li>

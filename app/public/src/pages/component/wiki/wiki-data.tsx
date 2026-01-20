@@ -88,29 +88,29 @@ export default function WikiData() {
                 <th>
                   <img
                     key={"2s1"}
-                    src="assets/ui/star_empty.svg"
+                    src="/assets/ui/star_empty.svg"
                     height="16"
                   ></img>
                   <img
                     key={"2s2"}
-                    src="assets/ui/star_empty.svg"
+                    src="/assets/ui/star_empty.svg"
                     height="16"
                   ></img>
                 </th>
                 <th>
                   <img
                     key={"3s1"}
-                    src="assets/ui/star_empty.svg"
+                    src="/assets/ui/star_empty.svg"
                     height="16"
                   ></img>
                   <img
                     key={"3s2"}
-                    src="assets/ui/star_empty.svg"
+                    src="/assets/ui/star_empty.svg"
                     height="16"
                   ></img>
                   <img
                     key={"3s3"}
-                    src="assets/ui/star_empty.svg"
+                    src="/assets/ui/star_empty.svg"
                     height="16"
                   ></img>
                 </th>

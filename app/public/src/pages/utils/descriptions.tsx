@@ -82,7 +82,7 @@ export function addIconsToDescription(
       } else if (Stats.includes(token as Stat)) {
         d = (
           <span className="description-icon stat">
-            <img src={`assets/icons/${token}.png`} />
+            <img src={`/assets/icons/${token}.png`} />
             <span className="stat-label">{t(`stat.${token}`)}</span>
           </span>
         )
@@ -92,7 +92,7 @@ export function addIconsToDescription(
             className="description-icon status"
             title={t(`status_description.${token}`)}
           >
-            <img src={`assets/icons/${token}.svg`} />
+            <img src={`/assets/icons/${token}.svg`} />
             <span
               className={cc("status-label", {
                 positive: PositiveStatuses.includes(token as Status)
@@ -108,7 +108,7 @@ export function addIconsToDescription(
             className="description-icon weather"
             title={t(`weather_description.${token}`)}
           >
-            <img src={`assets/icons/weather/${token.toLowerCase()}.svg`} />
+            <img src={`/assets/icons/weather/${token.toLowerCase()}.svg`} />
             <span className="weather-label">{t(`weather.${token}`)}</span>
           </span>
         )
@@ -118,7 +118,7 @@ export function addIconsToDescription(
             className="description-icon item"
             title={t(`item_description.${token}`)}
           >
-            <img src={`assets/item/${token}.png`} />
+            <img src={`/assets/item/${token}.png`} />
             <span className="item-label">{t(`item.${token}`)}</span>
           </span>
         )
@@ -135,7 +135,7 @@ export function addIconsToDescription(
             className="description-icon technical-term"
             title={t(`technical_terms_definitions.${token}`)}
           >
-            <img src={`assets/ui/${token.toLowerCase()}.svg`} />
+            <img src={`/assets/ui/${token.toLowerCase()}.svg`} />
             <i className="technical-term-label">
               {t(`technical_terms.${token}`)}
             </i>
@@ -166,14 +166,14 @@ export function addIconsToDescription(
           >
             {scaleType === "AP" && (
               <img
-                src="assets/icons/AP.png"
+                src="/assets/icons/AP.png"
                 alt="Ability Power"
                 title="Scales with Ability Power"
               ></img>
             )}
             {scaleType === "LUCK" && (
               <img
-                src="assets/icons/LUCK.png"
+                src="/assets/icons/LUCK.png"
                 alt="Luck"
                 title="Scales with Luck"
               ></img>
@@ -267,33 +267,33 @@ export function addIconsToHtml(
           iconHTML = `<span class="${className}">${t(`damage.${token}`)}</span>`
         } else if (Stats.includes(token as Stat)) {
           iconHTML = `<span class="description-icon stat">
-            <img src="assets/icons/${token}.png" />
+            <img src="/assets/icons/${token}.png" />
             <span class="stat-label">${t(`stat.${token}`)}</span>
           </span>`
         } else if (Statuses.includes(token as Status)) {
           const isPositive = PositiveStatuses.includes(token as Status)
           iconHTML = `<span class="description-icon status" title="${t(`status_description.${token}`)}">
-            <img src="assets/icons/${token}.svg" />
+            <img src="/assets/icons/${token}.svg" />
             <span class="status-label${isPositive ? " positive" : ""}">${t(`status.${token}`)}</span>
           </span>`
         } else if (Weathers.includes(token as Weather)) {
           iconHTML = `<span class="description-icon weather" title="${t(`weather_description.${token}`)}">
-            <img src="assets/icons/weather/${token.toLowerCase()}.svg" />
+            <img src="/assets/icons/weather/${token.toLowerCase()}.svg" />
             <span class="weather-label">${t(`weather.${token}`)}</span>
           </span>`
         } else if (Items.includes(token as Item)) {
           iconHTML = `<span class="description-icon item" title="${t(`item_description.${token}`)}" data-tooltip-id="item-detail-tooltip" data-tooltip-content="${token}">
-            <img src="assets/item/${token}.png" />
+            <img src="/assets/item/${token}.png" />
             <span class="item-label">${t(`item.${token}`)}</span>
           </span>`
         } else if (Synergies.includes(token as Synergy)) {
           iconHTML = `<span class="description-icon synergy">
-            <img src="assets/types/${token}.svg" style="width: 1.5em; height: 1.5em;" />
+            <img src="/assets/types/${token}.svg" style="width: 1.5em; height: 1.5em;" />
             <span class="synergy-label">${t(`synergy.${token}`)}</span>
           </span>`
         } else if (TechnicalTerms.includes(token)) {
           iconHTML = `<span class="description-icon technical-term" title="${t(`technical_terms_definitions.${token}`)}">
-            <img src="assets/ui/${token.toLowerCase()}.svg" />
+            <img src="/assets/ui/${token.toLowerCase()}.svg" />
             <i class="technical-term-label">${t(`technical_terms.${token}`)}</i>
           </span>`
         } else if (/\[[^\]]+\]/.test(token)) {
@@ -321,10 +321,10 @@ export function addIconsToHtml(
           let scaleIcon = ""
           if (scaleType === "AP") {
             scaleIcon =
-              '<img src="assets/icons/AP.png" alt="Ability Power" title="Scales with Ability Power" />'
+              '<img src="/assets/icons/AP.png" alt="Ability Power" title="Scales with Ability Power" />'
           } else if (scaleType === "LUCK") {
             scaleIcon =
-              '<img src="assets/icons/LUCK.png" alt="Luck" title="Scales with Luck" />'
+              '<img src="/assets/icons/LUCK.png" alt="Luck" title="Scales with Luck" />'
           }
 
           let valuesHTML = ""

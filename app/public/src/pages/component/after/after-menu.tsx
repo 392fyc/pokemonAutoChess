@@ -98,7 +98,7 @@ export default function AfterMenu() {
                   <td>
                     <p title={t("total_money_earned")}>
                       <img
-                        src="assets/icons/money_total.svg"
+                        src="/assets/icons/money_total.svg"
                         alt="$"
                         style={{ width: "24px", height: "24px" }}
                       />{" "}
@@ -106,7 +106,7 @@ export default function AfterMenu() {
                     </p>
                     <p title={t("total_player_damage_dealt")}>
                       <img
-                        src="assets/icons/ATK.png"
+                        src="/assets/icons/ATK.png"
                         alt="✊"
                         style={{ width: "24px", height: "24px" }}
                       />
@@ -114,7 +114,7 @@ export default function AfterMenu() {
                     </p>
                     <p title={t("total_reroll_count")}>
                       <img
-                        src="assets/ui/refresh.svg"
+                        src="/assets/ui/refresh.svg"
                         alt="↻"
                         style={{ width: "24px", height: "24px" }}
                       />{" "}

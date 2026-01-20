@@ -56,7 +56,7 @@ export default function TournamentItem(props: {
         <img
           width="32"
           height="32"
-          src="assets/ui/tournament.svg"
+          src="/assets/ui/tournament.svg"
           style={{ marginRight: "0.5em", verticalAlign: "text-bottom" }}
         />
         {props.tournament.name}

@@ -27,7 +27,7 @@ export default function Auth() {
       {isSupposedlyMobile && (
         <p className="mobile-warning">{t("mobile_warning")}</p>
       )}
-      <img className="logo" src="assets/ui/pokemon_autochess_final.svg" />
+      <img className="logo" src="/assets/ui/pokemon_autochess_final.svg" />
       <header>
         <h1>{t("pokemon_auto_chess")}</h1>
         <div className="disclaimer">
@@ -42,11 +42,11 @@ export default function Auth() {
         <GithubButton />
         <PolicyButton />
         <button className="bubbly blue" onClick={() => setModal("wiki")}>
-          <img width={32} height={32} src={`assets/ui/wiki.svg`} />
+          <img width={32} height={32} src={`/assets/ui/wiki.svg`} />
           {t("wiki_label")}
         </button>
         <button className="bubbly pink" onClick={() => setModal("servers")}>
-          <img width={32} height={32} src={`assets/ui/players.svg`} />
+          <img width={32} height={32} src={`/assets/ui/players.svg`} />
           {t("community_servers")}
         </button>
         <span>V{pkg.version}</span>

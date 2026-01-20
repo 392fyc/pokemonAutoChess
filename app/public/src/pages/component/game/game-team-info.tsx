@@ -33,7 +33,7 @@ export function GameTeamInfo() {
         <span>
           {currentPlayer.boardSize}/{maxTeamSize}
         </span>
-        <img className="icon" src="assets/ui/pokeball.svg" />
+        <img className="icon" src="/assets/ui/pokeball.svg" />
       </div>
     </div>
   )

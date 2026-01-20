@@ -18,7 +18,7 @@ export const ConnectionStatusNotification = () => {
 
   return (
     <div className="connection-status-notification my-box">
-      <img src="assets/ui/disconnected.svg" alt="Disconnected" />
+      <img src="/assets/ui/disconnected.svg" alt="Disconnected" />
       {connectionStatus === ConnectionStatus.CONNECTION_LOST && (
         <span>{t("connection_status.CONNECTION_LOST")}</span>
       )}

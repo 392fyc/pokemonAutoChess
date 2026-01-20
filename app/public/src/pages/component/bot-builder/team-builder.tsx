@@ -294,21 +294,21 @@ export default function TeamBuilder(props: {
         )}
         {ingame && (
           <button className="bubbly blue" onClick={snapshot}>
-            <img src="assets/ui/photo.svg" /> {t("snapshot")}
+            <img src="/assets/ui/photo.svg" /> {t("snapshot")}
           </button>
         )}
         {!inBotBuilder && (
           <button className="bubbly dark" onClick={saveFile}>
-            <img src="assets/ui/save.svg" /> {t("save")}
+            <img src="/assets/ui/save.svg" /> {t("save")}
           </button>
         )}
         {!inBotBuilder && (
           <button className="bubbly dark" onClick={loadFile}>
-            <img src="assets/ui/load.svg" /> {t("load")}
+            <img src="/assets/ui/load.svg" /> {t("load")}
           </button>
         )}
         <button className="bubbly red" onClick={reset}>
-          <img src="assets/ui/trash.svg" /> {t("reset")}
+          <img src="/assets/ui/trash.svg" /> {t("reset")}
         </button>
       </div>
       <TeamEditor

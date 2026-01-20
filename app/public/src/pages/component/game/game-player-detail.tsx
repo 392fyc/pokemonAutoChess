@@ -105,7 +105,7 @@ export default function GamePlayerDetail(props: { player: IPlayer }) {
               }}
             >
               <img
-                src={`assets/types/${synergy}.svg`}
+                src={`/assets/types/${synergy}.svg`}
                 alt={synergy}
                 title={synergy}
                 className="synergy-icon"
@@ -118,7 +118,7 @@ export default function GamePlayerDetail(props: { player: IPlayer }) {
         <span>{t("total")}</span>
         <span title={t("total_money_earned")}>
           <img
-            src="assets/icons/money_total.svg"
+            src="/assets/icons/money_total.svg"
             alt="$"
             style={{ width: "24px", height: "24px" }}
           />{" "}
@@ -126,7 +126,7 @@ export default function GamePlayerDetail(props: { player: IPlayer }) {
         </span>
         <span title={t("total_player_damage_dealt")}>
           <img
-            src="assets/icons/ATK.png"
+            src="/assets/icons/ATK.png"
             alt="✊"
             style={{ width: "24px", height: "24px" }}
           />
@@ -134,7 +134,7 @@ export default function GamePlayerDetail(props: { player: IPlayer }) {
         </span>
         <span title={t("total_reroll_count")}>
           <img
-            src="assets/ui/refresh.svg"
+            src="/assets/ui/refresh.svg"
             alt="↻"
             style={{ width: "24px", height: "24px" }}
           />{" "}

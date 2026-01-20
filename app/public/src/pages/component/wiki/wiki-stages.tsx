@@ -217,7 +217,7 @@ function StageDetail({ stageInfo }: { stageInfo: StageInfo }) {
     <img
       key={item}
       className="item"
-      src={`assets/item/${item}.png`}
+      src={`/assets/item/${item}.png`}
       alt={t(`item.${item}`)}
       title={t(`item.${item}`)}
       data-tooltip-id="item-detail-tooltip"
@@ -296,7 +296,7 @@ function StageDetail({ stageInfo }: { stageInfo: StageInfo }) {
                               title={t(`stat.${stat}`)}
                             >
                               <img
-                                src={`assets/icons/${stat}.png`}
+                                src={`/assets/icons/${stat}.png`}
                                 alt={stat}
                               />
                               <span>+{boost as number}</span>

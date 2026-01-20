@@ -138,19 +138,19 @@ export default function TierListMaker() {
           ＋{t("tier_list.add_row")}
         </button>
         <button className="bubbly dark" onClick={loadFile}>
-          <img src="assets/ui/load.svg" /> {t("load")}
+          <img src="/assets/ui/load.svg" /> {t("load")}
         </button>
         <button className="bubbly dark" onClick={saveFile}>
-          <img src="assets/ui/save.svg" /> {t("save")}
+          <img src="/assets/ui/save.svg" /> {t("save")}
         </button>
         <button className="bubbly blue" onClick={downloadImage}>
-          <img src="assets/ui/save.svg" /> {t("tier_list.download_image")}
+          <img src="/assets/ui/save.svg" /> {t("tier_list.download_image")}
         </button>
         <button className="bubbly blue" onClick={shareOnDiscord}>
-          <img src="assets/ui/share.svg" /> {t("tier_list.share_on_discord")}
+          <img src="/assets/ui/share.svg" /> {t("tier_list.share_on_discord")}
         </button>
         <button className="bubbly red" onClick={reset}>
-          <img src="assets/ui/trash.svg" /> {t("reset")}
+          <img src="/assets/ui/trash.svg" /> {t("reset")}
         </button>
       </div>
       <TierList tierList={tierList} onUpdate={setTierList} />

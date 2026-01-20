@@ -1,6 +1,6 @@
 @font-face {
   font-family: Jost;
-  src: url("assets/ui/Jost-VF.ttf") format("truetype");
+  src: url("/assets/ui/Jost-VF.ttf") format("truetype");
 }
 
 html {

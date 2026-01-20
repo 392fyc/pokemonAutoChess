@@ -9,7 +9,7 @@ export default function DiscordButton(props: { url?: string }) {
       className="discord-button"
     >
       <button type="button" className="bubbly discord">
-        <img width={32} height={32} src={`assets/ui/discord.svg`} />
+        <img width={32} height={32} src={`/assets/ui/discord.svg`} />
         Discord
       </button>
     </a>

@@ -82,7 +82,7 @@ export default function WikiPokemonDetail(props: {
         <dt style={{ verticalAlign: "middle" }}>{t("tier")}</dt>
         <dd>
           {Array.from({ length: pokemonData.stars }, (_, i) => (
-            <img src="assets/ui/star.svg" height="24" key={"star" + i}></img>
+            <img src="/assets/ui/star.svg" height="24" key={"star" + i}></img>
           ))}
         </dd>
         <dt>{t("synergies")}</dt>
@@ -144,7 +144,7 @@ export default function WikiPokemonDetail(props: {
         ].map((stat) => (
           <React.Fragment key={stat}>
             <dt>
-              <img src={`assets/icons/${stat}.png`} alt="" />{" "}
+              <img src={`/assets/icons/${stat}.png`} alt="" />{" "}
               {t(`stat.${stat}`)}
             </dt>
             <dd>{pokemon[statProp[stat]]}</dd>

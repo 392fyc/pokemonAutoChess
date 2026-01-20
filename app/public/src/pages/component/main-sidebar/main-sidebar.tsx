@@ -102,7 +102,7 @@ export function MainSidebar(props: MainSidebarProps) {
     <Sidebar collapsed={collapsed} className="sidebar" ref={sidebarRef}>
       <Menu>
         <div className="sidebar-logo" onClick={() => setCollapsed(!collapsed)}>
-          <img src={`assets/ui/colyseus-icon.png`} />
+          <img src={`/assets/ui/colyseus-icon.png`} />
           <div>
             <h1>Pokemon Auto Chess</h1>
             <small>v{version}</small>
@@ -378,13 +378,13 @@ function NavLink(props: NavLinkProps) {
         <div className="icon">
           {shimmer && (
             <span className="notification">
-              <img width={10} height={10} src="assets/ui/pokeball.svg" />
+              <img width={10} height={10} src="/assets/ui/pokeball.svg" />
             </span>
           )}
           {svg ? (
-            <img width={32} height={32} src={`assets/ui/${svg}.svg`} />
+            <img width={32} height={32} src={`/assets/ui/${svg}.svg`} />
           ) : png ? (
-            <img height={32} src={`assets/ui/${png}.png`} />
+            <img height={32} src={`/assets/ui/${png}.png`} />
           ) : (
             icon
           )}

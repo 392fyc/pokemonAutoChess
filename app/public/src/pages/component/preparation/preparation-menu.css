@@ -1,5 +1,5 @@
 .preparation-menu {
-  background-image: url("assets/ui/back1.png");
+  background-image: url("/assets/ui/back1.png");
   background-size: cover;
   background-position-x: left;
   display: flex;

@@ -198,12 +198,12 @@ export function GamePokemonDetail(props: {
         </p>
         <p className="game-pokemon-detail-entry-tier">
           {Array.from({ length: pokemon.stars }, (_, index) => (
-            <img key={index} src="assets/ui/star.svg" height="16"></img>
+            <img key={index} src="/assets/ui/star.svg" height="16"></img>
           ))}
           {Array.from(
             { length: getPokemonData(pokemon.name).stages - pokemon.stars },
             (_, index) => (
-              <img key={index} src="assets/ui/star_empty.svg" height="16"></img>
+              <img key={index} src="/assets/ui/star_empty.svg" height="16"></img>
             )
           )}
         </p>
@@ -230,7 +230,7 @@ export function GamePokemonDetail(props: {
             className={"game-pokemon-detail-stat-" + stat.toLowerCase()}
           >
             <img
-              src={`assets/icons/${stat}.png`}
+              src={`/assets/icons/${stat}.png`}
               alt={stat}
               title={`${t(`stat.${stat}`)}${value !== baseValue ? ` (${baseValue} ${value > baseValue ? "+" : "-"} ${value - baseValue})` : ""}`}
             />
@@ -248,11 +248,11 @@ export function GamePokemonDetail(props: {
       {dish && (
         <div className="game-pokemon-detail-dish">
           <div className="game-pokemon-detail-dish-name">
-            <img src="assets/ui/dish.svg" />
+            <img src="/assets/ui/dish.svg" />
             <i>{t("signature_dish")}:</i> {t(`item.${dish}`)}
           </div>
           <img
-            src={`assets/item/${dish}.png`}
+            src={`/assets/item/${dish}.png`}
             className="game-pokemon-detail-dish-icon"
             alt={dish}
             title={t(`item.${dish}`)}

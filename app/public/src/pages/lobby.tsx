@@ -126,35 +126,35 @@ function MainLobby() {
             onClick={() => setActive("leaderboard")}
             className={cc({ active: activeSection === "leaderboard" })}
           >
-            <img width={32} height={32} src={`assets/ui/leaderboard.svg`} />
+            <img width={32} height={32} src={`/assets/ui/leaderboard.svg`} />
             {t("leaderboard")}
           </li>
           <li
             onClick={() => setActive("rooms")}
             className={cc({ active: activeSection === "rooms" })}
           >
-            <img width={32} height={32} src={`assets/ui/room.svg`} />
+            <img width={32} height={32} src={`/assets/ui/room.svg`} />
             {t("rooms")}
           </li>
           {/*<li
             onClick={() => setActive("game_rooms")}
             className={cc({ active: activeSection === "game_rooms" })}
           >
-            <img width={32} height={32} src={`assets/ui/spectate.svg`} />
+            <img width={32} height={32} src={`/assets/ui/spectate.svg`} />
             {t("in_game")}
           </li>
           <li
             onClick={() => setActive("online")}
             className={cc({ active: activeSection === "online" })}
           >
-            <img width={32} height={32} src={`assets/ui/players.svg`} />
+            <img width={32} height={32} src={`/assets/ui/players.svg`} />
             {t("online")}
           </li>*/}
           <li
             onClick={() => setActive("events")}
             className={cc({ active: activeSection === "events" })}
           >
-            <img width={32} height={32} src={`assets/ui/chat.svg`} />
+            <img width={32} height={32} src={`/assets/ui/chat.svg`} />
             {t("events")}
           </li>
         </ul>

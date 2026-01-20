@@ -60,7 +60,7 @@ export function ItemDetailTooltipContent({
 
   return (
     <div className="game-item-detail">
-      <img className="game-item-detail-icon" src={`assets/item/${item}.png`} />
+      <img className="game-item-detail-icon" src={`/assets/item/${item}.png`} />
       <div className="game-item-detail-name">
         {ItemRecipe[item] && (
           <div className="game-item-recipe">
@@ -68,7 +68,7 @@ export function ItemDetailTooltipContent({
               <React.Fragment key={`component_${i}_${item}`}>
                 <img
                   className="game-item-detail-icon"
-                  src={`assets/item/${item}.png`}
+                  src={`/assets/item/${item}.png`}
                   key={item}
                 />
                 {i === 0 && " + "}
@@ -83,7 +83,7 @@ export function ItemDetailTooltipContent({
         {Object.entries(ItemStats[item] ?? {}).map(([stat, value]) => (
           <div key={stat}>
             <img
-              src={`assets/icons/${stat}.png`}
+              src={`/assets/icons/${stat}.png`}
               alt={stat}
               title={t(`stat.${stat}`)}
             />
@@ -102,14 +102,14 @@ export function ItemDetailTooltipContent({
               <div className="game-item-detail-combination" key={result}>
                 <p>+</p>
                 <img
-                  src={`assets/item/${otherComponent}.png`}
+                  src={`/assets/item/${otherComponent}.png`}
                   data-tooltip-id="item-detail-recipes-tooltip"
                   data-tooltip-content={otherComponent}
                   data-tooltip-place="right"
                 />
                 <p>=</p>
                 <img
-                  src={`assets/item/${result}.png`}
+                  src={`/assets/item/${result}.png`}
                   data-tooltip-id="item-detail-recipes-tooltip"
                   data-tooltip-content={result}
                 />

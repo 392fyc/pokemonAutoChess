@@ -2824,7 +2824,6 @@ export class QuickAttackStrategy extends AbilityStrategy {
       attackType: AttackType.PHYSICAL,
       attacker: pokemon,
       shouldTargetGainMana: true,
-      crit,
     })
   }
 }

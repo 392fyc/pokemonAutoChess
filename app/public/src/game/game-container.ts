@@ -31,6 +31,7 @@ import { Ability } from "../../../types/enum/Ability"
 import { EffectEnum } from "../../../types/enum/Effect"
 import {
   AttackType,
+  GameMode,
   GamePhaseState,
   HealType,
   Orientation,
@@ -43,6 +44,7 @@ import type { NonFunctionPropNames } from "../../../types/HelperTypes"
 import { logger } from "../../../utils/logger"
 import { clamp, max } from "../../../utils/number"
 import { values } from "../../../utils/schemas"
+import { isPveBotId } from "../../../utils/pve"
 import { getCachedPortrait } from "../pages/component/game/game-pokemon-portrait"
 import { playSound, SOUNDS } from "../pages/utils/audio"
 import { transformBoardCoordinates } from "../pages/utils/utils"
@@ -347,6 +349,12 @@ class GameContainer {
     )
     const $state = this.$<GameState>(this.room.state)
     $state.avatars.onAdd((avatar) => {
+      if (
+        this.room.state.gameMode === GameMode.PVE_MODE &&
+        isPveBotId(avatar.id)
+      ) {
+        return
+      }
       const $avatar = this.$<PokemonAvatarModel>(avatar)
       this.gameScene?.minigameManager?.addPokemon(avatar)
       const fields: NonFunctionPropNames<PokemonAvatarModel>[] = [
@@ -364,6 +372,12 @@ class GameContainer {
     })
 
     $state.avatars.onRemove((avatar, key) => {
+      if (
+        this.room.state.gameMode === GameMode.PVE_MODE &&
+        isPveBotId(avatar.id)
+      ) {
+        return
+      }
       this.gameScene?.minigameManager?.removePokemon(avatar)
     })
 

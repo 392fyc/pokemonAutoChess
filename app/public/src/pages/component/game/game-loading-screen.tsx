@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router"
 import { shuffleArray } from "../../../../../utils/random"
 import { useAppSelector } from "../../../hooks"
+import { GameMode } from "../../../../../types/enum/Game"
+import { isPveBotId } from "../../../../../utils/pve"
 import { getGameScene } from "../../game"
 import GamePlayerLoading from "./game-player-loading"
 import "./game-loading-screen.css"
@@ -10,7 +12,12 @@ import "./game-loading-screen.css"
 export default function GameLoadingScreen(props: { connectError: string }) {
   const { t } = useTranslation()
   const players = useAppSelector((state) => state.game.players)
+  const gameMode = useAppSelector((state) => state.network.game?.state.gameMode)
   const currentPlayerId = useAppSelector((state) => state.network.uid)
+  const visiblePlayers =
+    gameMode === GameMode.PVE_MODE
+      ? players.filter((player) => !isPveBotId(player.id))
+      : players
   const progress = players.find(
     (p) => p.id === currentPlayerId
   )?.loadingProgress
@@ -52,7 +59,7 @@ export default function GameLoadingScreen(props: { connectError: string }) {
   return (
     <div className="game-loading-screen">
       <ul className="game-players-loading">
-        {players.map((p, i) => {
+        {visiblePlayers.map((p, i) => {
           const x = (0.2 + (i % 4) * 0.2) * 100
           const y = (i < 4 ? 0.2 : 0.8) * 100
           return (

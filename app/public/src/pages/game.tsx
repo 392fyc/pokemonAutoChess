@@ -24,7 +24,7 @@ import {
 } from "../../../types"
 import { CloseCodes, CloseCodesMessages } from "../../../types/enum/CloseCodes"
 import { ConnectionStatus } from "../../../types/enum/ConnectionStatus"
-import { GamePhaseState, Team } from "../../../types/enum/Game"
+import { GameMode, GamePhaseState, Team } from "../../../types/enum/Game"
 import { Item } from "../../../types/enum/Item"
 import { Passive } from "../../../types/enum/Passive"
 import { Pkm } from "../../../types/enum/Pokemon"
@@ -32,6 +32,7 @@ import { Synergy } from "../../../types/enum/Synergy"
 import type { NonFunctionPropNames } from "../../../types/HelperTypes"
 import { getAvatarString } from "../../../utils/avatar"
 import { logger } from "../../../utils/logger"
+import { isPveBotId } from "../../../utils/pve"
 import { values } from "../../../utils/schemas"
 import GameContainer from "../game/game-container"
 import GameScene from "../game/scenes/game-scene"
@@ -262,12 +263,26 @@ export default function Game() {
       gameContainer.game.destroy(true)
     }
 
-    const nbPlayers = room?.state.players.size ?? 0
+    const gameMode = room?.state?.gameMode
+    const playersState = room?.state.players
+    const humanPlayers =
+      gameMode === GameMode.PVE_MODE && playersState
+        ? values(playersState).filter((p) => !p.isBot)
+        : playersState
+          ? values(playersState)
+          : []
+    const nbPlayers = humanPlayers.length
     const hasLeftBeforeEnd =
       currentPlayer?.alive === true && room?.state?.gameFinished === false
 
     if (nbPlayers > 0) {
       room?.state.players.forEach((p) => {
+        if (
+          gameMode === GameMode.PVE_MODE &&
+          (p.isBot || isPveBotId(p.id))
+        ) {
+          return
+        }
         const afterPlayer: IAfterGamePlayer = {
           elo: p.elo,
           games: p.games,
@@ -323,8 +338,6 @@ export default function Game() {
         hasLeftBeforeEnd) &&
       !room?.state.noElo &&
       afterPlayers.filter((p) => p.role !== Role.BOT).length >= 2
-    const { gameMode } = room?.state || {}
-
     const r: Room<AfterGameState> = await client.create("after-game", {
       players: afterPlayers,
       idToken: token,

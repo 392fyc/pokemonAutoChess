@@ -1,6 +1,8 @@
 import CSS from "csstype"
 import React from "react"
 import { useAppSelector } from "../../../hooks"
+import { GameMode } from "../../../../../types/enum/Game"
+import { isPveBotId } from "../../../../../utils/pve"
 import GamePlayer from "./game-player"
 
 const style: CSS.Properties = {
@@ -13,10 +15,15 @@ const style: CSS.Properties = {
 
 export default function GamePlayers(props: { click: (id: string) => void }) {
   const players = useAppSelector((state) => state.game.players)
+  const gameMode = useAppSelector((state) => state.network.game?.state.gameMode)
   const sortedPlayers = [...players]
+  const visiblePlayers =
+    gameMode === GameMode.PVE_MODE
+      ? sortedPlayers.filter((player) => !isPveBotId(player.id))
+      : sortedPlayers
   return (
     <div style={style}>
-      {sortedPlayers
+      {visiblePlayers
         .sort((a, b) => {
           return a.rank - b.rank
         })

@@ -10,7 +10,7 @@ import {
 } from "../../../../../config"
 import { PVEStages } from "../../../../../models/pve-stages"
 import { Emotion } from "../../../../../types"
-import { BattleResult, GamePhaseState } from "../../../../../types/enum/Game"
+import { BattleResult, GameMode, GamePhaseState } from "../../../../../types/enum/Game"
 import { PkmIndex } from "../../../../../types/enum/Pokemon"
 import { SynergyAssociatedToWeather } from "../../../../../types/enum/Weather"
 import { getAvatarSrc, getPortraitSrc } from "../../../../../utils/avatar"
@@ -56,10 +56,12 @@ export default function GameStageInfo() {
               className="custom-theme-tooltip"
               place="bottom"
             >
-              <p>
-                <span className="help">{t("pve_stages")}:</span>{" "}
-                {Object.keys(PVEStages).join(", ")}
-              </p>
+              {gameMode !== GameMode.PVE_MODE && (
+                <p>
+                  <span className="help">{t("pve_stages")}:</span>{" "}
+                  {Object.keys(PVEStages).join(", ")}
+                </p>
+              )}
               <p>
                 <span className="help">{t("carousel_stages")}:</span>{" "}
                 {ItemCarouselStages.join(", ")}
@@ -153,7 +155,7 @@ export default function GameStageInfo() {
           </div>
         )}
 
-        {gameMode && (
+        {gameMode && gameMode !== GameMode.PVE_MODE && (
           <div
             className="game-mode-information"
             data-tooltip-id="detail-game-mode"
@@ -192,6 +194,7 @@ export function StagePath() {
   const history = [...(currentPlayer?.history ?? [])]
   const phase = useAppSelector((state) => state.game.phase)
   const stageLevel = useAppSelector((state) => state.game.stageLevel)
+  const gameMode = useAppSelector((state) => state.network.game?.state.gameMode)
   const startStage = min(1)(stageLevel - 3)
   let level = startStage
   let path: PathStep[] = []
@@ -238,12 +241,21 @@ export function StagePath() {
 
     const pveStage = PVEStages[level]
     if (pveStage) {
-      path.push({
-        level,
-        icon: getPortraitSrc(PkmIndex[pveStage.avatar], false, Emotion.NORMAL),
-        title: t(record?.name ?? pveStage.name),
-        result: record?.result
-      })
+      if (gameMode === GameMode.PVE_MODE) {
+        path.push({
+          level,
+          icon: "/assets/ui/battle.svg",
+          title: t(record?.name ?? pveStage.name),
+          result: record?.result
+        })
+      } else {
+        path.push({
+          level,
+          icon: getPortraitSrc(PkmIndex[pveStage.avatar], false, Emotion.NORMAL),
+          title: t(record?.name ?? pveStage.name),
+          result: record?.result
+        })
+      }
       if (level === stageLevel && currentLevelPathIndex === undefined) {
         currentLevelPathIndex = path.length - 1
       }

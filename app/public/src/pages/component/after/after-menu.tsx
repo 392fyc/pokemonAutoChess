@@ -17,13 +17,15 @@ import "./after-menu.css"
 
 export default function AfterMenu() {
   const { t } = useTranslation()
-  const players = useAppSelector((state) => state.after.players)
+  const rawPlayers = useAppSelector((state) => state.after.players)
+  const gameMode = useAppSelector((state) => state.after.gameMode)
+  const players = rawPlayers
+    .filter((p) => gameMode !== GameMode.PVE_MODE || p.role !== Role.BOT)
     .slice()
     .sort((a, b) => a.rank - b.rank)
 
   const eligibleToXP = useAppSelector((state) => state.after.eligibleToXP)
   const eligibleToELO = useAppSelector((state) => state.after.eligibleToELO)
-  const gameMode = useAppSelector((state) => state.after.gameMode)
   const currentPlayerId: string = useAppSelector((state) => state.network.uid)
   const currentPlayer = players.find((p) => p.id === currentPlayerId)
   const playerRank = currentPlayer ? currentPlayer.rank : null

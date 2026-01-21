@@ -144,6 +144,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   refToBoardPokemon: IPokemon
   commands = new Array<SimulationCommand>()
   effectsSet = new Set<EffectClass>()
+  bossDifficultyMultiplier = 1
 
   constructor(
     pokemon: IPokemon,
@@ -203,6 +204,9 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     this.healDone = 0
     this.shieldDone = 0
     this.size = pokemon.size ?? "SIZE_1X1"
+    if (pokemon.bossDifficultyMultiplier) {
+      this.bossDifficultyMultiplier = pokemon.bossDifficultyMultiplier
+    }
     if (pokemon.bossTraits && Array.isArray(pokemon.bossTraits)) {
       this.bossTraits = new SetSchema<BossTrait>()
       pokemon.bossTraits.forEach((trait) => this.bossTraits.add(trait))

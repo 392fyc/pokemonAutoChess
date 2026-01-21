@@ -35,6 +35,10 @@ export class Board {
     }
   }
 
+  getEntityById(id: string): PokemonEntity | undefined {
+    return this.cells.find((entity) => entity?.id === id)
+  }
+
   private setCellValue(
     x: number,
     y: number,

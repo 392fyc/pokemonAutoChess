@@ -105,6 +105,7 @@ export class Pokemon extends Schema implements IPokemon {
   canBeBenched = true
   canBeSold = true
   tm: Ability | null = null
+  bossDifficultyMultiplier?: number
 
   constructor(name: Pkm, shiny = false, emotion = Emotion.NORMAL) {
     super()

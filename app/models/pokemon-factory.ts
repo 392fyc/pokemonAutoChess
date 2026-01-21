@@ -16,27 +16,32 @@ export default class PokemonFactory {
   static makePveBoard(
     pveStage: PVEStage,
     shinyEncounter: boolean,
-    townEncounter: TownEncounter | null
+    townEncounter: TownEncounter | null,
+    difficultyMultiplier?: number
   ): MapSchema<Pokemon>
   static makePveBoard(
     bossStage: PVEBossStage,
     shinyEncounter: boolean,
-    townEncounter: TownEncounter | null
+    townEncounter: TownEncounter | null,
+    difficultyMultiplier?: number
   ): MapSchema<Pokemon>
   static makePveBoard(
     stage: PVEStage | PVEBossStage,
     shinyEncounter: boolean,
-    townEncounter: TownEncounter | null
+    townEncounter: TownEncounter | null,
+    difficultyMultiplier?: number
   ): MapSchema<Pokemon>
   static makePveBoard(
     presetLineup: IDetailledPokemon[],
     shinyEncounter: boolean,
-    townEncounter: TownEncounter | null
+    townEncounter: TownEncounter | null,
+    difficultyMultiplier?: number
   ): MapSchema<Pokemon>
   static makePveBoard(
     stage: PVEStage | PVEBossStage | IDetailledPokemon[],
     shinyEncounter: boolean,
-    townEncounter: TownEncounter | null
+    townEncounter: TownEncounter | null,
+    difficultyMultiplier = 1
   ): MapSchema<Pokemon> {
     const pokemons = new MapSchema<Pokemon>()
 
@@ -84,18 +89,21 @@ export default class PokemonFactory {
           const baseDef = pokemon.def
           const baseSpAtk = pokemon.ap
 
-          pokemon.hp = Math.floor(stage.baseStats.hp * stage.statMultipliers.hp)
-          pokemon.atk = Math.floor(
-            stage.baseStats.atk * stage.statMultipliers.atk
-          )
-          pokemon.def = Math.floor(
-            stage.baseStats.def * stage.statMultipliers.def
-          )
-          pokemon.ap = Math.floor(stage.baseStats.ap * stage.statMultipliers.ap)
+          const scaledBaseHp = stage.baseStats.hp * difficultyMultiplier
+          const scaledBaseAtk = stage.baseStats.atk * difficultyMultiplier
+          const scaledBaseDef = stage.baseStats.def * difficultyMultiplier
+          const scaledBaseSpAtk = stage.baseStats.ap * difficultyMultiplier
+
+          pokemon.hp = Math.floor(scaledBaseHp * stage.statMultipliers.hp)
+          pokemon.atk = Math.floor(scaledBaseAtk * stage.statMultipliers.atk)
+          pokemon.def = Math.floor(scaledBaseDef * stage.statMultipliers.def)
+          pokemon.ap = Math.floor(scaledBaseSpAtk * stage.statMultipliers.ap)
           pokemon.maxHP = pokemon.hp
 
           if (stage.baseStats.speDef !== undefined) {
-            pokemon.speDef = Math.round(stage.baseStats.speDef)
+            pokemon.speDef = Math.round(
+              stage.baseStats.speDef * difficultyMultiplier
+            )
           }
           if (stage.baseStats.speed !== undefined) {
             pokemon.speed = Math.round(stage.baseStats.speed)
@@ -117,6 +125,10 @@ export default class PokemonFactory {
           }
           if (stage.baseStats.pp !== undefined) {
             pokemon.pp = Math.round(stage.baseStats.pp)
+          }
+
+          if (difficultyMultiplier !== 1) {
+            pokemon.bossDifficultyMultiplier = difficultyMultiplier
           }
 
           // Apply boss abilities if present

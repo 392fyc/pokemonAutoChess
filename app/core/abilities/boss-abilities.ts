@@ -198,7 +198,8 @@ export class BossPsychicStrategy extends AbilityStrategy {
       return
     }
 
-    const baseDamage = 150 + pokemon.ap
+    const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
+    const baseDamage = 150 * difficultyMultiplier + pokemon.ap
     const damagePerTarget =
       targets.length == 1 ? baseDamage * 2 : baseDamage / targets.length
 
@@ -299,7 +300,8 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
       targetsHit.add(farthestTarget)
     }
 
-    const baseDamage = 80 + pokemon.ap
+    const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
+    const baseDamage = 80 * difficultyMultiplier + pokemon.ap
     targetsHit.forEach((enemy) => {
       this.dealAuraSphereDamage(pokemon, enemy, board, baseDamage, crit)
 
@@ -346,10 +348,6 @@ export class LegendaryPokemonPassive {
       return
     }
 
-    // 应用2x2体型
-    if (pokemon.bossTraits.has(BossTrait.SIZE_2X2)) {
-      pokemon.size = "SIZE_2X2"
-    }
 
     // 提高攻击距离
     if (pokemon.bossTraits.has(BossTrait.INCREASED_RANGE)) {

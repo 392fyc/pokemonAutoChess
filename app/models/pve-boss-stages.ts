@@ -119,7 +119,6 @@ export const mewtwoBossStage: PVEBossStage = {
   ],
   bossTraits: [
     BossTrait.LEGENDARY_POKEMON,
-    BossTrait.SIZE_2X2,
     BossTrait.IGNORE_SYNERGIES,
     BossTrait.LEGENDARY_RESISTANCE,
     BossTrait.INCREASED_RANGE

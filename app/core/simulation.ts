@@ -51,6 +51,7 @@ import {
   shuffleArray
 } from "../utils/random"
 import { values } from "../utils/schemas"
+import { isPveBotId } from "../utils/pve"
 import { AbilityStrategies, SurfStrategy } from "./abilities/abilities"
 import { Board } from "./board"
 import { BossAbilityManager } from "./boss-ability-manager"
@@ -1766,6 +1767,7 @@ export default class Simulation extends Schema implements ISimulation {
       opponentPlayerId
     } of playersToProcess) {
       if (!player || this.id !== player.simulationId) continue
+      if (player.isBot && isPveBotId(player.id)) continue
       if (playerId === this.redPlayerId && this.isGhostBattle) continue // red player in ghost battle is always the ghost, doesnt get any rewards
 
       // Add battle result

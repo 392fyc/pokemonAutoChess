@@ -353,7 +353,8 @@ export class FightingKnockbackEffect extends OnDamageReceivedEffect {
       const destination = board.getSafePlaceAwayFrom(
         pokemon.targetX,
         pokemon.targetY,
-        targetAtContact.team
+        targetAtContact.team,
+        targetAtContact.size ?? "SIZE_1X1"
       )
       if (
         destination &&

@@ -81,6 +81,12 @@ export default abstract class PokemonState {
         damage = Math.ceil(damage * (1 + pokemon.ap / 100))
       }
 
+      if (pokemon.effects.has(EffectEnum.TELEPORT_ENHANCEMENT)) {
+        damage += Math.round(pokemon.atk * 0.5)
+        target.status.triggerArmorReduction(3000, target)
+        pokemon.effects.delete(EffectEnum.TELEPORT_ENHANCEMENT)
+      }
+
       let additionalSpecialDamagePart = 0
       if (pokemon.effects.has(EffectEnum.AROMATIC_MIST)) {
         additionalSpecialDamagePart += 0.2
@@ -774,7 +780,11 @@ export default abstract class PokemonState {
       : pokemon.team
     pokemon.team = originalTeam
     pokemon.onDeath({ board, attacker })
-    board.setEntityOnCell(pokemon.positionX, pokemon.positionY, undefined)
+    if (pokemon.size === "SIZE_2X2") {
+      board.clear2x2Entity(pokemon.positionX, pokemon.positionY)
+    } else {
+      board.setEntityOnCell(pokemon.positionX, pokemon.positionY, undefined)
+    }
     if (attacker && pokemon !== attacker) {
       attacker.onKill({ target: pokemon, board, attackType })
     }
@@ -1214,14 +1224,19 @@ export default abstract class PokemonState {
 
   getMostSurroundedCoordinateAvailablePlace(
     pokemon: PokemonEntity,
-    board: Board
+    board: Board,
+    entitySize: "SIZE_1X1" | "SIZE_2X2" = pokemon.size ?? "SIZE_1X1"
   ): { x: number; y: number } | undefined {
+    const requires2x2 = entitySize === "SIZE_2X2"
     let x: number | undefined = undefined
     let y: number | undefined = undefined
     const team = pokemon.team
     const emptyPlaces = new Array<{ x: number; y: number; neighbour: number }>()
     board.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
-      if (value === undefined) {
+      if (
+        value === undefined &&
+        (!requires2x2 || board.check2x2Area(x, y))
+      ) {
         const cells = board.getAdjacentCells(x, y)
         let n = 0
         cells.forEach((cell) => {
@@ -1252,15 +1267,18 @@ export default abstract class PokemonState {
   getNearestAvailablePlaceCoordinates(
     pokemon: PokemonEntity,
     board: Board,
-    maxRange?: number | undefined
+    maxRange?: number | undefined,
+    entitySize: "SIZE_1X1" | "SIZE_2X2" = pokemon.size ?? "SIZE_1X1"
   ): Cell | null {
+    const requires2x2 = entitySize === "SIZE_2X2"
     let candidateCells: Cell[] = []
     let minDistance = 999
     board.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
       const distance = distanceM(pokemon.positionX, pokemon.positionY, x, y)
       if (
         value === undefined &&
-        (maxRange === undefined || distance <= maxRange)
+        (maxRange === undefined || distance <= maxRange) &&
+        (!requires2x2 || board.check2x2Area(x, y))
       ) {
         if (distance < minDistance) {
           candidateCells = [{ x, y, value }]

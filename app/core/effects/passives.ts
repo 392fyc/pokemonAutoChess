@@ -350,7 +350,8 @@ const DarmanitanZenTransformEffect = new OnDamageReceivedEffect(
       const destination = board.getTeleportationCell(
         pokemon.positionX,
         pokemon.positionY,
-        pokemon.team
+        pokemon.team,
+        pokemon.size ?? "SIZE_1X1"
       )
       if (destination)
         pokemon.moveTo(destination.x, destination.y, board, false)
@@ -1048,7 +1049,8 @@ const superchargeTadbulb = (
         const destination = board.getKnockBackPlace(
           cell.value.positionX,
           cell.value.positionY,
-          orientation
+          orientation,
+          cell.value.size ?? "SIZE_1X1"
         )
 
         if (destination) {

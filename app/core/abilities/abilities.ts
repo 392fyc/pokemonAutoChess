@@ -1838,7 +1838,8 @@ export class ShadowCloneStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit)
     const spawnPosition = board.getClosestAvailablePlace(
       pokemon.positionX,
-      pokemon.positionY
+      pokemon.positionY,
+      pokemon.size ?? "SIZE_1X1"
     )
 
     if (spawnPosition) {
@@ -3103,7 +3104,8 @@ export class IronTailStrategy extends AbilityStrategy {
         const destination = board.getKnockBackPlace(
           cell.value.positionX,
           cell.value.positionY,
-          orientation
+          orientation,
+          cell.value.size ?? "SIZE_1X1"
         )
 
         if (destination) {
@@ -6885,7 +6887,11 @@ export class AquaRingStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit)
     const heal = [20, 40, 80][pokemon.stars - 1] ?? 80
     const mostSurroundedCoordinate =
-      pokemon.state.getMostSurroundedCoordinateAvailablePlace(target, board)
+      pokemon.state.getMostSurroundedCoordinateAvailablePlace(
+        target,
+        board,
+        pokemon.size ?? "SIZE_1X1"
+      )
     if (mostSurroundedCoordinate) {
       pokemon.moveTo(
         mostSurroundedCoordinate.x,
@@ -7001,7 +7007,8 @@ export class BraveBirdStrategy extends AbilityStrategy {
     const flyAwayCell = board.getSafePlaceAwayFrom(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
     if (flyAwayCell) {
       pokemon.moveTo(flyAwayCell.x, flyAwayCell.y, board, false)
@@ -9148,7 +9155,8 @@ export class PsystrikeStrategy extends AbilityStrategy {
       const teleportationCell = board.getTeleportationCell(
         enemy.positionX,
         enemy.positionY,
-        enemy.team
+        enemy.team,
+        enemy.size ?? "SIZE_1X1"
       )
       if (teleportationCell) {
         enemy.moveTo(teleportationCell.x, teleportationCell.y, board, true)
@@ -9177,7 +9185,8 @@ export class DreamEaterStrategy extends AbilityStrategy {
       const coord = pokemon.state.getNearestAvailablePlaceCoordinates(
         sleepingTarget,
         board,
-        1
+        1,
+        pokemon.size ?? "SIZE_1X1"
       )
       if (coord) {
         pokemon.moveTo(coord.x, coord.y, board, false)
@@ -9710,7 +9719,8 @@ export class BulldozeStrategy extends AbilityStrategy {
         const destination = board.getKnockBackPlace(
           cell.value.positionX,
           cell.value.positionY,
-          orientation
+          orientation,
+          cell.value.size ?? "SIZE_1X1"
         )
 
         if (destination) {
@@ -10167,7 +10177,9 @@ export class GulpMissileStrategy extends AbilityStrategy {
         () => {
           const coord = pokemon.state.getNearestAvailablePlaceCoordinates(
             target,
-            board
+            board,
+            undefined,
+            "SIZE_1X1"
           )
           if (coord) {
             const entity = pokemon.simulation.addPokemon(
@@ -10390,7 +10402,8 @@ export class GlaiveRushStrategy extends AbilityStrategy {
 
     const destination = board.getClosestAvailablePlace(
       pokemon.positionX,
-      destinationRow
+      destinationRow,
+      pokemon.size ?? "SIZE_1X1"
     )
     const enemiesHit = new Set<PokemonEntity>()
     if (destination) {
@@ -11907,7 +11920,8 @@ export class DarkLariatStrategy extends AbilityStrategy {
     const dy = target.positionY - pokemon.positionY
     const freeCellBehind = board.getClosestAvailablePlace(
       target.positionX + dx,
-      target.positionY + dy
+      target.positionY + dy,
+      pokemon.size ?? "SIZE_1X1"
     )
     pokemon.broadcastAbility({
       targetX: freeCellBehind?.x ?? pokemon.positionX,
@@ -12363,7 +12377,8 @@ export class StockpileStrategy extends AbilityStrategy {
       const corner = board.getTeleportationCell(
         pokemon.positionX,
         pokemon.positionY,
-        pokemon.team
+        pokemon.team,
+        pokemon.size ?? "SIZE_1X1"
       )
       if (corner) {
         pokemon.broadcastAbility({
@@ -12565,7 +12580,8 @@ export class FilletAwayStrategy extends AbilityStrategy {
     const corner = board.getTeleportationCell(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
     if (corner) {
       pokemon.moveTo(corner.x, corner.y, board, false)
@@ -12586,7 +12602,8 @@ export class RoostStrategy extends AbilityStrategy {
     const corner = board.getTeleportationCell(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
     if (corner) {
       pokemon.moveTo(corner.x, corner.y, board, false)
@@ -12624,7 +12641,8 @@ export class UltraThrustersStrategy extends AbilityStrategy {
     const corner = board.getTeleportationCell(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
 
     pokemon.broadcastAbility({
@@ -13126,7 +13144,8 @@ export class BehemothBladeStrategy extends AbilityStrategy {
     const destination = board.getKnockBackPlace(
       target.positionX,
       target.positionY,
-      orientation
+      orientation,
+      pokemon.size ?? "SIZE_1X1"
     )
 
     if (destination) {
@@ -13159,7 +13178,8 @@ export class HeatCrashStrategy extends AbilityStrategy {
     const knockbackCell = board.getKnockBackPlace(
       target.positionX,
       target.positionY,
-      pokemon.orientation
+      pokemon.orientation,
+      target.size ?? "SIZE_1X1"
     )
     if (knockbackCell) {
       target.moveTo(knockbackCell.x, knockbackCell.y, board, true)
@@ -13405,7 +13425,8 @@ export class FollowMeStrategy extends AbilityStrategy {
     const cellToJump = board.getSafePlaceAwayFrom(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
     if (cellToJump) {
       const enemiesTargetingPokemon = board.cells.filter<PokemonEntity>(
@@ -13659,7 +13680,8 @@ export class SpinOutStrategy extends AbilityStrategy {
     const corner = board.getTeleportationCell(
       pokemon.positionX,
       pokemon.positionY,
-      pokemon.team
+      pokemon.team,
+      pokemon.size ?? "SIZE_1X1"
     )
     if (corner) {
       pokemon.commands.push(
@@ -13759,7 +13781,8 @@ export class ZingZapStrategy extends AbilityStrategy {
     const destination = board.getKnockBackPlace(
       target.positionX,
       target.positionY,
-      orientation
+      orientation,
+      pokemon.size ?? "SIZE_1X1"
     )
 
     if (destination) {
@@ -14068,7 +14091,8 @@ export class AxeKickStrategy extends AbilityStrategy {
       freeSpot = highestPPEnemy
         ? board.getClosestAvailablePlace(
             highestPPEnemy.positionX,
-            highestPPEnemy.positionY
+            highestPPEnemy.positionY,
+            pokemon.size ?? "SIZE_1X1"
           )
         : null
     } while (highestPPEnemies.length > 0 && (!highestPPEnemy || !freeSpot))
@@ -14409,7 +14433,8 @@ export class FirstImpressionStrategy extends AbilityStrategy {
       const newCell = board.getSafePlaceAwayFrom(
         pokemon.positionX,
         pokemon.positionY,
-        pokemon.team
+        pokemon.team,
+        pokemon.size ?? "SIZE_1X1"
       )
 
       // Store original position before moving
@@ -14687,7 +14712,8 @@ export class TripleDiveStrategy extends AbilityStrategy {
           if (enemy) {
             const availableAdjacentPlace = board.getClosestAvailablePlace(
               enemy.positionX,
-              enemy.positionY
+              enemy.positionY,
+              pokemon.size ?? "SIZE_1X1"
             )
 
             if (availableAdjacentPlace) {
@@ -15553,7 +15579,8 @@ export class HighHorsepowerStrategy extends AbilityStrategy {
     const destination = board.getKnockBackPlace(
       target.positionX,
       target.positionY,
-      orientation
+      orientation,
+      pokemon.size ?? "SIZE_1X1"
     )
 
     // Move pokemon to knockback position if available
@@ -15627,7 +15654,8 @@ export class CityShuttleStrategy extends AbilityStrategy {
     if (passenger) {
       const availablePlaceNearAlly = board.getClosestAvailablePlace(
         passenger.positionX,
-        passenger.positionY
+        passenger.positionY,
+        pokemon.size ?? "SIZE_1X1"
       )
 
       if (availablePlaceNearAlly) {
@@ -15678,7 +15706,8 @@ export class CityShuttleStrategy extends AbilityStrategy {
           if (passenger) {
             const closestAvailablePlace = board.getClosestAvailablePlace(
               farthestCoordinate.x,
-              farthestCoordinate.y
+              farthestCoordinate.y,
+              passenger.size ?? "SIZE_1X1"
             )
             if (closestAvailablePlace) {
               passenger.moveTo(

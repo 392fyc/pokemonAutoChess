@@ -1047,17 +1047,41 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       if (this.state.stageLevel === 0) {
         this.state.stageLevel = 1
       }
+      if (
+        this.state.gameMode === GameMode.PVE_MODE &&
+        this.state.stageLevel >= 49
+      ) {
+        this.initializeFightingPhase()
+        return
+      }
       this.initializePickingPhase()
     } else if (this.state.phase == GamePhaseState.PICK) {
       this.stopPickingPhase()
       this.checkForLazyTeam()
-      // 从PICK进入FIGHT时,重置所有玩家准备状态
+      // ?PICK??FIGHT?,??????????
       this.state.players.forEach((player) => {
-        player.isReady = player.isBot // Bot保持准备,真人重置为false
+        player.isReady = player.isBot // Bot????,?????false
       })
+      if (
+        this.state.gameMode === GameMode.PVE_MODE &&
+        this.state.stageLevel >= 49
+      ) {
+        this.initializeFightingPhase()
+        return
+      }
       this.initializeFightingPhase()
     } else if (this.state.phase == GamePhaseState.FIGHT) {
       this.stopFightingPhase()
+      if (this.state.gameFinished) {
+        return
+      }
+      if (
+        this.state.gameMode === GameMode.PVE_MODE &&
+        this.state.stageLevel >= 49
+      ) {
+        this.initializeFightingPhase()
+        return
+      }
       if (
         (ItemCarouselStages.includes(this.state.stageLevel) ||
           PortalCarouselStages.includes(this.state.stageLevel)) &&
@@ -1218,10 +1242,18 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
   checkEndGame(): boolean {
     const playersAlive = values(this.state.players).filter((p) => p.alive)
+    const humansAlive = playersAlive.filter((p) => !p.isBot)
 
-    if (playersAlive.length <= 1) {
+    if (
+      this.state.gameMode === GameMode.PVE_MODE
+        ? humansAlive.length === 0
+        : playersAlive.length <= 1
+    ) {
       this.state.gameFinished = true
-      const winner = playersAlive[0]
+      const winner =
+        this.state.gameMode === GameMode.PVE_MODE
+          ? humansAlive[0]
+          : playersAlive[0]
       if (winner) {
         /* there is a case where none of the players is alive because
          all the remaining players are dead due to a draw battle.
@@ -1270,7 +1302,11 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     })
   }
 
-  computeIncome(isPVE: boolean, specialGameRule: SpecialGameRule | null) {
+  computeIncome(
+    isPVE: boolean,
+    specialGameRule: SpecialGameRule | null,
+    completedStageLevel?: number
+  ) {
     this.state.players.forEach((player) => {
       let income = 0
       if (player.alive && !player.isBot) {
@@ -1291,6 +1327,14 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         }
         if (!isPVE) {
           income += max(5)(player.streak)
+        }
+        if (
+          isPVE &&
+          completedStageLevel &&
+          completedStageLevel > 3 &&
+          completedStageLevel in PVEStages
+        ) {
+          income += 10
         }
         income += 5
         player.addMoney(income, true, null)
@@ -1356,7 +1400,9 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           : this.state.stageLevel === AdditionalPicksStages[1]
             ? this.room.additionalRarePool
             : this.room.additionalEpicPool
-      let remainingAddPicks = 8
+      const ignoreRemainingAddPicks =
+        this.state.gameMode === GameMode.PVE_MODE
+      let remainingAddPicks = ignoreRemainingAddPicks ? 0 : 8
       this.state.players.forEach((player: Player) => {
         if (!player.isBot) {
           const items = pickNRandomIn(ItemComponentsNoScarf, 3)
@@ -1379,16 +1425,20 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
               player.itemsProposition.push(items[i])
             }
           }
-          remainingAddPicks--
+          if (!ignoreRemainingAddPicks) {
+            remainingAddPicks--
+          }
         }
       })
 
-      repeat(remainingAddPicks)(() => {
-        const p = pool.pop()
-        if (p) {
-          this.state.shop.addAdditionalPokemon(p, this.state)
-        }
-      })
+      if (remainingAddPicks > 0) {
+        repeat(remainingAddPicks)(() => {
+          const p = pool.pop()
+          if (p) {
+            this.state.shop.addAdditionalPokemon(p, this.state)
+          }
+        })
+      }
 
       // update regional pokemons in case some regional variants of add picks are now available
       this.state.players.forEach((p) => p.updateRegionalPool(this.state, false))
@@ -1691,7 +1741,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.checkDeath()
 
     const bossStage =
-      this.state.gameMode === GameMode.PVE_MODE
+      this.state.gameMode === GameMode.PVE_MODE && this.state.stageLevel >= 49
         ? PVEBossStages[this.state.stageLevel]
         : undefined
 
@@ -1756,9 +1806,14 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     const isGameFinished = this.checkEndGame()
 
     if (!isGameFinished) {
+      const completedStageLevel = this.state.stageLevel
       this.state.stageLevel += 1
       this.room.setMetadata({ stageLevel: this.state.stageLevel })
-      this.computeIncome(isPVE, this.state.specialGameRule)
+      this.computeIncome(
+        isPVE,
+        this.state.specialGameRule,
+        completedStageLevel
+      )
       this.state.players.forEach((player: Player) => {
         player.wanderers.clear()
         if (player.alive) {
@@ -1876,7 +1931,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.state.simulations.clear()
     this.state.phase = GamePhaseState.FIGHT
     const bossStage =
-      this.state.gameMode === GameMode.PVE_MODE
+      this.state.gameMode === GameMode.PVE_MODE && this.state.stageLevel >= 49
         ? PVEBossStages[this.state.stageLevel]
         : undefined
     const fightDuration = bossStage ? 300 * 1000 : FIGHTING_PHASE_DURATION

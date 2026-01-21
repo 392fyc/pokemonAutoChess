@@ -72,6 +72,7 @@ import {
   GameMode,
   GamePhaseState,
   PokemonActionState,
+  PveDifficulty,
   Team
 } from "../types/enum/Game"
 import { Item } from "../types/enum/Item"
@@ -103,6 +104,7 @@ import { clamp } from "../utils/number"
 import { chance, pickRandomIn, shuffleArray } from "../utils/random"
 import { resetArraySchema, values } from "../utils/schemas"
 import { getWeather } from "../utils/weather"
+import { getPveBossDifficultyMultiplier } from "../utils/pve"
 import {
   OnBuyPokemonCommand,
   OnDragDropCombineCommand,
@@ -151,7 +153,8 @@ export default class GameRoom extends Room<GameState> {
     maxRank,
     tournamentId,
     bracketId,
-    pveDifficulty = null
+    pveDifficulty = null,
+    pveDifficultyTier = null
   }: {
     users: Record<string, IGameUser>
     preparationId: string
@@ -165,6 +168,7 @@ export default class GameRoom extends Room<GameState> {
     tournamentId: string | null
     bracketId: string | null
     pveDifficulty?: EloRank | null
+    pveDifficultyTier?: PveDifficulty | null
   }) {
     logger.info("Create Game ", this.roomId)
 
@@ -199,7 +203,8 @@ export default class GameRoom extends Room<GameState> {
       minRank,
       maxRank,
       specialGameRule,
-      pveDifficulty
+      pveDifficulty,
+      pveDifficultyTier
     )
     this.miniGame.create(
       this.state.avatars,
@@ -1409,25 +1414,29 @@ export default class GameRoom extends Room<GameState> {
         presetLineup: { $exists: true, $ne: [] },
         approved: true
       }).limit(20) // Get more than we need to have variety
+      const usableBots = bots.filter((bot) => this.isPveBotUsable(bot))
 
-      if (bots.length === 0) {
+      if (usableBots.length === 0) {
         // Fallback to any bots with appropriate Elo
         const fallbackBots = await BotV2.find({
           elo: { $gte: minElo, $lte: maxElo },
           approved: true
         }).limit(20)
+        const usableFallbackBots = fallbackBots.filter((bot) =>
+          this.isPveBotUsable(bot)
+        )
 
-        if (fallbackBots.length === 0) {
+        if (usableFallbackBots.length === 0) {
           // Create basic bots as last resort
           this.createBasicPveBots()
           return
         }
 
         // Use fallback bots
-        this.assignPveBots(fallbackBots)
+        this.assignPveBots(usableFallbackBots)
       } else {
         // Use bots with preset lineups
-        this.assignPveBots(bots)
+        this.assignPveBots(usableBots)
       }
     } catch (error) {
       logger.error("Error loading PVE bots:", error)
@@ -1437,8 +1446,9 @@ export default class GameRoom extends Room<GameState> {
   }
 
   assignPveBots(bots: IBot[]) {
+    const usableBots = bots.filter((bot) => this.isPveBotUsable(bot))
     // Shuffle bots to get random selection
-    const shuffledBots = [...bots].sort(() => Math.random() - 0.5)
+    const shuffledBots = [...usableBots].sort(() => Math.random() - 0.5)
 
     // Take first 8 bots or all available if less than 8
     const selectedBots = shuffledBots.slice(0, 8)
@@ -1509,6 +1519,13 @@ export default class GameRoom extends Room<GameState> {
   rankPlayers() {
     const rankArray = new Array<{ id: string; life: number; level: number }>()
     this.state.players.forEach((player) => {
+      if (
+        this.state.gameMode === GameMode.PVE_MODE &&
+        player.isBot &&
+        player.id.startsWith("pve_bot_")
+      ) {
+        return
+      }
       if (!player.alive) {
         return
       }
@@ -1685,15 +1702,31 @@ export default class GameRoom extends Room<GameState> {
     if (!botData.steps || botData.steps.length === 0) return null
 
     let remainingRounds = Math.max(stageLevel, 1)
+    let lastNonEmptyBoard: IDetailledPokemon[] | null = null
     for (const step of botData.steps) {
+      if (step.board && step.board.length > 0) {
+        lastNonEmptyBoard = step.board
+      }
       const roundsRequired = Math.max(1, step.roundsRequired || 1)
       if (remainingRounds <= roundsRequired) {
-        return step.board
+        return step.board && step.board.length > 0
+          ? step.board
+          : lastNonEmptyBoard
       }
       remainingRounds -= roundsRequired
     }
 
-    return botData.steps[botData.steps.length - 1]?.board ?? null
+    return lastNonEmptyBoard
+  }
+
+  private isPveBotUsable(botData: IBot): boolean {
+    if (botData.presetLineup && botData.presetLineup.length > 0) {
+      return true
+    }
+    if (!botData.steps || botData.steps.length === 0) return false
+    return botData.steps.some(
+      (step) => step.board && step.board.length > 0
+    )
   }
 
   triggerBossBattle(humanPlayers: Player[]) {
@@ -1707,12 +1740,17 @@ export default class GameRoom extends Room<GameState> {
       return
     }
 
+    const difficultyMultiplier = getPveBossDifficultyMultiplier(
+      this.state.pveDifficultyTier
+    )
+
     // Create boss battle for each human player
     humanPlayers.forEach((humanPlayer) => {
       const bossBoard = PokemonFactory.makePveBoard(
         bossStage,
         this.state.shinyEncounter,
-        this.state.townEncounter
+        this.state.townEncounter,
+        difficultyMultiplier
       )
 
       const weather = getWeather(humanPlayer, null, bossBoard)

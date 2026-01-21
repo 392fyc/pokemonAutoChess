@@ -15,6 +15,14 @@ export interface PVEBossStage {
     atk: number
     def: number
     ap: number
+    speDef?: number
+    speed?: number
+    critChance?: number
+    critPower?: number
+    luck?: number
+    range?: number
+    maxPP?: number
+    pp?: number
   }
   statMultipliers: {
     hp: number
@@ -24,6 +32,7 @@ export interface PVEBossStage {
   }
   abilities: Ability[] // Boss-specific abilities
   bossTraits?: BossTrait[] // Boss专属特性
+  initialItems?: Item[]
   bossAbilityConfigs?: {
     ability: Ability
     triggerType: "periodic" | "hpThreshold" | "mpControl" | "passive"
@@ -80,32 +89,45 @@ export const mewtwoBossStage: PVEBossStage = {
   name: "Boss Mewtwo",
   avatar: Pkm.MEWTWO,
   emotion: Emotion.ANGRY,
-  stageLevel: 10,
+  stageLevel: 49,
   board: [[Pkm.MEWTWO, 3, 2]], // 中心位置，实际占用2x2区域
   baseStats: {
-    hp: 5000,
-    atk: 100,
-    def: 80,
-    ap: 150
+    hp: 20000,
+    atk: 50,
+    def: 10,
+    ap: 0,
+    speDef: 10,
+    speed: 67,
+    critChance: 10,
+    critPower: 2,
+    luck: 0,
+    range: 3,
+    maxPP: 110,
+    pp: 110
   },
   statMultipliers: {
-    hp: 1.5,
-    atk: 1.3,
-    def: 1.2,
-    ap: 1.4
+    hp: 1,
+    atk: 1,
+    def: 1,
+    ap: 1
   },
   abilities: [
     Ability.BOSS_TELEPORT,
     Ability.BOSS_MEDITATE,
-    Ability.BOSS_PSYCHIC,
-    Ability.BOSS_AURASPHERE
+    Ability.BOSS_AURASPHERE,
+    Ability.BOSS_PSYCHIC
   ],
   bossTraits: [
     BossTrait.LEGENDARY_POKEMON,
     BossTrait.SIZE_2X2,
     BossTrait.IGNORE_SYNERGIES,
-    BossTrait.HALF_STATUS_EFFECT,
+    BossTrait.LEGENDARY_RESISTANCE,
     BossTrait.INCREASED_RANGE
+  ],
+  initialItems: [
+    Item.HEAVY_DUTY_BOOTS,
+    Item.MEWTWO_HEART,
+    Item.SHINY_CHARM
   ],
   bossAbilityConfigs: [
     {
@@ -123,35 +145,35 @@ export const mewtwoBossStage: PVEBossStage = {
       priority: 2
     },
     {
-      ability: Ability.BOSS_PSYCHIC,
+      ability: Ability.BOSS_AURASPHERE,
       triggerType: "mpControl",
-      triggerValue: 100, // MP满时触发
+      triggerValue: 110, // MP满时触发
       cooldown: 3000,
       priority: 3
     },
     {
-      ability: Ability.BOSS_AURASPHERE,
+      ability: Ability.BOSS_PSYCHIC,
       triggerType: "hpThreshold",
       triggerValue: 100, // 100%血量触发
       delay: 5000, // 5秒顺延
       priority: 4
     },
     {
-      ability: Ability.BOSS_AURASPHERE,
+      ability: Ability.BOSS_PSYCHIC,
       triggerType: "hpThreshold",
       triggerValue: 75, // 75%血量触发
       delay: 5000,
       priority: 4
     },
     {
-      ability: Ability.BOSS_AURASPHERE,
+      ability: Ability.BOSS_PSYCHIC,
       triggerType: "hpThreshold",
       triggerValue: 50, // 50%血量触发
       delay: 5000,
       priority: 4
     },
     {
-      ability: Ability.BOSS_AURASPHERE,
+      ability: Ability.BOSS_PSYCHIC,
       triggerType: "hpThreshold",
       triggerValue: 25, // 25%血量触发
       delay: 5000,
@@ -171,5 +193,5 @@ export const mewtwoBossStage: PVEBossStage = {
 
 export const PVEBossStages = {
   1: pikachuBossStage,
-  10: mewtwoBossStage
+  49: mewtwoBossStage
 }

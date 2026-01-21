@@ -1,5 +1,7 @@
 import { Ability } from "../types/enum/Ability"
 import { BossTrait } from "../types/enum/Game"
+import { chance } from "../utils/random"
+import { AbilityStrategies } from "./abilities/abilities"
 import { Board } from "./board"
 import { PokemonEntity } from "./pokemon-entity"
 
@@ -17,6 +19,8 @@ export class BossAbilityManager {
   private board: Board
   private abilityConfigs: BossAbilityConfig[]
   private cooldowns: Map<Ability, number> = new Map()
+  private lastTriggerTimes: Map<Ability, number> = new Map()
+  private elapsedMs = 0
   private pendingAbilities: Array<{
     ability: Ability
     triggerTime: number
@@ -44,6 +48,7 @@ export class BossAbilityManager {
   }
 
   update(deltaTime: number): void {
+    this.elapsedMs += deltaTime
     // 更新冷却时间
     this.updateCooldowns(deltaTime)
 
@@ -63,7 +68,7 @@ export class BossAbilityManager {
   }
 
   private checkTriggers(deltaTime: number): void {
-    const currentTime = Date.now()
+    const currentTime = this.elapsedMs
     const currentHpPercent = (this.boss.hp / this.boss.maxHP) * 100
     const currentMp = this.boss.pp
 
@@ -79,7 +84,7 @@ export class BossAbilityManager {
       switch (config.triggerType) {
         case "periodic": {
           // 周期性触发：检查时间间隔
-          const lastTriggerTime = this.cooldowns.get(config.ability) || 0
+          const lastTriggerTime = this.lastTriggerTimes.get(config.ability) || 0
           if (currentTime - lastTriggerTime >= config.triggerValue) {
             shouldTrigger = true
           }
@@ -122,6 +127,9 @@ export class BossAbilityManager {
         if (config.cooldown) {
           this.cooldowns.set(config.ability, config.cooldown)
         }
+        if (config.triggerType === "periodic") {
+          this.lastTriggerTimes.set(config.ability, currentTime)
+        }
       }
     }
   }
@@ -147,7 +155,7 @@ export class BossAbilityManager {
   }
 
   private processPendingAbilities(deltaTime: number): void {
-    const currentTime = Date.now()
+    const currentTime = this.elapsedMs
 
     // 执行所有已到触发时间的技能
     while (
@@ -162,15 +170,26 @@ export class BossAbilityManager {
   }
 
   private executeAbility(ability: Ability): void {
-    // 这里调用具体的技能执行逻辑
-    // 技能的具体实现在对应的AbilityStrategy中
-    this.boss.broadcastAbility({ skill: ability })
+    const abilityStrategy = AbilityStrategies[ability]
+    if (!abilityStrategy) return
 
-    // 记录技能触发时间
+    const target =
+      this.boss.state.getFarthestTarget(this.boss, this.board) ?? this.boss
+    const crit = abilityStrategy.canCritByDefault
+      ? chance(this.boss.critChance / 100, this.boss)
+      : false
+
+    const previousSkill = this.boss.skill
+    const previousPp = this.boss.pp
+
+    this.boss.skill = ability
+    abilityStrategy.process(this.boss, this.board, target, crit, true)
+
     const config = this.abilityConfigs.find((c) => c.ability === ability)
-    if (config && config.triggerType === "periodic") {
-      this.cooldowns.set(ability, Date.now())
+    if (config?.triggerType != "mpControl") {
+      this.boss.pp = previousPp
     }
+    this.boss.skill = previousSkill
   }
 
   // 重置血量阈值触发状态（用于Boss复活或重置战斗）

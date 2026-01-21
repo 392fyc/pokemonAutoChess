@@ -94,6 +94,31 @@ export default class PokemonFactory {
           pokemon.ap = Math.floor(stage.baseStats.ap * stage.statMultipliers.ap)
           pokemon.maxHP = pokemon.hp
 
+          if (stage.baseStats.speDef !== undefined) {
+            pokemon.speDef = Math.round(stage.baseStats.speDef)
+          }
+          if (stage.baseStats.speed !== undefined) {
+            pokemon.speed = Math.round(stage.baseStats.speed)
+          }
+          if (stage.baseStats.critChance !== undefined) {
+            pokemon.critChance = Math.round(stage.baseStats.critChance)
+          }
+          if (stage.baseStats.critPower !== undefined) {
+            pokemon.critPower = stage.baseStats.critPower
+          }
+          if (stage.baseStats.luck !== undefined) {
+            pokemon.luck = Math.round(stage.baseStats.luck)
+          }
+          if (stage.baseStats.range !== undefined) {
+            pokemon.range = Math.round(stage.baseStats.range)
+          }
+          if (stage.baseStats.maxPP !== undefined) {
+            pokemon.maxPP = Math.round(stage.baseStats.maxPP)
+          }
+          if (stage.baseStats.pp !== undefined) {
+            pokemon.pp = Math.round(stage.baseStats.pp)
+          }
+
           // Apply boss abilities if present
           if ("abilities" in stage && stage.abilities) {
             pokemon.skill = stage.abilities[0] // 使用第一个技能作为主要技能
@@ -107,6 +132,9 @@ export default class PokemonFactory {
           index in stage.marowakItems
         ) {
           stage.marowakItems[index]!.forEach((item) => pokemon.items.add(item))
+        }
+        if ("initialItems" in stage && stage.initialItems) {
+          stage.initialItems.forEach((item) => pokemon.items.add(item))
         }
         pokemons.set(pokemon.id, pokemon)
       })

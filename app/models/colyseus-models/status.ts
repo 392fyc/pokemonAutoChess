@@ -177,6 +177,9 @@ export default class Status extends Schema implements IStatus {
   }
 
   updateAllStatus(dt: number, pokemon: PokemonEntity, board: Board) {
+    const hasLegendaryResistance = pokemon.bossTraits?.has(
+      BossTrait.LEGENDARY_RESISTANCE
+    )
     if (
       pokemon.effects.has(EffectEnum.POISON_GAS) &&
       this.poisonStacks === 0 &&
@@ -305,15 +308,24 @@ export default class Status extends Schema implements IStatus {
     this.updateRage(dt, pokemon)
 
     if (pokemon.status.curseVulnerability && !pokemon.status.flinch) {
-      this.triggerFlinch(30000, pokemon)
+      const duration = hasLegendaryResistance ? 5000 : 30000
+      this.triggerFlinch(duration, pokemon, undefined, !hasLegendaryResistance)
     }
 
     if (pokemon.status.curseWeakness && !pokemon.status.paralysis) {
-      this.triggerParalysis(30000, pokemon, null)
+      const duration = hasLegendaryResistance ? 5000 : 30000
+      this.triggerParalysis(
+        duration,
+        pokemon,
+        null,
+        false,
+        !hasLegendaryResistance
+      )
     }
 
     if (pokemon.status.curseTorment && !pokemon.status.fatigue) {
-      this.triggerFatigue(30000, pokemon)
+      const duration = hasLegendaryResistance ? 5000 : 30000
+      this.triggerFatigue(duration, pokemon, !hasLegendaryResistance)
     }
 
     if (pokemon.status.curseFate && !pokemon.status.curse) {
@@ -342,7 +354,7 @@ export default class Status extends Schema implements IStatus {
   }
 
   triggerRage(duration: number, pokemon: PokemonEntity) {
-    duration = this.applyStatusDurationReductions(duration, pokemon)
+    duration = this.applyStatusDurationReductions(duration, pokemon, false)
     if (!this.enraged) {
       this.enraged = true
       this.protect = false
@@ -523,9 +535,11 @@ export default class Status extends Schema implements IStatus {
     }
   }
 
-  triggerFatigue(duration: number, pkm: PokemonEntity) {
+  triggerFatigue(duration: number, pkm: PokemonEntity, applyReductions = true) {
     if (!this.runeProtect) {
-      duration = this.applyStatusDurationReductions(duration, pkm)
+      if (applyReductions) {
+        duration = this.applyStatusDurationReductions(duration, pkm)
+      }
 
       this.fatigue = true
       if (duration > this.fatigueCooldown) {
@@ -593,6 +607,9 @@ export default class Status extends Schema implements IStatus {
 
       if (pkm.passive === Passive.GLISCOR) {
         poisonDamage = pkm.maxHP * 0.05 * (this.poisonStacks - 2)
+      }
+      if (pkm.bossTraits.has(BossTrait.LEGENDARY_RESISTANCE)) {
+        poisonDamage *= 0.01
       }
 
       if (pkm.simulation.weather === Weather.RAIN) {
@@ -847,7 +864,8 @@ export default class Status extends Schema implements IStatus {
     duration: number,
     pkm: PokemonEntity,
     origin: PokemonEntity | null,
-    apBoost = false
+    apBoost = false,
+    applyReductions = true
   ) {
     if (!this.runeProtect && !pkm.effects.has(EffectEnum.IMMUNITY_PARALYSIS)) {
       if (!this.paralysis) {
@@ -865,7 +883,9 @@ export default class Status extends Schema implements IStatus {
         }
       }
 
-      duration = this.applyStatusDurationReductions(duration, pkm)
+      if (applyReductions) {
+        duration = this.applyStatusDurationReductions(duration, pkm)
+      }
 
       if (duration > this.paralysisCooldown) {
         this.paralysisCooldown = Math.round(duration)
@@ -908,11 +928,18 @@ export default class Status extends Schema implements IStatus {
     }
   }
 
-  triggerFlinch(duration: number, pkm: PokemonEntity, origin?: PokemonEntity) {
+  triggerFlinch(
+    duration: number,
+    pkm: PokemonEntity,
+    origin?: PokemonEntity,
+    applyReductions = true
+  ) {
     if (!this.runeProtect) {
       this.flinch = true
 
-      duration = this.applyStatusDurationReductions(duration, pkm)
+      if (applyReductions) {
+        duration = this.applyStatusDurationReductions(duration, pkm)
+      }
 
       if (duration > this.flinchCooldown) {
         this.flinchCooldown = Math.round(duration)
@@ -1021,8 +1048,11 @@ export default class Status extends Schema implements IStatus {
     this.curseCooldown -= dt
     if (this.curseCooldown <= 0) {
       this.curse = false
+      const curseDamage = pokemon.bossTraits.has(BossTrait.LEGENDARY_RESISTANCE)
+        ? Math.max(1, Math.round(pokemon.maxHP * 0.2))
+        : 9999
       pokemon.handleDamage({
-        damage: 9999,
+        damage: curseDamage,
         board,
         attacker: null,
         attackType: AttackType.TRUE,
@@ -1189,8 +1219,15 @@ export default class Status extends Schema implements IStatus {
 
   private applyStatusDurationReductions(
     duration: number,
-    pkm: IPokemonEntity
+    pkm: IPokemonEntity,
+    applyLegendaryResistance = true
   ): number {
+    if (
+      applyLegendaryResistance &&
+      pkm.bossTraits?.has?.(BossTrait.LEGENDARY_RESISTANCE)
+    ) {
+      duration = Math.round(duration * 0.5)
+    }
     if (pkm.effects.has(EffectEnum.SWIFT_SWIM)) {
       duration = Math.round(duration * 0.7)
     } else if (pkm.effects.has(EffectEnum.HYDRATION)) {

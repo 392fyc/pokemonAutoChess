@@ -6,16 +6,12 @@ import { logger } from "../../utils/logger"
 import { pickRandomIn } from "../../utils/random"
 import type { Board } from "../board"
 import { PokemonEntity } from "../pokemon-entity"
-import {
-  DelayedCommand,
-  RemoveEffectCommand,
-  StatChangeCommand
-} from "../simulation-command"
+import { RemoveEffectCommand } from "../simulation-command"
 import { AbilityStrategy } from "./ability-strategy"
 
 // 瞬间移动技能
 export class BossTeleportStrategy extends AbilityStrategy {
-  copyable = false // Boss专属技能不可复制
+  copyable = false
   canCritByDefault = false
 
   process(
@@ -27,27 +23,24 @@ export class BossTeleportStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    // 找到离自己最远的敌方宝可梦
+    if (!pokemon.canMove) {
+      return
+    }
+
     const farthestEnemy = this.findFarthestEnemy(pokemon, board)
     if (!farthestEnemy) {
       logger.warn("BossTeleportStrategy: No enemy found for teleport")
       return
     }
 
-    // 找到最远敌方宝可梦旁边的可用格子
     const teleportCell = this.findTeleportCell(pokemon, board, farthestEnemy)
     if (!teleportCell) {
       logger.warn("BossTeleportStrategy: No available cell for teleport")
       return
     }
 
-    // 执行瞬移
     this.performTeleport(pokemon, board, teleportCell)
-
-    // 强化下一次普通攻击
     this.enhanceNextAttack(pokemon)
-
-    // 记录瞬移目标，用于下一次攻击
     pokemon.targetEntityId = farthestEnemy.id
   }
 
@@ -80,18 +73,16 @@ export class BossTeleportStrategy extends AbilityStrategy {
     board: Board,
     target: PokemonEntity
   ): { x: number; y: number } | null {
-    // 获取目标周围的可用格子
     const adjacentCells = board.getAdjacentCells(
       target.positionX,
       target.positionY
     )
     const availableCells = adjacentCells.filter((cell) => !cell.value)
 
-    if (availableCells.length === 0) {
+    if (availableCells.length == 0) {
       return null
     }
 
-    // 随机选择一个可用格子
     const randomCell = pickRandomIn(availableCells)
     return { x: randomCell.x, y: randomCell.y }
   }
@@ -101,8 +92,7 @@ export class BossTeleportStrategy extends AbilityStrategy {
     board: Board,
     teleportCell: { x: number; y: number }
   ): void {
-    // 检查2x2实体是否可以移动到目标位置
-    if (pokemon.size === "SIZE_2X2") {
+    if (pokemon.size == "SIZE_2X2") {
       const canMove = this.check2x2Movement(
         pokemon,
         board,
@@ -117,7 +107,6 @@ export class BossTeleportStrategy extends AbilityStrategy {
       }
     }
 
-    // 移动到目标位置
     board.setEntityOnCell(teleportCell.x, teleportCell.y, pokemon)
     logger.debug(
       `BossTeleportStrategy: ${pokemon.name} teleported to (${teleportCell.x}, ${teleportCell.y})`
@@ -130,7 +119,6 @@ export class BossTeleportStrategy extends AbilityStrategy {
     targetX: number,
     targetY: number
   ): boolean {
-    // 检查2x2区域是否可用
     for (let dy = 0; dy < 2; dy++) {
       for (let dx = 0; dx < 2; dx++) {
         const x = targetX + dx
@@ -144,10 +132,7 @@ export class BossTeleportStrategy extends AbilityStrategy {
   }
 
   private enhanceNextAttack(pokemon: PokemonEntity): void {
-    // 添加强化效果
     pokemon.effects.add(EffectEnum.TELEPORT_ENHANCEMENT)
-
-    // 设置强化持续时间（例如2秒）
     pokemon.simulation.addDelayedCommand(
       new RemoveEffectCommand(
         pokemon.id,
@@ -159,7 +144,6 @@ export class BossTeleportStrategy extends AbilityStrategy {
   }
 }
 
-// 冥想技能
 export class BossMeditateStrategy extends AbilityStrategy {
   copyable = false
   canCritByDefault = false
@@ -173,42 +157,17 @@ export class BossMeditateStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    // 提高特攻和特防
     const spAtkIncrease = 10
     const spDefIncrease = 10
 
     pokemon.ap += spAtkIncrease
     pokemon.speDef += spDefIncrease
 
-    // 添加冥想效果
     pokemon.effects.add(EffectEnum.MEDITATE)
-
-    // 设置效果持续时间（例如5秒）
     pokemon.simulation.addDelayedCommand(
       new RemoveEffectCommand(
         pokemon.id,
         EffectEnum.MEDITATE,
-        5000,
-        pokemon.simulation
-      )
-    )
-
-    // 5秒后移除加成
-    pokemon.simulation.addDelayedCommand(
-      new StatChangeCommand(
-        pokemon.id,
-        "ap",
-        -spAtkIncrease,
-        5000,
-        pokemon.simulation
-      )
-    )
-
-    pokemon.simulation.addDelayedCommand(
-      new StatChangeCommand(
-        pokemon.id,
-        "speDef",
-        -spDefIncrease,
         5000,
         pokemon.simulation
       )
@@ -220,7 +179,6 @@ export class BossMeditateStrategy extends AbilityStrategy {
   }
 }
 
-// 精神强念技能（Boss专属）
 export class BossPsychicStrategy extends AbilityStrategy {
   copyable = false
   canCritByDefault = true
@@ -234,44 +192,40 @@ export class BossPsychicStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    // 获取自身周围1格内的所有敌方宝可梦
-    const targets = this.getTargetsInRange(pokemon, board)
-    if (targets.length === 0) {
-      logger.warn("PsychicStrategy: No targets in range")
+    const targets = this.getTargetsInRange(pokemon, board, 2)
+    if (targets.length == 0) {
+      logger.warn("BossPsychicStrategy: No targets in range")
       return
     }
 
-    // 计算总伤害（特攻的固定倍数）
-    const damageMultiplier = 2.0 // 可以根据平衡性调整
-    const totalDamage = pokemon.ap * damageMultiplier
+    const baseDamage = 150 + pokemon.ap
+    const damagePerTarget =
+      targets.length == 1 ? baseDamage * 2 : baseDamage / targets.length
 
-    // 分摊伤害
-    const damagePerTarget = totalDamage / targets.length
-
-    // 对每个目标造成伤害
     targets.forEach((targetEntity) => {
       this.dealDamage(pokemon, targetEntity, board, damagePerTarget, crit)
     })
 
     logger.debug(
-      `PsychicStrategy: ${pokemon.name} dealt ${totalDamage} total damage to ${targets.length} targets`
+      `BossPsychicStrategy: ${pokemon.name} dealt ${baseDamage} base damage to ${targets.length} targets`
     )
   }
 
   private getTargetsInRange(
     pokemon: PokemonEntity,
-    board: Board
+    board: Board,
+    range: number
   ): PokemonEntity[] {
     const targets: PokemonEntity[] = []
 
-    // 获取周围1格内的所有格子
-    const range = 1
     for (let dy = -range; dy <= range; dy++) {
       for (let dx = -range; dx <= range; dx++) {
         const x = pokemon.positionX + dx
         const y = pokemon.positionY + dy
 
-        if (dx === 0 && dy === 0) continue // 跳过自己
+        if (dx == 0 && dy == 0) {
+          continue
+        }
 
         const entity = board.getEntityOnCell(x, y)
         if (
@@ -307,7 +261,6 @@ export class BossPsychicStrategy extends AbilityStrategy {
   }
 }
 
-// 波导弹技能（Boss专属）
 export class BossAuraSphereStrategy extends AbilityStrategy {
   copyable = false
   canCritByDefault = true
@@ -321,41 +274,49 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    // 对全体敌方宝可梦造成伤害
-    const targets = this.getAllEnemies(pokemon, board)
-    if (targets.length === 0) {
-      logger.warn("AuraSphereStrategy: No enemies found")
-      return
-    }
+    const farthestTarget =
+      pokemon.state.getFarthestTarget(pokemon, board) ?? target
 
-    // 计算伤害（特攻的固定倍数）
-    const damageMultiplier = 1.5 // 可以根据平衡性调整
-    const baseDamage = pokemon.ap * damageMultiplier
-
-    // 对每个目标造成伤害
-    targets.forEach((targetEntity) => {
-      this.dealAuraSphereDamage(pokemon, targetEntity, board, baseDamage, crit)
+    const targetsHit: Set<PokemonEntity> = new Set()
+    pokemon.broadcastAbility({
+      targetX: farthestTarget.positionX,
+      targetY: farthestTarget.positionY
     })
 
-    logger.debug(
-      `AuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} damage to ${targets.length} enemies`
+    const cells = board.getCellsBetween(
+      pokemon.positionX,
+      pokemon.positionY,
+      farthestTarget.positionX,
+      farthestTarget.positionY
     )
-  }
-
-  private getAllEnemies(pokemon: PokemonEntity, board: Board): PokemonEntity[] {
-    const enemies: PokemonEntity[] = []
-
-    board.forEach((x, y, entity) => {
-      if (
-        entity &&
-        entity.team !== pokemon.team &&
-        entity.isTargettableBy(pokemon, true, false)
-      ) {
-        enemies.push(entity)
+    cells.forEach((cell) => {
+      if (cell.value && cell.value.team !== pokemon.team) {
+        targetsHit.add(cell.value)
       }
     })
 
-    return enemies
+    if (targetsHit.size == 0) {
+      targetsHit.add(farthestTarget)
+    }
+
+    const baseDamage = 80 + pokemon.ap
+    targetsHit.forEach((enemy) => {
+      this.dealAuraSphereDamage(pokemon, enemy, board, baseDamage, crit)
+
+      const teleportationCell = board.getTeleportationCell(
+        enemy.positionX,
+        enemy.positionY,
+        enemy.team,
+        enemy.size ?? "SIZE_1X1"
+      )
+      if (teleportationCell) {
+        enemy.moveTo(teleportationCell.x, teleportationCell.y, board, true)
+      }
+    })
+
+    logger.debug(
+      `BossAuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} base damage to ${targetsHit.size} enemies`
+    )
   }
 
   private dealAuraSphereDamage(
@@ -378,7 +339,6 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
   }
 }
 
-// 传说中的宝可梦被动效果
 export class LegendaryPokemonPassive {
   static apply(pokemon: PokemonEntity): void {
     // 检查是否具有传说中的宝可梦特性

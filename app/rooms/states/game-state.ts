@@ -61,6 +61,9 @@ export default class GameState extends Schema {
   minRank: EloRank | null = null
   maxRank: EloRank | null = null
   pveDifficulty: EloRank | null = null
+  @type("boolean") pveSuddenDeathActive = false
+  @type(["string"]) pveBotOrder = new ArraySchema<string>()
+  @type("uint8") pveBotOrderIndex = 0
   outlawStage: number | null = null
 
   constructor(

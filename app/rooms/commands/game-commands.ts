@@ -49,6 +49,7 @@ import UserMetadata from "../../models/mongo-models/user-metadata"
 import PokemonFactory, {
   getPokemonBaseline
 } from "../../models/pokemon-factory"
+import { PVEBossStages } from "../../models/pve-boss-stages"
 import { PVEStages } from "../../models/pve-stages"
 import { getBuyPrice, getSellPrice } from "../../models/shop"
 import {
@@ -1307,6 +1308,9 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
   checkDeath() {
     this.state.players.forEach((player: Player) => {
       if (player.life <= 0 && player.alive) {
+        if (player.deathStage === undefined) {
+          player.deathStage = this.state.stageLevel
+        }
         if (!player.isBot) {
           player.shop.forEach((pkm) => {
             this.state.shop.releasePokemon(pkm, player, this.state)
@@ -1685,6 +1689,70 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.computeAchievements()
     this.computeStreak(isPVE)
     this.checkDeath()
+
+    const bossStage =
+      this.state.gameMode === GameMode.PVE_MODE
+        ? PVEBossStages[this.state.stageLevel]
+        : undefined
+
+      if (bossStage) {
+        const winners = values(this.state.players)
+          .filter(
+            (player: Player) =>
+              player.alive &&
+              !player.isBot &&
+              player.history.at(-1)?.id === "boss" &&
+              player.history.at(-1)?.result === BattleResult.WIN
+          )
+          .sort((a, b) => {
+            const timeA = a.bossFinishTime ?? Number.MAX_SAFE_INTEGER
+            const timeB = b.bossFinishTime ?? Number.MAX_SAFE_INTEGER
+            if (timeA !== timeB) return timeA - timeB
+            return a.id.localeCompare(b.id)
+          })
+
+        this.state.gameFinished = true
+        winners.forEach((player, index) => {
+          player.rank = index + 1
+          const client = this.room.clients.find(
+            (cli) => cli.auth.uid === player.id
+          )
+          client?.send(Transfer.FINAL_RANK, player.rank)
+        })
+
+        const loserCandidates = values(this.state.players).filter(
+          (player: Player) => !player.isBot && !winners.includes(player)
+        )
+        const losersWithOrder = loserCandidates.map((player, index) => ({
+          player,
+          deathStage: player.deathStage ?? -1,
+          index
+        }))
+        losersWithOrder.sort((a, b) => {
+          if (a.deathStage !== b.deathStage) {
+            return b.deathStage - a.deathStage
+          }
+          return a.index - b.index
+        })
+
+        let nextRank = winners.length + 1
+        losersWithOrder.forEach(({ player }) => {
+          player.rank = nextRank
+          const client = this.room.clients.find(
+            (cli) => cli.auth.uid === player.id
+          )
+          client?.send(Transfer.FINAL_RANK, player.rank)
+          nextRank += 1
+        })
+
+        this.clock.setTimeout(() => {
+          this.room.broadcast(Transfer.GAME_END)
+          this.room.disconnect()
+        }, 30 * 1000)
+
+      return
+    }
+
     const isGameFinished = this.checkEndGame()
 
     if (!isGameFinished) {
@@ -1807,8 +1875,13 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
   initializeFightingPhase() {
     this.state.simulations.clear()
     this.state.phase = GamePhaseState.FIGHT
-    this.state.time = FIGHTING_PHASE_DURATION
-    this.state.roundTime = Math.round(this.state.time / 1000)
+    const bossStage =
+      this.state.gameMode === GameMode.PVE_MODE
+        ? PVEBossStages[this.state.stageLevel]
+        : undefined
+    const fightDuration = bossStage ? 300 * 1000 : FIGHTING_PHASE_DURATION
+    this.state.time = fightDuration
+    this.state.roundTime = Math.round(fightDuration / 1000)
     updateLobby(this.room)
     this.state.players.forEach((player: Player) => {
       if (player.alive) {
@@ -1816,11 +1889,14 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       }
     })
 
-    const pveStage = PVEStages[this.state.stageLevel]
-    if (pveStage) {
-      this.state.players.forEach((player: Player) => {
-        if (player.alive) {
-          player.opponentId = "pve"
+    if (bossStage && this.state.gameMode === GameMode.PVE_MODE) {
+      this.room.handlePveBossBattle()
+    } else {
+      const pveStage = PVEStages[this.state.stageLevel]
+      if (pveStage) {
+        this.state.players.forEach((player: Player) => {
+          if (player.alive) {
+            player.opponentId = "pve"
           player.opponentName = pveStage.name
           player.opponentAvatar = getAvatarString(
             PkmIndex[pveStage.avatar],
@@ -1858,15 +1934,16 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           )
           player.simulationId = simulation.id
           this.state.simulations.set(simulation.id, simulation)
-          simulation.start()
-        }
-      })
-    } else if (this.state.gameMode === GameMode.PVE_MODE) {
-      this.room.handlePveMatchups()
-    } else {
-      const matchups = selectMatchups(this.state)
-      this.state.simulationPaused = true // 2 seconds pause for portal transition animation
-      this.room.handleRegularMatchups(matchups)
+            simulation.start()
+          }
+        })
+      } else if (this.state.gameMode === GameMode.PVE_MODE) {
+        this.room.handlePveMatchups()
+      } else {
+        const matchups = selectMatchups(this.state)
+        this.state.simulationPaused = true // 2 seconds pause for portal transition animation
+        this.room.handleRegularMatchups(matchups)
+      }
     }
   }
 
@@ -2067,7 +2144,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       if (player.effects.has(EffectEnum.GOLDEN_EGGS) && isGoldenEgg) {
         player.goldenEggChance = 0 // getting a golden egg resets the stacked egg chance
       }
->>>>>>> master
     }
   }
 }

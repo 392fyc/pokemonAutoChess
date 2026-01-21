@@ -1388,7 +1388,7 @@ export default class GameRoom extends Room<GameState> {
     }
 
     // Apply additional multiplier for sudden death phase
-    if (this.state.phase === GamePhaseState.PVE_SUDDEN_DEATH) {
+    if (this.state.pveSuddenDeathActive) {
       damage *= 2
     }
 
@@ -1582,106 +1582,118 @@ export default class GameRoom extends Room<GameState> {
       }
     })
 
-    // Get all PVE bots that haven't been encountered
-    const availableBots: Player[] = []
+    if (humanPlayers.length === 0) return
+
+    // Get all PVE bots
+    const pveBots: Player[] = []
     this.state.players.forEach((player: Player) => {
       if (player.alive && player.isBot && player.id.startsWith("pve_bot_")) {
-        // Check if this bot has been encountered by any human player
-        let encountered = false
-        humanPlayers.forEach((humanPlayer) => {
-          if (humanPlayer.pveBotsEncountered.includes(player.id)) {
-            encountered = true
-          }
-        })
-        if (!encountered) {
-          availableBots.push(player)
-        }
+        pveBots.push(player)
       }
     })
 
-    // Check if we should trigger sudden death phase (after stage 40)
-    const isSuddenDeathPhase =
-      this.state.stageLevel >= 40 &&
-      this.state.phase === GamePhaseState.PVE_SUDDEN_DEATH
+    if (pveBots.length === 0) return
 
-    // If stage 40 or later and not in sudden death phase yet, switch to sudden death phase
-    if (
-      this.state.stageLevel >= 40 &&
-      this.state.phase !== GamePhaseState.PVE_SUDDEN_DEATH
-    ) {
-      this.state.phase = GamePhaseState.PVE_SUDDEN_DEATH
+    if (this.state.stageLevel >= 49) {
+      return
     }
 
-    // Check if we should trigger boss battle
-    const shouldTriggerBossBattle =
-      availableBots.length === 0 ||
-      (this.state.stageLevel >= 40 && !isSuddenDeathPhase)
+    const isSuddenDeath =
+      this.state.stageLevel > 40 && this.state.stageLevel <= 48
+    if (isSuddenDeath && !this.state.pveSuddenDeathActive) {
+      this.state.pveSuddenDeathActive = true
+      this.state.pveBotOrderIndex = 0
+      this.refreshPveBotOrder(pveBots, true)
+    } else if (this.state.pveBotOrder.length === 0) {
+      this.refreshPveBotOrder(pveBots, true)
+    }
 
-    if (shouldTriggerBossBattle) {
-      this.triggerBossBattle(humanPlayers)
+    const botOrder = values(this.state.pveBotOrder)
+    const fallbackBot = pveBots[0]
+    if (!fallbackBot) return
+
+    let selectedBotId = botOrder[0] ?? fallbackBot.id
+    if (this.state.pveSuddenDeathActive) {
+      const orderIndex = Math.min(
+        this.state.pveBotOrderIndex,
+        botOrder.length - 1
+      )
+      selectedBotId = botOrder[orderIndex] ?? fallbackBot.id
+      if (this.state.pveBotOrderIndex < botOrder.length - 1) {
+        this.state.pveBotOrderIndex += 1
+      }
     } else {
-      // Match each human player with a unique PVE bot
-      humanPlayers.forEach((humanPlayer) => {
-        if (availableBots.length === 0) return
-
-        // Select a random bot from available ones
-        const botIndex = Math.floor(Math.random() * availableBots.length)
-        const botPlayer = availableBots[botIndex]
-        availableBots.splice(botIndex, 1)
-
-        // Mark this bot as encountered by this player
-        humanPlayer.pveBotsEncountered.push(botPlayer.id)
-
-        // Create bot board from preset lineup if available
-        let botBoard = botPlayer.board
-        const botData = botPlayer.botData as IBot | undefined
-        if (botData?.presetLineup && botData.presetLineup.length > 0) {
-          // Create board from preset lineup
-          botBoard = PokemonFactory.makePveBoard(
-            botData.presetLineup,
-            false, // shinyEncounter
-            null // townEncounter
-          )
-        }
-
-        // Create simulation for this matchup
-        const weather = getWeather(humanPlayer, botPlayer, botBoard, false)
-        const simulationId = nanoid()
-
-        humanPlayer.simulationId = simulationId
-        humanPlayer.team = Team.BLUE_TEAM
-        humanPlayer.opponentId = botPlayer.id
-        humanPlayer.opponentName = botPlayer.name
-        humanPlayer.opponentAvatar = botPlayer.avatar
-        humanPlayer.opponentTitle = botPlayer.title ?? ""
-
-        botPlayer.simulationId = simulationId
-        botPlayer.team = Team.RED_TEAM
-        botPlayer.opponentId = humanPlayer.id
-        botPlayer.opponentName = humanPlayer.name
-        botPlayer.opponentAvatar = humanPlayer.avatar
-        botPlayer.opponentTitle = humanPlayer.title ?? ""
-
-        const simulation = new Simulation(
-          simulationId,
-          this,
-          humanPlayer.board,
-          botBoard,
-          humanPlayer,
-          botPlayer,
-          this.state.stageLevel,
-          weather,
-          false,
-          false // isBossBattle
-        )
-
-        this.state.simulations.set(simulation.id, simulation)
-        this.clock.setTimeout(() => {
-          if (this.state) this.state.simulationPaused = false
-          simulation.start()
-        }, 2500)
-      })
+      const rotationIndex =
+        (this.state.stageLevel - 1) % (botOrder.length || 1)
+      selectedBotId = botOrder[rotationIndex] ?? fallbackBot.id
     }
+
+    const botPlayer = this.state.players.get(selectedBotId) ?? fallbackBot
+    const botData = botPlayer.botData as IBot | undefined
+    const opponentName = botData?.name ?? botPlayer.name
+    const opponentAvatar = botData?.avatar ?? botPlayer.avatar
+    const opponentTitle = botPlayer.title ?? ""
+
+    humanPlayers.forEach((humanPlayer) => {
+      const botLineup = this.getPveBotLineup(botData, this.state.stageLevel)
+      const botBoard = botLineup
+        ? PokemonFactory.makePveBoard(botLineup, false, null)
+        : PokemonFactory.makePveBoard([], false, null)
+
+      const weather = getWeather(humanPlayer, null, botBoard, false)
+      const simulationId = nanoid()
+
+      humanPlayer.simulationId = simulationId
+      humanPlayer.team = Team.BLUE_TEAM
+      humanPlayer.opponentId = botPlayer.id
+      humanPlayer.opponentName = opponentName
+      humanPlayer.opponentAvatar = opponentAvatar
+      humanPlayer.opponentTitle = opponentTitle
+
+      const simulation = new Simulation(
+        simulationId,
+        this,
+        humanPlayer.board,
+        botBoard,
+        humanPlayer,
+        undefined,
+        this.state.stageLevel,
+        weather,
+        false,
+        false // isBossBattle
+      )
+
+      this.state.simulations.set(simulation.id, simulation)
+      this.clock.setTimeout(() => {
+        if (this.state) this.state.simulationPaused = false
+        simulation.start()
+      }, 2500)
+    })
+  }
+
+  refreshPveBotOrder(pveBots: Player[], shuffle = false) {
+    const botIds = pveBots.map((bot) => bot.id)
+    if (shuffle) shuffleArray(botIds)
+    resetArraySchema(this.state.pveBotOrder, botIds)
+  }
+
+  getPveBotLineup(botData: IBot | undefined, stageLevel: number) {
+    if (!botData) return null
+    if (botData.presetLineup && botData.presetLineup.length > 0) {
+      return botData.presetLineup
+    }
+    if (!botData.steps || botData.steps.length === 0) return null
+
+    let remainingRounds = Math.max(stageLevel, 1)
+    for (const step of botData.steps) {
+      const roundsRequired = Math.max(1, step.roundsRequired || 1)
+      if (remainingRounds <= roundsRequired) {
+        return step.board
+      }
+      remainingRounds -= roundsRequired
+    }
+
+    return botData.steps[botData.steps.length - 1]?.board ?? null
   }
 
   triggerBossBattle(humanPlayers: Player[]) {
@@ -1736,6 +1748,18 @@ export default class GameRoom extends Room<GameState> {
         simulation.start()
       }, 2500)
     })
+  }
+
+  handlePveBossBattle() {
+    const humanPlayers: Player[] = []
+    this.state.players.forEach((player: Player) => {
+      if (player.alive && !player.isBot) {
+        humanPlayers.push(player)
+      }
+    })
+
+    if (humanPlayers.length === 0) return
+    this.triggerBossBattle(humanPlayers)
   }
 
   handleRegularMatchups(matchups: any[]) {

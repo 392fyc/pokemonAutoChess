@@ -99,7 +99,9 @@ export default class Player extends Schema implements IPlayer {
   @type("string") spectatedPlayerId: string
   @type("uint8") boardSize: number = 0
   @type(["string"]) pveBotsEncountered = new ArraySchema<string>() // PVE模式中已遭遇的bot ID列表
-  botData?: any // 存储Bot的原始数据，包括presetLineup等
+  botData?: any // Store bot data (presetLineup, etc.)
+  bossFinishTime?: number
+  deathStage?: number
   @type(["string"]) items = new ArraySchema<Item>()
   @type("uint8") rank: number
   @type("uint16") elo: number

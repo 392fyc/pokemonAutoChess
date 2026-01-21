@@ -5,6 +5,7 @@ import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
   getRegionTint,
+  ItemStats,
   PortalCarouselStages,
   RegionDetails,
   SynergyTriggers
@@ -14,20 +15,20 @@ import {
   FlowerPotMons,
   FlowerPots
 } from "../../../../core/flower-pots"
-import { TownEncounters } from "../../../../core/town-encounters"
 import Player from "../../../../models/colyseus-models/player"
 import { PokemonAvatarModel } from "../../../../models/colyseus-models/pokemon-avatar"
 import PokemonFactory from "../../../../models/pokemon-factory"
 import { getPokemonData } from "../../../../models/precomputed/precomputed-pokemon-data"
 import { PVEStage, PVEStages } from "../../../../models/pve-stages"
 import GameState from "../../../../rooms/states/game-state"
-import { IPokemon } from "../../../../types"
+import { IPokemon, IPokemonEntity } from "../../../../types"
 import { DungeonMusic } from "../../../../types/enum/Dungeon"
 import {
   GameMode,
   GamePhaseState,
   Orientation,
   PokemonActionState,
+  PokemonTint,
   Stat,
   Team
 } from "../../../../types/enum/Game"
@@ -35,6 +36,7 @@ import { Item } from "../../../../types/enum/Item"
 import { Pkm, PkmByIndex } from "../../../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../../../types/enum/SpecialGameRule"
 import { Synergy } from "../../../../types/enum/Synergy"
+import { TownEncounters } from "../../../../types/enum/TownEncounter"
 import { Weather } from "../../../../types/enum/Weather"
 import type { NonFunctionPropNames } from "../../../../types/HelperTypes"
 import { isOnBench } from "../../../../utils/board"
@@ -924,7 +926,11 @@ export default class BoardManager {
         case "hp":
         case "maxHP": {
           const baseHP = getPokemonData(pokemon.name).hp
-          const sizeBuff = (pokemon.hp - baseHP) / baseHP
+          const hp = values(pokemon.items).reduce(
+            (acc, item) => acc + (ItemStats[item]?.[Stat.HP] ?? 0),
+            pokemon.hp
+          )
+          const sizeBuff = (hp - baseHP) / baseHP
           pokemonUI.sprite.setScale(2 + sizeBuff)
           if (previousValue != null && value && value > previousValue)
             pokemonUI.displayBoost(Stat.HP)
@@ -972,7 +978,26 @@ export default class BoardManager {
 
         case "index":
           if (previousValue != null && value !== previousValue) {
-            pokemonUI.evolutionAnimation()
+            // transformation or evolution mid-fight
+            // unload previous index animations
+            pokemonUI.unloadAnimations(
+              this.scene,
+              previousValue as IPokemonEntity["index"],
+              pokemonUI.pokemon.shiny ? PokemonTint.SHINY : PokemonTint.NORMAL // previous tint is still used here, this is the one we need to unload
+            )
+            pokemonUI.attackSprite =
+              PokemonAnimations[PkmByIndex[value as string]]?.attackSprite ??
+              pokemonUI.attackSprite
+            // load the new ones
+            pokemonUI.lazyloadAnimations(this.scene).then(() => {
+              pokemonUI.evolutionAnimation()
+              this.animationManager.animatePokemon(
+                pokemonUI,
+                pokemonUI.pokemon.action,
+                false,
+                false
+              )
+            })
           }
           break
 

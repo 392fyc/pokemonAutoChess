@@ -31,6 +31,18 @@ export default class LoadingManager {
       this.statusMessage = t("loading_complete")
     })
 
+    this.scene.load.on("loaderror", (file) => {
+      if (!file.key.startsWith("portrait-")) return
+      if (!this.scene.textures.exists("missing-portrait")) return
+      if (this.scene.textures.exists(file.key)) return
+
+      const fallback = this.scene.textures.get("missing-portrait")
+      const image = fallback.getSourceImage()
+      if (image) {
+        this.scene.textures.addImage(file.key, image)
+      }
+    })
+
     this.preload()
   }
 
@@ -60,6 +72,9 @@ export default class LoadingManager {
 
     scene.load.image("money", "/assets/icons/money.svg")
     scene.load.image("arrowDown", "/assets/ui/arrowDown.png")
+    if (!scene.textures.exists("missing-portrait")) {
+      scene.load.image("missing-portrait", "/assets/ui/missing-portrait.png")
+    }
 
     scene.load.spritesheet({
       key: "cell",

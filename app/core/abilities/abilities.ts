@@ -2417,7 +2417,7 @@ export class IcicleMissileStrategy extends AbilityStrategy {
                 crit
               )
             }
-          }, 1500)
+          }, 1000)
         )
       }
     }
@@ -5198,6 +5198,24 @@ export class HeadbuttStrategy extends AbilityStrategy {
     target.status.triggerFlinch(5000, target, pokemon)
   }
 }
+
+export class DizzyPunchStrategy extends AbilityStrategy {
+  process(
+    pokemon: PokemonEntity,
+    board: Board,
+    target: PokemonEntity,
+    crit: boolean
+  ) {
+    super.process(pokemon, board, target, crit)
+    let damage = [20, 40, 80][pokemon.stars - 1] ?? 80
+    if (target.shield > 0) {
+      damage *= 2
+    }
+    target.handleSpecialDamage(damage, board, AttackType.SPECIAL, pokemon, crit)
+    target.status.triggerConfusion(3000, target, pokemon)
+  }
+}
+
 
 export class TripleKickStrategy extends AbilityStrategy {
   process(
@@ -15803,7 +15821,7 @@ export class LingeringAromaStrategy extends AbilityStrategy {
     target: PokemonEntity,
     crit: boolean
   ) {
-    super.process(pokemon, board, target, crit, true)
+    super.process(pokemon, board, target, crit)
     // For the next 5 seconds, every melee attack received by the user makes the attacker receive [10,20,SP] special damage (scales with AP) and lose 5 PP
     const duration = 5000
     const damage = [10, 20, 30][pokemon.stars - 1] ?? 30
@@ -15830,6 +15848,27 @@ export class LingeringAromaStrategy extends AbilityStrategy {
         pokemon.effectsSet.delete(lingeringAromaEffect)
       }, duration)
     )
+  }
+}
+
+export class RagingBullStrategy extends AbilityStrategy {
+  process(
+    pokemon: PokemonEntity,
+    board: Board,
+    target: PokemonEntity,
+    crit: boolean
+  ) {
+    super.process(pokemon, board, target, crit)
+    //Destroy barriers like PROTECT, REFLECT, MAGIC_BOUNCE while inflicting ARMOR_BREAK for 3 seconds, then deal [20,40,80,SP] SPECIAL to the target
+    target.status.triggerArmorReduction(3000, pokemon)
+    target.status.reflectCooldown = 0
+    target.status.reflect = false
+    target.status.protectCooldown = 0
+    target.status.protect = false
+    target.status.magicBounce = false
+    target.status.magicBounceCooldown = 0
+    const damage = [20, 40, 80][pokemon.stars - 1] ?? 80
+    target.handleSpecialDamage(damage, board, AttackType.SPECIAL, pokemon, crit)
   }
 }
 
@@ -16219,6 +16258,7 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.METAL_BURST]: new MetalBurstStrategy(),
   [Ability.THUNDER_CAGE]: new ThunderCageStrategy(),
   [Ability.HEADBUTT]: new HeadbuttStrategy(),
+  [Ability.DIZZY_PUNCH]: new DizzyPunchStrategy(),
   [Ability.STEEL_WING]: new SteelWingStrategy(),
   [Ability.YAWN]: new YawnStrategy(),
   [Ability.FIERY_DANCE]: new FieryDanceStrategy(),
@@ -16362,11 +16402,11 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.POWDER_SNOW]: new PowderSnowStrategy(),
   [Ability.POWDER]: new PowderStrategy(),
   [Ability.LINGERING_AROMA]: new LingeringAromaStrategy(),
-  // Boss专属技能
   [Ability.BOSS_TELEPORT]: new BossTeleportStrategy(),
   [Ability.BOSS_MEDITATE]: new BossMeditateStrategy(),
   [Ability.BOSS_PSYCHIC]: new BossPsychicStrategy(),
-  [Ability.BOSS_AURASPHERE]: new BossAuraSphereStrategy()
+  [Ability.BOSS_AURASPHERE]: new BossAuraSphereStrategy(),
+  [Ability.RAGING_BULL]: new RagingBullStrategy()
 }
 
 export function castAbility(

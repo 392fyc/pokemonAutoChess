@@ -11,6 +11,11 @@
 - Vivillon (20 different forms)
 - Lechonk
 - Oinkologne (Male form only)
+- Tauros Combat Breed
+- Tauros Blaze Breed
+- Tauros Aqua Breed
+- Wooloo
+- Dubwool
 
 # Changes to Pokemon & Abilities
 
@@ -63,6 +68,12 @@
 - Buff Smoochum line: Speed 55 → 61, PP 80 → 70
 - Buff Ogerpon Hearthflame passive: 20 → 30 special damage to adjacent enemies
 - Scizor, Kleavor, Galarian Moltres, Galarian Zapdos, Galarian Articuno and Walking Wake are now found in more regions.
+- Tauros now is Wild/Normal/Field. Adjusted stats.
+- Kangashkan is now Normal/Monster/Fighting;. New ability: Dizzy Punch: Deal 20/40/80 special damage to the target and inflict them with Confusion for 3 seconds. The damage is doubled if the target has a Shield.
+- Nerf Xerneas: HP 300 → 200
+- Change Fur Coat (Furfrou, Wooloo): now gains 2 def and loses 5 speed until it reaches max stacks (5 for Furfrou, 10 for Wooloo). If groomed at max stacks, player gains a Silk Scarf.
+- Buff Poipole: every ~~3~~ 2 stacks, gain 1 ATK permanently. Evolves at ~~30~~ 20 stacks.
+- Buff Screamtail: HP 190 → 210
 
 # Changes to Synergies
 
@@ -73,7 +84,8 @@
     - Normal (9) gain 30 shield. Get a fourth Scarf. All scarves holders gain 30% increased base Attack and 30 AP.
 - New synergy effect Grass 9 Overflow: Once below 30% max HP, gain 50 AP. Your berry trees turn golden.
 - Nerf Grass 7: 30 → 25 HP healed every 2 seconds
-- Buff field: healing on field unit KO increased: 30/35/40 → 30/40/50
+- Buff Field: healing on field unit KO increased: 30/35/40 → 30/40/50
+- Buff Fossil: Fossil effects are now triggered at 30% HP instead of 0% HP.
 - Change Snow weather effect: -20 Speed (-10 if Ice) instead of -20 for all
 
 # Changes to Items
@@ -111,6 +123,8 @@
 - Buff Explorer Kit: give 3 Attack, 5 Defense and 5 Special Defense as base stats
 - Nerf Spell Tag: Curse duration increased: 9 → 10 seconds
 - Replace TM Brick Break with TM Return: deal 20/40/80 special damage, then gain 2 AP permanently.
+- Icicle missile (Vanillite) travels faster: 1.5 second → 1 second
+- Buff Shiny Stone: now also gives 50 AP
 
 # Gameplay
 
@@ -123,7 +137,7 @@
 - Removed the reward change between component and full item on stage 19 PvE, based on the amount of components collected. It is too easy to manipulate with Silk Scarf, Unown-I and ground digging. Stage 19 PvE now always offers a full craftable item as a reward.
 - New town encounter: Cinccino
 - Makuhita can now be encountered at stage 17, and no longer at stage 22
-- Portal symbols generation at stage 20 has been reworked to more consistently provide symbols for your top synergies in horizontal compositions such as Dragon/Amorphous.
+- Portal symbols generation at stage 20 has been reworked. Issue 1 : In horizontal compositions such as Dragon/Amorphous, too many synergy steps are activated, leading to very inconsistent symbol generation. Solution: truncate the symbols pool size to max 7, ordered by top synergy as shown in the synergy menu. Issue 2 :Vertical comps are too consistent in symbol generation, especially when several players play the same synergy. Solution: limit the amount of symbols of the same synergy to the number of players alive.
 
 # UI
 
@@ -132,6 +146,8 @@
 - Added a tooltip on the experience bar to show gold needed to level up and number of clicks required
 - New animation for Fairy field
 - Wigglypuff mission gold reward is now automatically granted when the mission is completed, instead of requiring to click on Chatot
+- Improve the filters on Wiki Pokémon and synergies pages. Can now filter alternative forms.
+- Poison status now has a different animation when badly poisoned (3 stacks or more)
 
 # Bugfix
 
@@ -141,6 +157,9 @@
 - Fix the display of buried items when the digger is equipped with explorer kit.
 - Fixed arrow key keybinds not working when bound via the options (Previous player's board, Next player's board)
 - Berry trees can no longer share the same berry type.
+- Additional bonus damage on Fairy shocks provided by Fairy synergy effects now apply to the shock damage, and not the incoming damage.
+- Crit damage reduction from Rock synergy effects now apply to the final crit damage after crit power is applied, instead of before.
+
 
 # Misc
 
@@ -150,4 +169,17 @@
 - New title: Top Gun - Get to Mach 10 with a Mach Ribbon
 - New title: Scout - Equip your team with at least 5 Silk Scarf made items
 - Added a new meta report section, with a cluster map
-- Change to the boosters: color variants are now picked after picking the Pokémon, rather than adding all variants to the pool first. This reduces the frequency of Pokémon with multiple color variants (such as Flabebe or Vivillon) appearing in boosters.
+- Added a chart for pokemon report and item report, count function of average place
+- Change to the boosters: alternative forms are now picked after picking the Pokémon, rather than adding all variants to the pool first. This reduces the frequency of Pokémon with multiple alternative forms (such as Flabebe or Vivillon) appearing in boosters.
+- New town encounter: Magnezone
+
+# Pokemon Alternative Forms
+
+We are introducing the notion of Pokémon alternative forms in the game. Alternative Forms are mostly aesthetic variations of the same Pokémon, that will be merged in your Collection and in various other places, like the Pokéguesser gadget.
+
+- Collection shards can now be used to buy any alternative form of a Pokémon.
+- All the existing shards you had on an alternative form will be attributed to the base form.
+- Pokéguesser now accepts any alternative form of the Pokémon to guess as a correct answer.
+- Silvally now has 18 alternative forms based on its first synergy item given at evolution.
+- Arceus now has 18 alternative forms based on its first synergy given.
+- List of Pokémon with different alternative forms: Flabebe, Floette, Florges, Minior, Silvally, Arceus, Alcremie, Ogerpon, Basculin, Basculegion, Darmanitan, Maushold, Hoopa, Aegislash, Vivillon, Mimikyu, Deoxys, Lycanroc

@@ -4,6 +4,7 @@ import {
   DEFAULT_CRIT_CHANCE,
   DEFAULT_CRIT_POWER,
   DEFAULT_SPEED,
+  getAltFormForPlayer,
   RegionDetails,
   SynergyTriggers
 } from "../../config"
@@ -56,7 +57,7 @@ import { distanceC } from "../../utils/distance"
 import { clamp, min } from "../../utils/number"
 import { values } from "../../utils/schemas"
 import { SynergyEffects } from "../effects"
-import PokemonFactory, { getColorVariantForPlayer } from "../pokemon-factory"
+import PokemonFactory from "../pokemon-factory"
 import Player from "./player"
 
 export class Pokemon extends Schema implements IPokemon {
@@ -788,7 +789,7 @@ export class Kleavor extends Pokemon {
     const regionSynergies = RegionDetails[map]?.synergies
     return (
       regionSynergies.includes(Synergy.ROCK) ||
-      regionSynergies.includes(Synergy.GROUND) ||
+      regionSynergies.includes(Synergy.FOSSIL) ||
       regionSynergies.includes(Synergy.DARK)
     )
   }
@@ -5863,17 +5864,91 @@ export class Regirock extends Pokemon {
 }
 
 export class Tauros extends Pokemon {
-  types = new SetSchema<Synergy>([Synergy.NORMAL, Synergy.FIELD])
+  types = new SetSchema<Synergy>([Synergy.WILD, Synergy.NORMAL, Synergy.FIELD])
   rarity = Rarity.UNIQUE
   stars = 3
   hp = 200
-  atk = 17
+  atk = 16
   speed = 60
-  def = 14
+  def = 10
   speDef = 4
   maxPP = 100
   range = 1
-  skill = Ability.HEAD_SMASH
+  skill = Ability.RAGING_BULL
+}
+
+export class TaurosCombatBreed extends Pokemon {
+  types = new SetSchema<Synergy>([
+    Synergy.WILD,
+    Synergy.FIGHTING,
+    Synergy.FIELD
+  ])
+  rarity = Rarity.UNIQUE
+  stars = 3
+  hp = 200
+  atk = 16
+  speed = 60
+  def = 10
+  speDef = 4
+  maxPP = 100
+  range = 1
+  skill = Ability.RAGING_BULL
+  regional = true
+  isInRegion(map: DungeonPMDO, state: GameState) {
+    const regionSynergies = RegionDetails[map]?.synergies ?? []
+    return (
+      regionSynergies.includes(Synergy.FIGHTING) ||
+      regionSynergies.includes(Synergy.ROCK)
+    )
+  }
+}
+
+export class TaurosBlazeBreed extends Pokemon {
+  types = new SetSchema<Synergy>([Synergy.WILD, Synergy.FIRE, Synergy.FIGHTING])
+  rarity = Rarity.UNIQUE
+  stars = 3
+  hp = 200
+  atk = 16
+  speed = 60
+  def = 10
+  speDef = 4
+  maxPP = 100
+  range = 1
+  skill = Ability.RAGING_BULL
+  regional = true
+  isInRegion(map: DungeonPMDO, state: GameState) {
+    const regionSynergies = RegionDetails[map]?.synergies ?? []
+    return (
+      regionSynergies.includes(Synergy.FIRE) ||
+      regionSynergies.includes(Synergy.LIGHT)
+    )
+  }
+}
+
+export class TaurosAquaBreed extends Pokemon {
+  types = new SetSchema<Synergy>([
+    Synergy.WILD,
+    Synergy.WATER,
+    Synergy.FIGHTING
+  ])
+  rarity = Rarity.UNIQUE
+  stars = 3
+  hp = 200
+  atk = 16
+  speed = 60
+  def = 10
+  speDef = 4
+  maxPP = 100
+  range = 1
+  skill = Ability.RAGING_BULL
+  regional = true
+  isInRegion(map: DungeonPMDO, state: GameState) {
+    const regionSynergies = RegionDetails[map]?.synergies ?? []
+    return (
+      regionSynergies.includes(Synergy.WATER) ||
+      regionSynergies.includes(Synergy.AQUATIC)
+    )
+  }
 }
 
 export class Heracross extends Pokemon {
@@ -8486,7 +8561,7 @@ export class Xerneas extends Pokemon {
   types = new SetSchema<Synergy>([Synergy.FAIRY, Synergy.LIGHT, Synergy.FLORA])
   rarity = Rarity.LEGENDARY
   stars = 3
-  hp = 300
+  hp = 200
   atk = 22
   speed = 57
   def = 6
@@ -9190,7 +9265,7 @@ export class Poipole extends Pokemon {
   stars = 2
   evolution = Pkm.NAGANADEL
   evolutionRule = new StackBasedEvolutionRule()
-  stacksRequired: number = 30
+  stacksRequired: number = 20
   hp = 160
   atk = 10
   speed = 64
@@ -9957,7 +10032,57 @@ export class TypeNull extends Pokemon {
   rarity = Rarity.LEGENDARY
   stars = 2
   evolution = Pkm.SILVALLY
-  evolutionRule = new ItemEvolutionRule([...SynergyItems])
+  evolutionRule = new ItemEvolutionRule(
+    [...SynergyItems],
+    (pokemon, player, item) => {
+      switch (SynergyGivenByItem[item]) {
+        case Synergy.BUG:
+          return Pkm.SILVALLY_BUG
+        case Synergy.DARK:
+          return Pkm.SILVALLY_DARK
+        case Synergy.DRAGON:
+        case Synergy.FOSSIL:
+          return Pkm.SILVALLY_DRAGON
+        case Synergy.ELECTRIC:
+          return Pkm.SILVALLY_ELECTRIC
+        case Synergy.FAIRY:
+        case Synergy.AMORPHOUS:
+          return Pkm.SILVALLY_FAIRY
+        case Synergy.FIGHTING:
+        case Synergy.WILD:
+          return Pkm.SILVALLY_FIGHTING
+        case Synergy.FIRE:
+        case Synergy.GOURMET:
+          return Pkm.SILVALLY_FIRE
+        case Synergy.FLYING:
+          return Pkm.SILVALLY_FLYING
+        case Synergy.GHOST:
+          return Pkm.SILVALLY_GHOST
+        case Synergy.GRASS:
+        case Synergy.FLORA:
+          return Pkm.SILVALLY_GRASS
+        case Synergy.GROUND:
+        case Synergy.FIELD:
+          return Pkm.SILVALLY_GROUND
+        case Synergy.ICE:
+          return Pkm.SILVALLY_ICE
+        case Synergy.POISON:
+        case Synergy.MONSTER:
+          return Pkm.SILVALLY_POISON
+        case Synergy.PSYCHIC:
+          return Pkm.SILVALLY_PSYCHIC
+        case Synergy.ROCK:
+          return Pkm.SILVALLY_ROCK
+        case Synergy.STEEL:
+        case Synergy.ARTIFICIAL:
+          return Pkm.SILVALLY_STEEL
+        case Synergy.WATER:
+        case Synergy.AQUATIC:
+          return Pkm.SILVALLY_WATER
+      }
+      return Pkm.SILVALLY
+    }
+  )
   hp = 260
   atk = 20
   speed = 55
@@ -10003,7 +10128,8 @@ export class Silvally extends Pokemon {
       values(this.items).filter((item) =>
         (SynergyItems as ReadonlyArray<Item>).includes(item)
       ).length === 0 &&
-      player.getPokemonAt(this.positionX, this.positionY)?.name === Pkm.SILVALLY
+      player.getPokemonAt(this.positionX, this.positionY)?.name !==
+        Pkm.TYPE_NULL
     ) {
       player.transformPokemon(this, Pkm.TYPE_NULL)
     }
@@ -14156,9 +14282,9 @@ export class Lickilicky extends Pokemon {
 
 export class Kangaskhan extends Pokemon {
   types = new SetSchema<Synergy>([
-    Synergy.WILD,
     Synergy.FIGHTING,
-    Synergy.NORMAL
+    Synergy.NORMAL,
+    Synergy.MONSTER
   ])
   rarity = Rarity.UNIQUE
   stars = 3
@@ -14169,7 +14295,7 @@ export class Kangaskhan extends Pokemon {
   speDef = 8
   maxPP = 100
   range = 1
-  skill = Ability.HEADBUTT
+  skill = Ability.DIZZY_PUNCH
 }
 
 export class Teddiursa extends Pokemon {
@@ -18037,7 +18163,7 @@ export class ScreamTail extends Pokemon {
   ])
   rarity = Rarity.UNIQUE
   stars = 3
-  hp = 190
+  hp = 210
   atk = 14
   speed = 71
   def = 8
@@ -18425,6 +18551,7 @@ export class Furfrou extends Pokemon {
   range = 1
   skill = Ability.COTTON_GUARD
   passive = Passive.FUR_COAT
+  stacksRequired: number = 5
 }
 
 export class Varoom extends Pokemon {
@@ -19566,7 +19693,7 @@ export class Spewpa extends Pokemon {
     Pkm.VIVILLON_POKE_BALL
   ]
   evolutionRule = new HatchEvolutionRule((pokemon, player) => {
-    return getColorVariantForPlayer(Pkm.VIVILLON, player)
+    return getAltFormForPlayer(Pkm.VIVILLON, player)
   })
   hp = 125
   atk = 11
@@ -19986,6 +20113,41 @@ export class OinkologneFemale extends Pokemon {
   additional = true
 }
 
+export class Wooloo extends Pokemon {
+  types = new SetSchema<Synergy>([Synergy.NORMAL, Synergy.FIELD])
+  rarity = Rarity.UNCOMMON
+  stars = 1
+  evolution = Pkm.DUBWOOL
+  hp = 60
+  atk = 5
+  speed = 56
+  def = 4
+  speDef = 3
+  maxPP = 100
+  range = 1
+  skill = Ability.HEADBUTT
+  passive = Passive.FUR_COAT
+  stacksRequired: number = 10
+  additional = true
+}
+
+export class Dubwool extends Pokemon {
+  types = new SetSchema<Synergy>([Synergy.NORMAL, Synergy.FIELD])
+  rarity = Rarity.UNCOMMON
+  stars = 2
+  hp = 160
+  atk = 14
+  speed = 56
+  def = 8
+  speDef = 5
+  maxPP = 100
+  range = 1
+  skill = Ability.HEADBUTT
+  passive = Passive.FUR_COAT
+  stacksRequired: number = 10
+  additional = true
+}
+
 export const PokemonClasses: Record<
   Pkm,
   new (
@@ -20254,6 +20416,23 @@ export const PokemonClasses: Record<
   [Pkm.VICTINI]: Victini,
   [Pkm.JIRACHI]: Jirachi,
   [Pkm.ARCEUS]: Arceus,
+  [Pkm.ARCEUS_BUG]: Arceus,
+  [Pkm.ARCEUS_DARK]: Arceus,
+  [Pkm.ARCEUS_DRAGON]: Arceus,
+  [Pkm.ARCEUS_ELECTRIC]: Arceus,
+  [Pkm.ARCEUS_FIGHTING]: Arceus,
+  [Pkm.ARCEUS_FIRE]: Arceus,
+  [Pkm.ARCEUS_FLYING]: Arceus,
+  [Pkm.ARCEUS_GHOST]: Arceus,
+  [Pkm.ARCEUS_GRASS]: Arceus,
+  [Pkm.ARCEUS_GROUND]: Arceus,
+  [Pkm.ARCEUS_ICE]: Arceus,
+  [Pkm.ARCEUS_POISON]: Arceus,
+  [Pkm.ARCEUS_PSYCHIC]: Arceus,
+  [Pkm.ARCEUS_ROCK]: Arceus,
+  [Pkm.ARCEUS_STEEL]: Arceus,
+  [Pkm.ARCEUS_WATER]: Arceus,
+  [Pkm.ARCEUS_FAIRY]: Arceus,
   [Pkm.SHAYMIN]: Shaymin,
   [Pkm.SHAYMIN_SKY]: ShayminSky,
   [Pkm.CRESSELIA]: Cresselia,
@@ -20407,6 +20586,9 @@ export const PokemonClasses: Record<
   [Pkm.CACTURNE]: Cacturne,
   [Pkm.RELICANTH]: Relicanth,
   [Pkm.TAUROS]: Tauros,
+  [Pkm.TAUROS_AQUA_BREED]: TaurosAquaBreed,
+  [Pkm.TAUROS_BLAZE_BREED]: TaurosBlazeBreed,
+  [Pkm.TAUROS_COMBAT_BREED]: TaurosCombatBreed,
   [Pkm.HAPPINY]: Happiny,
   [Pkm.CHANSEY]: Chansey,
   [Pkm.BLISSEY]: Blissey,
@@ -20758,6 +20940,23 @@ export const PokemonClasses: Record<
   [Pkm.ARIADOS]: Ariados,
   [Pkm.TYPE_NULL]: TypeNull,
   [Pkm.SILVALLY]: Silvally,
+  [Pkm.SILVALLY_FIGHTING]: Silvally,
+  [Pkm.SILVALLY_FLYING]: Silvally,
+  [Pkm.SILVALLY_POISON]: Silvally,
+  [Pkm.SILVALLY_GROUND]: Silvally,
+  [Pkm.SILVALLY_ROCK]: Silvally,
+  [Pkm.SILVALLY_BUG]: Silvally,
+  [Pkm.SILVALLY_GHOST]: Silvally,
+  [Pkm.SILVALLY_STEEL]: Silvally,
+  [Pkm.SILVALLY_FIRE]: Silvally,
+  [Pkm.SILVALLY_WATER]: Silvally,
+  [Pkm.SILVALLY_GRASS]: Silvally,
+  [Pkm.SILVALLY_ELECTRIC]: Silvally,
+  [Pkm.SILVALLY_PSYCHIC]: Silvally,
+  [Pkm.SILVALLY_ICE]: Silvally,
+  [Pkm.SILVALLY_DRAGON]: Silvally,
+  [Pkm.SILVALLY_DARK]: Silvally,
+  [Pkm.SILVALLY_FAIRY]: Silvally,
   [Pkm.DEWPIDER]: Dewpider,
   [Pkm.ARAQUANID]: Araquanid,
   [Pkm.ROCKRUFF]: Rockruff,
@@ -21101,8 +21300,10 @@ export const PokemonClasses: Record<
   [Pkm.VIVILLON_FANCY]: VivillonFancy,
   [Pkm.VIVILLON_POKE_BALL]: VivillonPokeball,
   [Pkm.LECHONK]: Lechonk,
-  [Pkm.OINKOLOGNE_MALE]: OinkologneMale
-  //[Pkm.OINKOLOGNE_FEMALE]: OinkologneFemale
+  [Pkm.OINKOLOGNE_MALE]: OinkologneMale,
+  //[Pkm.OINKOLOGNE_FEMALE]: OinkologneFemale,
+  [Pkm.WOOLOO]: Wooloo,
+  [Pkm.DUBWOOL]: Dubwool
 }
 
 // declare all the classes in colyseus schema TypeRegistry

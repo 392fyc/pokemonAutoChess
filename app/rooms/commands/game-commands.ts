@@ -8,10 +8,13 @@ import {
   BOARD_WIDTH,
   FIGHTING_PHASE_DURATION,
   GOLDEN_BERRY_TREE_TYPES,
+  getAltFormForPlayer,
   ITEM_CAROUSEL_BASE_DURATION,
   ItemCarouselStages,
   ItemSellPricesAtTown,
   MAX_PLAYERS_PER_GAME,
+  OUTLAW_GOLD_REWARD,
+  PkmAltFormsByPkm,
   PORTAL_CAROUSEL_BASE_DURATION,
   PortalCarouselStages,
   SHARDS_PER_SHINY_UNOWN_WANDERER,
@@ -37,7 +40,6 @@ import { getFlowerPotsUnlocked } from "../../core/flower-pots"
 import { selectMatchups } from "../../core/matchmaking"
 import { canSell } from "../../core/pokemon-entity"
 import Simulation from "../../core/simulation"
-import { TownEncounters } from "../../core/town-encounters"
 import { getLevelUpCost } from "../../models/colyseus-models/experience-manager"
 import Player from "../../models/colyseus-models/player"
 import { Pokemon, PokemonClasses } from "../../models/colyseus-models/pokemon"
@@ -45,9 +47,7 @@ import { Wanderer } from "../../models/colyseus-models/wanderer"
 import { IDetailledPokemon } from "../../models/mongo-models/bot-v2"
 import UserMetadata from "../../models/mongo-models/user-metadata"
 import PokemonFactory, {
-  getColorVariantForPlayer,
-  getPokemonBaseline,
-  PkmColorVariantsByPkm
+  getPokemonBaseline
 } from "../../models/pokemon-factory"
 import { PVEStages } from "../../models/pve-stages"
 import { getBuyPrice, getSellPrice } from "../../models/shop"
@@ -99,6 +99,7 @@ import {
 } from "../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
+import { TownEncounters } from "../../types/enum/TownEncounter"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
 import { isIn, removeInArray } from "../../utils/array"
 import { getAvatarString } from "../../utils/avatar"
@@ -113,7 +114,12 @@ import {
 import { repeat } from "../../utils/function"
 import { logger } from "../../utils/logger"
 import { max } from "../../utils/number"
-import { chance, pickNRandomIn, pickRandomIn } from "../../utils/random"
+import {
+  chance,
+  pickNRandomIn,
+  pickRandomIn,
+  randomBetween
+} from "../../utils/random"
 import { resetArraySchema, values } from "../../utils/schemas"
 import { getWeather } from "../../utils/weather"
 import GameRoom from "../game-room"
@@ -267,6 +273,9 @@ export class OnPokemonCatchCommand extends Command<
         pokemon.onAcquired(player)
         this.room.checkEvolutionsAfterPokemonAcquired(playerId)
       }
+    } else if (wanderer.type === WandererType.OUTLAW) {
+      player.addMoney(OUTLAW_GOLD_REWARD, true, null)
+      removeInArray(player.items, Item.WANTED_NOTICE)
     }
   }
 }
@@ -316,8 +325,8 @@ export class OnDragDropPokemonCommand extends Command<
           if (pokemonToClone && pokemonToClone.canBeCloned) {
             dittoReplaced = true
             let pkm = getPokemonBaseline(pokemonToClone.name)
-            if (pkm in PkmColorVariantsByPkm) {
-              pkm = getColorVariantForPlayer(pkm, player)
+            if (pkm in PkmAltFormsByPkm) {
+              pkm = getAltFormForPlayer(pkm, player)
             }
             const replaceDitto = PokemonFactory.createPokemonFromName(
               pkm,
@@ -1858,6 +1867,207 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       const matchups = selectMatchups(this.state)
       this.state.simulationPaused = true // 2 seconds pause for portal transition animation
       this.room.handleRegularMatchups(matchups)
+    }
+  }
+
+  spawnWanderingPokemons() {
+    const isPVE = this.state.stageLevel in PVEStages
+
+    this.state.players.forEach((player: Player) => {
+      if (player.alive && !player.isBot) {
+        const client = this.room.clients.find(
+          (cli) => cli.auth.uid === player.id
+        )
+        if (!client) return
+
+        if (chance(UNOWN_ENCOUNTER_CHANCE)) {
+          const pkm = pickRandomIn(Unowns)
+          const shiny = chance(SHINY_UNOWN_ENCOUNTER_CHANCE)
+          const id = nanoid()
+          const wanderer = new Wanderer({
+            id,
+            pkm,
+            shiny,
+            type: WandererType.UNOWN,
+            behavior: WandererBehavior.RUN_THROUGH
+          })
+
+          this.clock.setTimeout(
+            () => player.wanderers.set(id, wanderer),
+            Math.round((5 + 15 * Math.random()) * 1000)
+          )
+        }
+
+        if (this.state.outlawStage != null) {
+          if (this.state.stageLevel === this.state.outlawStage) {
+            const id = nanoid()
+            const wanderer = new Wanderer({
+              id,
+              pkm: Pkm.DROWZEE,
+              shiny: false,
+              type: WandererType.OUTLAW,
+              behavior: WandererBehavior.RUN_THROUGH
+            })
+
+            this.clock.setTimeout(
+              () => player.wanderers.set(id, wanderer),
+              Math.round((5 + 15 * Math.random()) * 1000)
+            )
+          } else if (this.state.stageLevel < this.state.outlawStage) {
+            const magnezoneChance = chance(this.state.stageLevel * 0.04)
+            if (magnezoneChance) {
+              const id = nanoid()
+              const wanderer = new Wanderer({
+                id,
+                pkm: Pkm.MAGNEZONE,
+                shiny: false,
+                type: WandererType.DIALOG,
+                behavior: WandererBehavior.RUN_THROUGH
+              })
+              this.clock.setTimeout(
+                () => player.wanderers.set(id, wanderer),
+                Math.round((5 + 15 * Math.random()) * 1000)
+              )
+            } else {
+              for (let i = 0; i < randomBetween(1, 3); i++) {
+                const id = nanoid()
+                const wanderer = new Wanderer({
+                  id,
+                  pkm: Pkm.MAGNEMITE,
+                  shiny: false,
+                  type: WandererType.DIALOG,
+                  behavior: WandererBehavior.RUN_THROUGH
+                })
+                this.clock.setTimeout(
+                  () => player.wanderers.set(id, wanderer),
+                  Math.round((5 + 15 * Math.random()) * 1000)
+                )
+              }
+            }
+          } else if (this.state.stageLevel > this.state.outlawStage) {
+            removeInArray(player.items, Item.WANTED_NOTICE)
+          }
+        }
+
+        if (
+          isPVE &&
+          this.state.specialGameRule === SpecialGameRule.GOTTA_CATCH_EM_ALL
+        ) {
+          const nbPokemonsToSpawn = Math.ceil(this.state.stageLevel / 2)
+          for (let i = 0; i < nbPokemonsToSpawn; i++) {
+            const id = nanoid()
+            const pkm = this.state.shop.pickPokemon(
+              player,
+              this.state,
+              -1,
+              true
+            )
+            const wanderer = new Wanderer({
+              id,
+              pkm,
+              shiny: chance(0.01),
+              type: WandererType.CATCHABLE,
+              behavior: WandererBehavior.RUN_THROUGH
+            })
+
+            this.clock.setTimeout(
+              () => player.wanderers.set(id, wanderer),
+              4000 + i * 400
+            )
+          }
+        }
+      }
+    })
+  }
+
+  spawnBabyEggs(player: Player, isPVE: boolean) {
+    const hasBabyActive =
+      player.effects.has(EffectEnum.HATCHER) ||
+      player.effects.has(EffectEnum.BREEDER) ||
+      player.effects.has(EffectEnum.GOLDEN_EGGS)
+    const hasLostLastBattle =
+      player.history.at(-1)?.result === BattleResult.DEFEAT
+    const eggsOnBench = values(player.board).filter((p) => p.name === Pkm.EGG)
+    const nbOfGoldenEggsOnBench = eggsOnBench.filter((p) => p.shiny).length
+    let nbEggsFound = 0
+    let goldenEggFound = false
+
+    if (hasLostLastBattle && hasBabyActive) {
+      const EGG_CHANCE = 0.1
+      const GOLDEN_EGG_CHANCE = 0.05
+      const playerEggChanceStacked = player.eggChance
+      const playerGoldenEggChanceStacked = player.goldenEggChance
+      const babies = values(player.board).filter(
+        (p) => !isOnBench(p) && p.types.has(Synergy.BABY)
+      )
+
+      for (const baby of babies) {
+        if (
+          player.effects.has(EffectEnum.GOLDEN_EGGS) &&
+          nbOfGoldenEggsOnBench === 0 &&
+          chance(GOLDEN_EGG_CHANCE, baby)
+        ) {
+          nbEggsFound++
+          goldenEggFound = true
+        } else if (chance(EGG_CHANCE, baby)) {
+          nbEggsFound++
+        }
+        if (player.effects.has(EffectEnum.GOLDEN_EGGS) && !goldenEggFound) {
+          player.goldenEggChance += max(0.1)(
+            Math.pow(GOLDEN_EGG_CHANCE, 1 - baby.luck / 200)
+          )
+        } else if (
+          player.effects.has(EffectEnum.HATCHER) &&
+          nbEggsFound === 0
+        ) {
+          player.eggChance += max(0.2)(
+            Math.pow(EGG_CHANCE, 1 - baby.luck / 100)
+          )
+        }
+      }
+
+      // Second chance with chance stacked after lose streaks
+      if (
+        nbEggsFound === 0 &&
+        (player.effects.has(EffectEnum.BREEDER) ||
+          player.effects.has(EffectEnum.GOLDEN_EGGS) ||
+          chance(playerEggChanceStacked))
+      ) {
+        nbEggsFound = 1 // baby >= 5 guarantees at least 1 egg after a defeat
+      }
+      if (
+        goldenEggFound === false &&
+        player.effects.has(EffectEnum.GOLDEN_EGGS) &&
+        nbOfGoldenEggsOnBench === 0 &&
+        chance(playerGoldenEggChanceStacked)
+      ) {
+        goldenEggFound = true
+      }
+    } else if (!isPVE) {
+      // winning a PvP fight resets the stacked egg chance
+      player.eggChance = 0
+      player.goldenEggChance = 0
+    }
+
+    if (
+      this.state.specialGameRule === SpecialGameRule.OMELETTE_COOK &&
+      [2, 3, 4].includes(this.state.stageLevel)
+    ) {
+      nbEggsFound = 1
+    }
+
+    for (let i = 0; i < nbEggsFound; i++) {
+      if (getFreeSpaceOnBench(player.board) === 0) continue
+      const isGoldenEgg =
+        goldenEggFound && i === 0 && nbOfGoldenEggsOnBench === 0
+      giveRandomEgg(player, isGoldenEgg)
+      if (player.effects.has(EffectEnum.HATCHER)) {
+        player.eggChance = 0 // getting an egg resets the stacked egg chance
+      }
+      if (player.effects.has(EffectEnum.GOLDEN_EGGS) && isGoldenEgg) {
+        player.goldenEggChance = 0 // getting a golden egg resets the stacked egg chance
+      }
+>>>>>>> master
     }
   }
 }

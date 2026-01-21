@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   fetchMetaV2,
   IMetaV2
@@ -7,9 +7,9 @@ import { Pkm, PkmIndex } from "../../../../../types/enum/Pokemon"
 import { Synergy } from "../../../../../types/enum/Synergy"
 import SynergyIcon from "../icons/synergy-icon"
 import PokemonPortrait from "../pokemon-portrait"
+import "./cluster-map.css"
 import { MetaChart } from "./meta-chart"
 import { rankType } from "./team-comp"
-import "./cluster-map.css"
 
 export function ClusterMap() {
   const [loading, setLoading] = useState<boolean>(true)

@@ -261,6 +261,7 @@ export enum Item {
   BRONZE_DOJO_TICKET = "BRONZE_DOJO_TICKET",
   SILVER_DOJO_TICKET = "SILVER_DOJO_TICKET",
   GOLD_DOJO_TICKET = "GOLD_DOJO_TICKET",
+  WANTED_NOTICE = "WANTED_NOTICE",
   MEMORY_DISCS = "MEMORY_DISCS",
   FIRE_MEMORY = "FIRE_MEMORY",
   FOSSIL_MEMORY = "FOSSIL_MEMORY",
@@ -392,7 +393,8 @@ export const TownItems = [
   ...DojoTickets,
   ...MissionOrders,
   Item.EGG_FOR_SELL,
-  Item.PICNIC_SET
+  Item.PICNIC_SET,
+  Item.WANTED_NOTICE
 ] satisfies Item[]
 
 // should be excluded from carousels
@@ -1062,7 +1064,8 @@ export const UnholdableItems = [
   Item.EXCHANGE_TICKET,
   Item.COIN,
   Item.NUGGET,
-  Item.BIG_NUGGET
+  Item.BIG_NUGGET,
+  Item.WANTED_NOTICE
 ] satisfies Item[]
 
 export const ConsumableItems = [

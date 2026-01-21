@@ -11,6 +11,7 @@ import {
 } from "matter-js"
 import {
   ItemCarouselStages,
+  MAX_PLAYERS_PER_GAME,
   PortalCarouselStages,
   RegionDetails,
   TownEncounterSellPrice,
@@ -24,7 +25,7 @@ import GameRoom from "../rooms/game-room"
 import GameState from "../rooms/states/game-state"
 import { Transfer } from "../types"
 import { DungeonPMDO } from "../types/enum/Dungeon"
-import { PokemonActionState } from "../types/enum/Game"
+import { GameMode, PokemonActionState } from "../types/enum/Game"
 import {
   CraftableItemsNoScarves,
   CraftableNoStonesOrScarves,
@@ -53,6 +54,7 @@ import {
   shuffleArray
 } from "../utils/random"
 import { keys, values } from "../utils/schemas"
+import { isPveBotId } from "../utils/pve"
 import { giveRandomEgg } from "./eggs"
 import { spawnDIAYAvatar } from "./scribbles"
 
@@ -73,6 +75,7 @@ export class MiniGame {
   symbolsByPortal: Map<string, SynergySymbol[]> = new Map()
   bodies: Map<string, Body>
   alivePlayers: Player[]
+  selectionPlayersCount = 0
   engine: Engine
   centerX: number = 335
   centerY: number = 235
@@ -262,10 +265,19 @@ export class MiniGame {
     this.rotationDirection = 1
     this.alivePlayers = new Array<Player>()
     players.forEach((p) => {
-      if (p.alive) {
-        this.alivePlayers.push(p)
+      if (!p.alive) return
+      if (
+        state.gameMode === GameMode.PVE_MODE &&
+        (p.isBot || isPveBotId(p.id))
+      ) {
+        return
       }
+      this.alivePlayers.push(p)
     })
+    this.selectionPlayersCount =
+      state.gameMode === GameMode.PVE_MODE
+        ? MAX_PLAYERS_PER_GAME
+        : this.alivePlayers.length
     this.alivePlayers.forEach((player, i) => {
       const x =
         this.centerX +
@@ -408,7 +420,7 @@ export class MiniGame {
   }
 
   initializePortalCarousel(stageLevel: number, room: GameRoom) {
-    const nbPortals = clamp(this.alivePlayers.length + 1, 3, 9)
+    const nbPortals = clamp(this.selectionPlayersCount + 1, 3, 9)
     for (let i = 0; i < nbPortals; i++) {
       const x = this.centerX + Math.cos((Math.PI * 2 * i) / nbPortals) * 115
       const y = this.centerY + Math.sin((Math.PI * 2 * i) / nbPortals) * 115
@@ -484,7 +496,7 @@ export class MiniGame {
     const encounter = state.townEncounter
     const items: Item[] = []
 
-    let nbItemsToPick = clamp(this.alivePlayers.length + 3, 5, 9)
+    let nbItemsToPick = clamp(this.selectionPlayersCount + 3, 5, 9)
     let maxCopiesPerItem = 2
     let itemsSet: readonly Item[] = ItemComponentsNoFossilOrScarf
 
@@ -512,13 +524,13 @@ export class MiniGame {
 
     if (encounter === TownEncounters.CHANSEY) {
       itemsSet = [Item.EGG_FOR_SELL]
-      nbItemsToPick = this.alivePlayers.length
+      nbItemsToPick = this.selectionPlayersCount
       maxCopiesPerItem = 99
     }
 
     if (encounter === TownEncounters.XATU) {
       itemsSet = [Item.TREASURE_BOX]
-      nbItemsToPick = this.alivePlayers.length
+      nbItemsToPick = this.selectionPlayersCount
       maxCopiesPerItem = 99
     }
 
@@ -583,7 +595,7 @@ export class MiniGame {
     if (stageLevel === 0) {
       const symbols = pickNRandomIn(
         SynergyArray,
-        3 * ((this.avatars?.size ?? 8) + 1)
+        3 * (this.selectionPlayersCount + 1)
       )
       //logger.debug(`symbols chosen for player ${player.name}`, symbols)
       symbols.forEach((type, i) => {
@@ -637,7 +649,7 @@ export class MiniGame {
         let candidatesSymbols: Synergy[] = []
         const MIN_SYMBOLS_POOL_SIZE = 4
         const MAX_SYMBOLS_POOL_SIZE = 7
-        const MAX_SYMBOLS_OF_THE_SAME_TYPE = this.alivePlayers.length
+        const MAX_SYMBOLS_OF_THE_SAME_TYPE = this.selectionPlayersCount
         const getNbOfType = (type: Synergy) =>
           candidatesSymbols.filter((t) => t === type).length
 

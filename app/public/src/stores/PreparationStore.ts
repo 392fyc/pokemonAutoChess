@@ -3,7 +3,7 @@ import { GameUser, IGameUser } from "../../../models/colyseus-models/game-user"
 import Message from "../../../models/colyseus-models/message"
 import { IChatV2 } from "../../../types"
 import { EloRank } from "../../../types/enum/EloRank"
-import { GameMode } from "../../../types/enum/Game"
+import { GameMode, PveDifficulty } from "../../../types/enum/Game"
 import { SpecialGameRule } from "../../../types/enum/SpecialGameRule"
 
 export interface IUserPreparationState {
@@ -22,6 +22,7 @@ export interface IUserPreparationState {
   specialGameRule: SpecialGameRule | null
   whitelist: string[]
   blacklist: string[]
+  pveDifficulty: PveDifficulty | null
 }
 
 const initialState: IUserPreparationState = {
@@ -39,7 +40,8 @@ const initialState: IUserPreparationState = {
   gameMode: GameMode.CUSTOM_LOBBY,
   specialGameRule: null,
   whitelist: [],
-  blacklist: []
+  blacklist: [],
+  pveDifficulty: null
 }
 
 export const preparationSlice = createSlice({
@@ -109,6 +111,9 @@ export const preparationSlice = createSlice({
     setGameMode: (state, action: PayloadAction<GameMode>) => {
       state.gameMode = action.payload
     },
+    setPveDifficulty: (state, action: PayloadAction<PveDifficulty | null>) => {
+      state.pveDifficulty = action.payload
+    },
     resetPreparation: () => initialState,
     setWhiteList: (state, action: PayloadAction<string[]>) => {
       state.whitelist = action.payload
@@ -137,6 +142,7 @@ export const {
   setWhiteList,
   setBlackList,
   setGameMode,
+  setPveDifficulty,
   setSpecialGameRule,
   resetPreparation
 } = preparationSlice.actions

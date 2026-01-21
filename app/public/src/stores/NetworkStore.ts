@@ -15,7 +15,7 @@ import {
 } from "../../../types"
 import { ConnectionStatus } from "../../../types/enum/ConnectionStatus"
 import { EloRank } from "../../../types/enum/EloRank"
-import { BotDifficulty } from "../../../types/enum/Game"
+import { BotDifficulty, PveDifficulty } from "../../../types/enum/Game"
 import { Item } from "../../../types/enum/Item"
 import { Language } from "../../../types/enum/Language"
 import { PkmProposition } from "../../../types/enum/Pokemon"
@@ -225,6 +225,9 @@ export const networkSlice = createSlice({
     setSpecialRule: (state, action: PayloadAction<SpecialGameRule | null>) => {
       state.preparation?.send(Transfer.CHANGE_SPECIAL_RULE, action.payload)
     },
+    setPveDifficulty: (state, action: PayloadAction<PveDifficulty>) => {
+      state.preparation?.send(Transfer.CHANGE_PVE_DIFFICULTY, action.payload)
+    },
     changeSelectedEmotion: (
       state,
       action: PayloadAction<{
@@ -355,6 +358,7 @@ export const {
   changeRoomPassword,
   changeRoomMinMaxRanks,
   setSpecialRule,
+  setPveDifficulty,
   gameStartRequest,
   logIn,
   logOut,

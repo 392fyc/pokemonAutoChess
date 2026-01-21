@@ -92,6 +92,7 @@ export enum Transfer {
   CHANGE_ROOM_PASSWORD = "CHANGE_ROOM_PASSWORD",
   CHANGE_ROOM_RANKS = "CHANGE_ROOM_RANKS",
   CHANGE_SPECIAL_RULE = "CHANGE_SPECIAL_RULE",
+  CHANGE_PVE_DIFFICULTY = "CHANGE_PVE_DIFFICULTY",
   BUY_EMOTION = "BUY_EMOTION",
   BOOSTER_CONTENT = "BOOSTER_CONTENT",
   USER = "USER",
@@ -373,6 +374,7 @@ export interface IPokemon {
   supercharged: boolean
   size?: "SIZE_1X1" | "SIZE_2X2"
   bossTraits?: SetSchema<BossTrait>
+  bossDifficultyMultiplier?: number
   canBeBenched: boolean
   canBeSold: boolean
   dodge: number

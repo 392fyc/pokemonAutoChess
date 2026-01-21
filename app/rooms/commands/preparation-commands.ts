@@ -20,13 +20,14 @@ import UserMetadata from "../../models/mongo-models/user-metadata"
 import { Role } from "../../types"
 import { CloseCodes } from "../../types/enum/CloseCodes"
 import { EloRank } from "../../types/enum/EloRank"
-import { BotDifficulty, GameMode } from "../../types/enum/Game"
+import { BotDifficulty, GameMode, PveDifficulty } from "../../types/enum/Game"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { getRank } from "../../utils/elo"
 import { logger } from "../../utils/logger"
 import { max } from "../../utils/number"
 import { cleanProfanity } from "../../utils/profanity-filter"
 import { pickRandomIn } from "../../utils/random"
+import { mapPveDifficultyToEloRank } from "../../utils/pve"
 import { entries, values } from "../../utils/schemas"
 import PreparationRoom from "../preparation-room"
 
@@ -56,7 +57,7 @@ export class OnJoinCommand extends Command<
 
       if (
         this.state.ownerId == "" &&
-        this.state.gameMode === GameMode.CUSTOM_LOBBY
+        [GameMode.CUSTOM_LOBBY, GameMode.PVE_MODE].includes(this.state.gameMode)
       ) {
         this.state.ownerId = auth.uid
       }
@@ -195,7 +196,11 @@ export class OnGameStartRequestCommand extends Command<
         }
       })
 
-      if (nbHumanPlayers < MIN_HUMAN_PLAYERS && process.env.MODE !== "dev") {
+      if (
+        this.state.gameMode !== GameMode.PVE_MODE &&
+        nbHumanPlayers < MIN_HUMAN_PLAYERS &&
+        process.env.MODE !== "dev"
+      ) {
         this.state.addMessage({
           authorId: "Server",
           payload: `Due to the current high traffic on the game, to limit the resources used server side, only games with a minimum of ${MIN_HUMAN_PLAYERS} players are authorized.`,
@@ -204,10 +209,22 @@ export class OnGameStartRequestCommand extends Command<
         return
       }
 
-      if (this.state.users.size < 2) {
+      if (
+        this.state.gameMode !== GameMode.PVE_MODE &&
+        this.state.users.size < 2
+      ) {
         this.state.addMessage({
           authorId: "Server",
           payload: `Add bots or wait for more players to join your room.`,
+          avatar: "0079/Sigh"
+        })
+        return
+      }
+
+      if (this.state.gameMode === GameMode.PVE_MODE && nbHumanPlayers < 1) {
+        this.state.addMessage({
+          authorId: "Server",
+          payload: `At least one player is required to start a PVE game.`,
           avatar: "0079/Sigh"
         })
         return
@@ -279,7 +296,11 @@ export class OnGameStartRequestCommand extends Command<
           specialGameRule: this.state.specialGameRule,
           tournamentId: this.room.metadata?.tournamentId,
           bracketId: this.room.metadata?.bracketId,
-          minRank: this.state.minRank
+          minRank: this.state.minRank,
+          pveDifficulty: this.state.pveDifficulty
+            ? mapPveDifficultyToEloRank(this.state.pveDifficulty)
+            : null,
+          pveDifficultyTier: this.state.pveDifficulty ?? null
         })
 
         this.state.users.forEach((user) => {
@@ -452,6 +473,33 @@ export class OnRoomChangeSpecialRule extends Command<
           if (!user.isBot) user.ready = false
         })
       }
+    } catch (error) {
+      logger.error(error)
+    }
+  }
+}
+
+export class OnRoomChangePveDifficulty extends Command<
+  PreparationRoom,
+  {
+    client: Client
+    difficulty: PveDifficulty
+  }
+> {
+  execute({ client, difficulty }: { client: Client; difficulty: PveDifficulty }) {
+    try {
+      if (this.state.gameMode !== GameMode.PVE_MODE) return
+      if (client.auth?.uid !== this.state.ownerId) return
+      if (this.state.pveDifficulty === difficulty) return
+      this.state.pveDifficulty = difficulty
+
+      const leader = this.state.users.get(client.auth.uid)
+      this.room.state.addMessage({
+        author: "Server",
+        authorId: "server",
+        payload: `PVE difficulty has been set to ${difficulty}.`,
+        avatar: leader?.avatar
+      })
     } catch (error) {
       logger.error(error)
     }

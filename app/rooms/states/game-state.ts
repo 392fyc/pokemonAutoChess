@@ -14,7 +14,7 @@ import { PokemonAvatarModel } from "../../models/colyseus-models/pokemon-avatar"
 import { Portal, SynergySymbol } from "../../models/colyseus-models/portal"
 import Shop from "../../models/shop"
 import { EloRank } from "../../types/enum/EloRank"
-import { GameMode, GamePhaseState } from "../../types/enum/Game"
+import { GameMode, GamePhaseState, PveDifficulty } from "../../types/enum/Game"
 import { Item } from "../../types/enum/Item"
 import { Pkm } from "../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
@@ -61,6 +61,7 @@ export default class GameState extends Schema {
   minRank: EloRank | null = null
   maxRank: EloRank | null = null
   pveDifficulty: EloRank | null = null
+  pveDifficultyTier: PveDifficulty | null = null
   @type("boolean") pveSuddenDeathActive = false
   @type(["string"]) pveBotOrder = new ArraySchema<string>()
   @type("uint8") pveBotOrderIndex = 0
@@ -74,7 +75,8 @@ export default class GameState extends Schema {
     minRank: EloRank | null,
     maxRank: EloRank | null,
     specialGameRule: SpecialGameRule | null,
-    pveDifficulty: EloRank | null = null
+    pveDifficulty: EloRank | null = null,
+    pveDifficultyTier: PveDifficulty | null = null
   ) {
     super()
     this.preparationId = preparationId
@@ -85,6 +87,7 @@ export default class GameState extends Schema {
     this.minRank = minRank
     this.maxRank = maxRank
     this.pveDifficulty = pveDifficulty
+    this.pveDifficultyTier = pveDifficultyTier
     this.weather = Weather.NEUTRAL
 
     if (gameMode === GameMode.SCRIBBLE) {

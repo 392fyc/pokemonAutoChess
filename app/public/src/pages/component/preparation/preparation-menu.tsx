@@ -11,7 +11,7 @@ import { IGameUser } from "../../../../../models/colyseus-models/game-user"
 import PreparationState from "../../../../../rooms/states/preparation-state"
 import { Role } from "../../../../../types"
 import { EloRank } from "../../../../../types/enum/EloRank"
-import { BotDifficulty, GameMode } from "../../../../../types/enum/Game"
+import { BotDifficulty, GameMode, PveDifficulty } from "../../../../../types/enum/Game"
 import { SpecialGameRule } from "../../../../../types/enum/SpecialGameRule"
 import { formatMinMaxRanks } from "../../../../../utils/elo"
 import { throttle } from "../../../../../utils/function"
@@ -25,6 +25,7 @@ import {
   changeRoomPassword,
   gameStartRequest,
   setNoElo,
+  setPveDifficulty,
   setSpecialRule,
   toggleReady
 } from "../../../stores/NetworkStore"
@@ -61,6 +62,9 @@ export default function PreparationMenu() {
   )
 
   const gameMode = useAppSelector((state) => state.preparation.gameMode)
+  const pveDifficulty = useAppSelector(
+    (state) => state.preparation.pveDifficulty
+  )
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(
     BotDifficulty.MEDIUM
   )
@@ -345,6 +349,30 @@ export default function PreparationMenu() {
     </button>
   )
 
+  const pveDifficultySelect = gameMode === GameMode.PVE_MODE && (
+    <label>
+      {t("pve_difficulty")}
+      <select
+        value={pveDifficulty ?? PveDifficulty.NORMAL}
+        disabled={!isOwner}
+        onChange={(e) => {
+          if (!isOwner) return
+          dispatch(setPveDifficulty(e.target.value as PveDifficulty))
+        }}
+        style={{ marginLeft: "0.5em" }}
+      >
+        <option value={PveDifficulty.EASY}>{t("pve_difficulty_easy")}</option>
+        <option value={PveDifficulty.NORMAL}>
+          {t("pve_difficulty_normal")}
+        </option>
+        <option value={PveDifficulty.HARD}>{t("pve_difficulty_hard")}</option>
+        <option value={PveDifficulty.EXTREME}>
+          {t("pve_difficulty_extreme")}
+        </option>
+      </select>
+    </label>
+  )
+
   return (
     <div className="preparation-menu my-container is-centered custom-bg">
       <header>
@@ -370,6 +398,7 @@ export default function PreparationMenu() {
 
       <div className="actions">
         {roomNameInput}
+        {pveDifficultySelect}
         <div className="spacer" />
         {scribbleRule}
       </div>

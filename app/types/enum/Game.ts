@@ -19,6 +19,13 @@ export enum GameMode {
   PVE_MODE = "PVE_MODE"
 }
 
+export enum PveDifficulty {
+  EASY = "EASY",
+  NORMAL = "NORMAL",
+  HARD = "HARD",
+  EXTREME = "EXTREME"
+}
+
 export enum GamePhaseState {
   PICK,
   FIGHT,

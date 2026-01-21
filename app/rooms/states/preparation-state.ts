@@ -4,7 +4,7 @@ import { GameUser } from "../../models/colyseus-models/game-user"
 import Message from "../../models/colyseus-models/message"
 import chatV2 from "../../models/mongo-models/chat-v2"
 import { EloRank } from "../../types/enum/EloRank"
-import { GameMode } from "../../types/enum/Game"
+import { GameMode, PveDifficulty } from "../../types/enum/Game"
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 
 export interface IPreparationState {
@@ -16,6 +16,7 @@ export interface IPreparationState {
   name: string
   minRank: EloRank | null
   gameMode: GameMode
+  pveDifficulty: PveDifficulty | null
 }
 
 export default class PreparationState
@@ -32,6 +33,7 @@ export default class PreparationState
   @type("string") minRank: EloRank | null
   @type("string") maxRank: EloRank | null
   @type("string") gameMode: GameMode = GameMode.CUSTOM_LOBBY
+  @type("string") pveDifficulty: PveDifficulty | null
   @type("string") specialGameRule: SpecialGameRule | null
   @type("boolean") noElo: boolean
   @type(["string"]) whitelist: string[]
@@ -46,13 +48,16 @@ export default class PreparationState
     noElo?: boolean
     password?: string
     gameMode: GameMode
+    pveDifficulty?: PveDifficulty | null
     specialGameRule?: SpecialGameRule
     whitelist?: string[]
     blacklist?: string[]
   }) {
     super()
     this.ownerId =
-      params.gameMode === GameMode.CUSTOM_LOBBY ? (params.ownerId ?? "") : ""
+      [GameMode.CUSTOM_LOBBY, GameMode.PVE_MODE].includes(params.gameMode)
+        ? (params.ownerId ?? "")
+        : ""
     this.name = params.roomName
     this.gameStartedAt = null
     this.ownerName = ""
@@ -61,6 +66,9 @@ export default class PreparationState
     this.minRank = params.minRank ?? null
     this.maxRank = params.maxRank ?? null
     this.gameMode = params.gameMode
+    this.pveDifficulty =
+      params.pveDifficulty ??
+      (params.gameMode === GameMode.PVE_MODE ? PveDifficulty.NORMAL : null)
     this.specialGameRule = params.specialGameRule ?? null
     this.whitelist = params.whitelist ?? []
     this.blacklist = params.blacklist ?? []

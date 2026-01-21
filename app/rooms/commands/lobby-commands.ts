@@ -43,7 +43,7 @@ import {
 } from "../../types"
 import { CloseCodes } from "../../types/enum/CloseCodes"
 import { EloRank } from "../../types/enum/EloRank"
-import { GameMode } from "../../types/enum/Game"
+import { GameMode, PveDifficulty } from "../../types/enum/Game"
 import { Language } from "../../types/enum/Language"
 import {
   NonPkm,
@@ -1086,6 +1086,20 @@ export class JoinOrOpenRoomCommand extends Command<
         }
         break
       }
+      case GameMode.PVE_MODE: {
+        const existingPveRoom = this.room.rooms?.find(
+          (room) =>
+            room.name === "preparation" &&
+            room.metadata?.gameMode === GameMode.PVE_MODE &&
+            room.clients < MAX_PLAYERS_PER_GAME
+        )
+        if (existingPveRoom) {
+          client.send(Transfer.REQUEST_ROOM, existingPveRoom.roomId)
+        } else {
+          return [new OpenGameCommand().setPayload({ gameMode, client })]
+        }
+        break
+      }
     }
   }
 }
@@ -1127,6 +1141,9 @@ export class OpenGameCommand extends Command<
       password = Math.random().toString(36).substring(2, 6).toUpperCase()
     } else if (gameMode === GameMode.CLASSIC) {
       roomName = "Classic"
+    } else if (gameMode === GameMode.PVE_MODE) {
+      roomName = "PVE Mode"
+      ownerId = user.uid
     }
 
     const newRoom = await matchMaker.createRoom("preparation", {
@@ -1136,7 +1153,8 @@ export class OpenGameCommand extends Command<
       noElo,
       password,
       ownerId,
-      roomName
+      roomName,
+      pveDifficulty: PveDifficulty.NORMAL
     })
     client.send(Transfer.REQUEST_ROOM, newRoom.roomId)
   }

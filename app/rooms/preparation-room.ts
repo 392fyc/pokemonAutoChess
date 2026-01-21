@@ -8,7 +8,7 @@ import UserMetadata from "../models/mongo-models/user-metadata"
 import { IPreparationMetadata, Role, Transfer } from "../types"
 import { CloseCodes } from "../types/enum/CloseCodes"
 import { EloRank } from "../types/enum/EloRank"
-import { BotDifficulty, GameMode } from "../types/enum/Game"
+import { BotDifficulty, GameMode, PveDifficulty } from "../types/enum/Game"
 import { logger } from "../utils/logger"
 import { values } from "../utils/schemas"
 import {
@@ -21,6 +21,7 @@ import {
   OnNewMessageCommand,
   OnRemoveBotCommand,
   OnRoomChangeRankCommand,
+  OnRoomChangePveDifficulty,
   OnRoomChangeSpecialRule,
   OnRoomNameCommand,
   OnRoomPasswordCommand,
@@ -89,6 +90,7 @@ export default class PreparationRoom extends Room<PreparationState> {
     blacklist?: string[]
     tournamentId?: string
     bracketId?: string
+    pveDifficulty?: PveDifficulty
   }) {
     logger.info("create Preparation ", this.roomId)
     // logger.debug(options);
@@ -102,7 +104,8 @@ export default class PreparationRoom extends Room<PreparationState> {
     this.setPassword(options.password ?? null)
     this.setMetadata(<IPreparationMetadata>{
       name: options.roomName.slice(0, 30),
-      ownerName: options.gameMode === GameMode.CLASSIC ? null : options.ownerId,
+      ownerName:
+        options.gameMode === GameMode.CLASSIC ? null : options.ownerId,
       minRank: options.minRank ?? null,
       maxRank: options.maxRank ?? null,
       noElo: options.noElo ?? false,
@@ -242,6 +245,18 @@ export default class PreparationRoom extends Room<PreparationState> {
         this.dispatcher.dispatch(new OnRoomChangeSpecialRule(), {
           client,
           specialRule
+        })
+      } catch (error) {
+        logger.error(error)
+      }
+    })
+
+    this.onMessage(Transfer.CHANGE_PVE_DIFFICULTY, (client, difficulty) => {
+      logger.info(Transfer.CHANGE_PVE_DIFFICULTY, this.roomName, difficulty)
+      try {
+        this.dispatcher.dispatch(new OnRoomChangePveDifficulty(), {
+          client,
+          difficulty
         })
       } catch (error) {
         logger.error(error)

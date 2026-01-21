@@ -37,6 +37,7 @@ import {
   setOwnerId,
   setOwnerName,
   setPassword,
+  setPveDifficulty,
   setSpecialGameRule,
   setUser,
   setWhiteList
@@ -157,6 +158,10 @@ export default function Preparation() {
 
       $state.listen("gameMode", (value, previousValue) => {
         dispatch(setGameMode(value))
+      })
+
+      $state.listen("pveDifficulty", (value, previousValue) => {
+        dispatch(setPveDifficulty(value))
       })
 
       $state.listen("specialGameRule", (value, previousValue) => {

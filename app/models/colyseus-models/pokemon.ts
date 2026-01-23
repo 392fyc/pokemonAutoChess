@@ -22,7 +22,7 @@ import { Emotion, IPlayer, IPokemon, IPokemonEntity, Title } from "../../types"
 import { Ability } from "../../types/enum/Ability"
 import { DungeonPMDO } from "../../types/enum/Dungeon"
 import { EffectEnum } from "../../types/enum/Effect"
-import { PokemonActionState, Rarity, Stat } from "../../types/enum/Game"
+import { GameMode, PokemonActionState, Rarity, Stat } from "../../types/enum/Game"
 import {
   CraftableItems,
   Flavors,
@@ -167,12 +167,19 @@ export class Pokemon extends Schema implements IPokemon {
     doNotRemoveItems: boolean = false
   ) {
     // called after manually changing position of the pokemon on board
-    if (y === 0 && !doNotRemoveItems) {
+    if (
+      y === 0 &&
+      !doNotRemoveItems &&
+      (state?.gameMode === GameMode.SCRIBBLE ||
+        state?.gameMode === GameMode.PVE_MODE)
+    ) {
+      const removeAllItems =
+        state?.gameMode === GameMode.PVE_MODE ||
+        state?.specialGameRule === SpecialGameRule.SLAMINGO
       const itemsToRemove = values(this.items).filter((item) => {
         return (
-          isIn(RemovableItems, item) ||
-          (state?.specialGameRule === SpecialGameRule.SLAMINGO &&
-            item !== Item.RARE_CANDY)
+          (removeAllItems && item !== Item.RARE_CANDY) ||
+          (!removeAllItems && isIn(RemovableItems, item))
         )
       })
       player.items.push(...itemsToRemove)

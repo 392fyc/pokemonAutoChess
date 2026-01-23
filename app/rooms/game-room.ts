@@ -6,6 +6,8 @@ import { nanoid } from "nanoid"
 import {
   AdditionalPicksStages,
   ALLOWED_GAME_RECONNECTION_TIME,
+  BOARD_SIDE_HEIGHT,
+  BOARD_WIDTH,
   EloRankThreshold,
   EventPointsPerRank,
   ExpPlace,
@@ -75,7 +77,7 @@ import {
   PveDifficulty,
   Team
 } from "../types/enum/Game"
-import { Item } from "../types/enum/Item"
+import { CraftableItems, Item } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import {
   NonPkm,
@@ -101,7 +103,13 @@ import { isValidDate } from "../utils/date"
 import { formatMinMaxRanks } from "../utils/elo"
 import { logger } from "../utils/logger"
 import { clamp } from "../utils/number"
-import { chance, pickRandomIn, shuffleArray } from "../utils/random"
+import {
+  chance,
+  pickNRandomIn,
+  pickRandomIn,
+  randomWeighted,
+  shuffleArray
+} from "../utils/random"
 import { resetArraySchema, values } from "../utils/schemas"
 import { getWeather } from "../utils/weather"
 import { getPveBossDifficultyMultiplier } from "../utils/pve"
@@ -1666,6 +1674,14 @@ export default class GameRoom extends Room<GameState> {
       const botBoard = botLineup
         ? PokemonFactory.makePveBoard(botLineup, false, null)
         : PokemonFactory.makePveBoard([], false, null)
+      if (
+        this.state.pveDifficultyTier === PveDifficulty.EXTREME &&
+        this.state.pveSuddenDeathActive &&
+        this.state.stageLevel >= 41 &&
+        this.state.stageLevel <= 48
+      ) {
+        this.addExtremeSuddenDeathLegendary(botBoard, botLineup ?? [])
+      }
 
       const weather = getWeather(humanPlayer, null, botBoard, false)
       const simulationId = nanoid()
@@ -1696,6 +1712,103 @@ export default class GameRoom extends Room<GameState> {
         simulation.start()
       }, 2500)
     })
+  }
+
+  private addExtremeSuddenDeathLegendary(
+    botBoard: MapSchema<Pokemon>,
+    botLineup: IDetailledPokemon[]
+  ) {
+    if (botLineup.length === 0) return
+
+    const weightedSynergies = this.getTopSynergyWeights(botLineup, 3)
+    const pickedSynergies = this.pickWeightedSynergies(weightedSynergies, 2)
+    const existing = new Set<Pkm>(botLineup.map((p) => p.name))
+    const legendaryPool = this.pickLegendaryBySynergy(pickedSynergies, existing)
+    if (legendaryPool.length === 0) return
+
+    const legendary = pickRandomIn(legendaryPool)
+    const position = this.getRandomEnemyBoardPosition(botBoard)
+    if (!position) return
+
+    const pokemon = PokemonFactory.createPokemonFromName(legendary)
+    pokemon.positionX = position.x
+    pokemon.positionY = position.y
+
+    const itemsPool = CraftableItems.filter((item) => item !== Item.WONDER_BOX)
+    pickNRandomIn(itemsPool, 3).forEach((item) => pokemon.items.add(item))
+    botBoard.set(pokemon.id, pokemon)
+  }
+
+  private getTopSynergyWeights(
+    botLineup: IDetailledPokemon[],
+    limit: number
+  ) {
+    const counts = new Map<Synergy, number>()
+    botLineup.forEach((pokemon) => {
+      const types = getPokemonData(pokemon.name).types
+      types.forEach((type) => {
+        counts.set(type, (counts.get(type) ?? 0) + 1)
+      })
+    })
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+  }
+
+  private pickWeightedSynergies(
+    weights: Array<[Synergy, number]>,
+    draws: number
+  ) {
+    if (weights.length === 0) return []
+    const weightMap = weights.reduce((acc, [synergy, weight]) => {
+      acc[synergy] = weight
+      return acc
+    }, {} as Record<Synergy, number>)
+    const totalWeight = weights.reduce((sum, [, weight]) => sum + weight, 0)
+
+    const picked: Synergy[] = []
+    for (let i = 0; i < draws; i++) {
+      const selection = randomWeighted(weightMap, totalWeight)
+      if (selection) picked.push(selection)
+    }
+    return picked
+  }
+
+  private pickLegendaryBySynergy(
+    pickedSynergies: Synergy[],
+    existing: Set<Pkm>
+  ) {
+    const synergySet = new Set(pickedSynergies)
+    const matching = LegendaryPool.filter((pkm) => {
+      if (pkm === Pkm.ARCEUS) return true
+      const types = getPokemonData(pkm as Pkm).types
+      return types.some((type) => synergySet.has(type))
+    }) as Pkm[]
+
+    const candidates = matching.length > 0 ? matching : (LegendaryPool as Pkm[])
+    const uniqueCandidates = candidates.filter((pkm) => !existing.has(pkm))
+    return uniqueCandidates.length > 0 ? uniqueCandidates : candidates
+  }
+
+  private getRandomEnemyBoardPosition(botBoard: MapSchema<Pokemon>) {
+    const occupied = new Set<string>()
+    botBoard.forEach((pokemon) => {
+      if (pokemon.positionY > 0) {
+        occupied.add(`${pokemon.positionX},${pokemon.positionY}`)
+      }
+    })
+
+    const candidates: Array<{ x: number; y: number }> = []
+    for (let y = 1; y < BOARD_SIDE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (!occupied.has(`${x},${y}`)) {
+          candidates.push({ x, y })
+        }
+      }
+    }
+
+    return candidates.length > 0 ? pickRandomIn(candidates) : null
   }
 
   private applyBossTestSetup(test: {

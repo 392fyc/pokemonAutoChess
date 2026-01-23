@@ -83,6 +83,8 @@ export enum Transfer {
   LEVEL_UP = "LEVEL_UP",
   SHOP = "SHOP",
   ITEM = "ITEM",
+  CHAMELEON_SHOP_REFRESH = "CHAMELEON_SHOP_REFRESH",
+  CHAMELEON_SHOP_BUY = "CHAMELEON_SHOP_BUY",
   COOK = "COOK",
   DIG = "DIG",
   GAME_START = "GAME_START",
@@ -297,6 +299,9 @@ export interface IPlayer {
   role: Role
   itemsProposition: ArraySchema<Item>
   pokemonsProposition: ArraySchema<PkmProposition>
+  chameleonShop: ArraySchema<Item>
+  chameleonTownPurchases: number
+  chameleonShinyPurchased: boolean
   loadingProgress: number
   berryTreesStages: number[]
   flowerPots: Pokemon[]

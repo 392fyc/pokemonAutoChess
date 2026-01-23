@@ -1869,6 +1869,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
               this.state.shop.refillShop(player, this.state)
               player.shopLocked = false
             }
+            this.room.refreshChameleonShopForPlayer(player.id)
           }
         }
       })

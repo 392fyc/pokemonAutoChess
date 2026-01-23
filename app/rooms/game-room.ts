@@ -77,7 +77,14 @@ import {
   PveDifficulty,
   Team
 } from "../types/enum/Game"
-import { CraftableItems, Item } from "../types/enum/Item"
+import {
+  CraftableItems,
+  Item,
+  MissionOrders,
+  ShinyItems,
+  SynergyStones,
+  TownItems
+} from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import {
   NonPkm,
@@ -386,6 +393,29 @@ export default class GameRoom extends Room<GameState> {
         }
       }
     })
+
+    this.onMessage(Transfer.CHAMELEON_SHOP_REFRESH, (client) => {
+      if (!this.state.gameFinished && client.auth) {
+        try {
+          this.refreshChameleonShopForPlayer(client.auth.uid, true)
+        } catch (error) {
+          logger.error("chameleon shop refresh error", error)
+        }
+      }
+    })
+
+    this.onMessage(
+      Transfer.CHAMELEON_SHOP_BUY,
+      (client, message: { index: number }) => {
+        if (!this.state.gameFinished && client.auth) {
+          try {
+            this.buyChameleonShopItem(client.auth.uid, message.index)
+          } catch (error) {
+            logger.error("chameleon shop buy error", message, error)
+          }
+        }
+      }
+    )
 
     this.onMessage(Transfer.SHOP, (client, message) => {
       if (!this.state.gameFinished && client.auth) {
@@ -1737,6 +1767,128 @@ export default class GameRoom extends Room<GameState> {
     const itemsPool = CraftableItems.filter((item) => item !== Item.WONDER_BOX)
     pickNRandomIn(itemsPool, 3).forEach((item) => pokemon.items.add(item))
     botBoard.set(pokemon.id, pokemon)
+  }
+
+  refreshChameleonShopForPlayer(
+    playerId: string,
+    manualRefresh = false
+  ) {
+    const player = this.state.players.get(playerId)
+    if (!player || player.isBot) return
+    if (this.state.stageLevel < 31) {
+      player.chameleonShop.clear()
+      return
+    }
+    if (manualRefresh) {
+      const refreshCost = 5
+      if (player.money < refreshCost) return
+      player.addMoney(-refreshCost, false, null)
+    }
+    const items = this.rollChameleonShopItems(player)
+    resetArraySchema(player.chameleonShop, items)
+  }
+
+  private buyChameleonShopItem(playerId: string, index: number) {
+    const player = this.state.players.get(playerId)
+    if (!player || player.isBot) return
+    if (this.state.stageLevel < 31) return
+    const items = values(player.chameleonShop)
+    const item = items[index]
+    if (!item) return
+
+    if (TownItems.includes(item) && player.chameleonTownPurchases >= 3) return
+    if (ShinyItems.includes(item) && player.chameleonShinyPurchased) return
+
+    const price = this.getChameleonShopPrice(item)
+    if (player.money < price) return
+
+    player.addMoney(-price, false, null)
+    player.items.push(item)
+    if (TownItems.includes(item)) {
+      player.chameleonTownPurchases += 1
+    }
+    if (ShinyItems.includes(item)) {
+      player.chameleonShinyPurchased = true
+    }
+
+    items.splice(index, 1)
+    resetArraySchema(player.chameleonShop, items)
+  }
+
+  private rollChameleonShopItems(player: Player): Item[] {
+    const stageLevel = this.state.stageLevel
+    const craftablePool = CraftableItems.filter(
+      (item) => item !== Item.WONDER_BOX && !this.isChameleonEggItem(item)
+    )
+    const allowTownItems = player.chameleonTownPurchases < 3
+    const allowShinyItems = !player.chameleonShinyPurchased
+    const townPool = allowTownItems
+      ? TownItems.filter(
+          (item) =>
+            !this.isChameleonEggItem(item) &&
+            !(stageLevel >= 41 && MissionOrders.includes(item))
+        )
+      : []
+    const shinyPool = allowShinyItems
+      ? ShinyItems.filter((item) => !this.isChameleonEggItem(item))
+      : []
+
+    const results: Item[] = []
+    let specialPicked = false
+    const mutableCraftable = [...craftablePool]
+    const mutableSpecial = [...townPool, ...shinyPool]
+
+    for (let i = 0; i < 3; i++) {
+      const pool = specialPicked
+        ? [...mutableCraftable]
+        : [...mutableCraftable, ...mutableSpecial]
+      if (pool.length === 0) break
+
+      const item = this.pickChameleonItem(pool)
+      results.push(item)
+      if (mutableCraftable.includes(item)) {
+        removeInArray(mutableCraftable, item)
+      }
+      if (mutableSpecial.includes(item)) {
+        removeInArray(mutableSpecial, item)
+        specialPicked = true
+      }
+    }
+
+    return results
+  }
+
+  private pickChameleonItem(pool: Item[]): Item {
+    const weights = pool.reduce(
+      (acc, item) => {
+        acc[item] = this.getChameleonItemWeight(item)
+        return acc
+      },
+      {} as Record<Item, number>
+    )
+    const totalWeight = pool.reduce(
+      (sum, item) => sum + this.getChameleonItemWeight(item),
+      0
+    )
+    return randomWeighted(weights, totalWeight) ?? pool[0]
+  }
+
+  private getChameleonItemWeight(item: Item): number {
+    return SynergyStones.includes(item) ? 0.2 : 1
+  }
+
+  private getChameleonShopPrice(item: Item): number {
+    if (ShinyItems.includes(item)) return 40
+    if (TownItems.includes(item)) return 10
+    return 25
+  }
+
+  private isChameleonEggItem(item: Item): boolean {
+    return (
+      item === Item.EGG_FOR_SELL ||
+      item === Item.AQUA_EGG ||
+      item === Item.NUTRITIOUS_EGG
+    )
   }
 
   private getTopSynergyWeights(

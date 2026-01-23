@@ -1,0 +1,54 @@
+#boss-test {
+  color: white;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  height: 100vh;
+}
+
+#boss-test header {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+#boss-test #team-builder {
+  flex: 1;
+}
+
+#boss-test .boss-test-panel {
+  width: 1440px;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+}
+
+#boss-test .boss-test-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  align-items: flex-end;
+}
+
+#boss-test .boss-test-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+
+#boss-test .boss-test-controls select {
+  background: #2f313a;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.4em 0.6em;
+}
+
+#boss-test .boss-test-error {
+  color: red;
+}

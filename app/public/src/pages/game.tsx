@@ -261,7 +261,7 @@ export default function Game() {
 
     if (room?.state?.isBossTest) {
       const returnTarget =
-        localStore.get(LocalStoreKeys.BOSS_TEST_RETURN)?.path ?? "/bot-builder"
+        localStore.get(LocalStoreKeys.BOSS_TEST_RETURN)?.path ?? "/boss-test"
       localStore.delete(LocalStoreKeys.BOSS_TEST_RETURN)
       if (gameContainer && gameContainer.game) {
         gameContainer.game.destroy(true)
@@ -583,7 +583,7 @@ export default function Game() {
         if (room.state.isBossTest) {
           const returnTarget =
             localStore.get(LocalStoreKeys.BOSS_TEST_RETURN)?.path ??
-            "/bot-builder"
+            "/boss-test"
           localStore.delete(LocalStoreKeys.BOSS_TEST_RETURN)
           if (gameContainer?.gameScene?.music) {
             gameContainer.gameScene.music.destroy()

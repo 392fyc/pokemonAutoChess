@@ -224,6 +224,13 @@ export function MainSidebar(props: MainSidebarProps) {
           )}
 
         {page !== "game" &&
+          (profile?.role === Role.ADMIN || profile?.role === Role.BOT_MANAGER) && (
+            <NavLink svg="bot" onClick={() => navigate("/boss-test")}>
+              {t("boss_test_title")}
+            </NavLink>
+          )}
+
+        {page !== "game" &&
           ((!GADGETS.GAMEBOY.disabled &&
             profileLevel >= GADGETS.GAMEBOY.levelRequired) ||
             profile?.role === Role.ADMIN) && (

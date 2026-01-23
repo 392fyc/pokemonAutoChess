@@ -7,6 +7,7 @@ import PokemonPortrait from "../pokemon-portrait"
 export default function TeamEditor(props: {
   board: IDetailledPokemon[]
   showBench?: boolean
+  readOnly?: boolean
   handleEditorClick: (
     x: number,
     y: number,
@@ -16,13 +17,16 @@ export default function TeamEditor(props: {
   handleDrop: (x: number, y: number, e: React.DragEvent) => void
 }) {
   const { t } = useTranslation()
+  const isReadOnly = props.readOnly === true
 
   function handleOnDragStart(e: React.DragEvent, p: IDetailledPokemon) {
+    if (isReadOnly) return
     e.stopPropagation()
     e.dataTransfer.setData("text/plain", ["cell", p.x, p.y].join(","))
   }
 
   function handleOnDragOver(e: React.DragEvent) {
+    if (isReadOnly) return
     e.preventDefault()
     e.stopPropagation()
     const target = e.target as HTMLElement
@@ -30,6 +34,7 @@ export default function TeamEditor(props: {
   }
 
   function handleOnDragEnd(e: React.DragEvent) {
+    if (isReadOnly) return
     e.stopPropagation()
     const target = e.target as HTMLElement
     target.classList.remove("dragover")
@@ -38,6 +43,10 @@ export default function TeamEditor(props: {
   function handleDrop(x: number, y: number, e: React.DragEvent) {
     e.preventDefault()
     e.stopPropagation()
+    if (isReadOnly) {
+      handleOnDragEnd(e)
+      return
+    }
     props.handleDrop(x, y, e)
     handleOnDragEnd(e)
   }
@@ -52,6 +61,7 @@ export default function TeamEditor(props: {
                 key={"row" + y}
                 y={y}
                 board={props.board}
+                readOnly={isReadOnly}
                 handleEditorClick={props.handleEditorClick}
                 handleDrop={handleDrop}
                 handleOnDragStart={handleOnDragStart}
@@ -70,6 +80,7 @@ export default function TeamEditor(props: {
               <BoardRow
                 y={0}
                 board={props.board}
+                readOnly={isReadOnly}
                 handleEditorClick={props.handleEditorClick}
                 handleDrop={handleDrop}
                 handleOnDragStart={handleOnDragStart}
@@ -87,6 +98,7 @@ export default function TeamEditor(props: {
 function BoardRow(props: {
   y: number
   board: IDetailledPokemon[]
+  readOnly?: boolean
   handleEditorClick: (
     x: number,
     y: number,
@@ -101,11 +113,13 @@ function BoardRow(props: {
   const {
     y,
     board,
+    readOnly,
     handleEditorClick,
     handleOnDragStart,
     handleOnDragOver,
     handleOnDragEnd
   } = props
+  const isReadOnly = readOnly === true
 
   function handleDrop(x: number, y: number, e: React.DragEvent) {
     e.preventDefault()
@@ -115,26 +129,37 @@ function BoardRow(props: {
   }
 
   return (
-    <tr key={"row" + y}>
+            <tr key={"row" + y}>
       {[0, 1, 2, 3, 4, 5, 6, 7].map((x) => {
         const p = board.find((p) => p.x === x && p.y === y)
         return (
           <td
             key={"row" + y + "-col" + x}
-            onClick={(e) => {
-              e.preventDefault()
-              handleEditorClick(x, y, false)
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              handleEditorClick(x, y, true)
-            }}
-            onDragOver={handleOnDragOver}
-            onDragLeave={handleOnDragEnd}
-            onDrop={(e) => handleDrop(x, y, e)}
+            onClick={
+              isReadOnly
+                ? undefined
+                : (e) => {
+                    e.preventDefault()
+                    handleEditorClick(x, y, false)
+                  }
+            }
+            onContextMenu={
+              isReadOnly
+                ? undefined
+                : (e) => {
+                    e.preventDefault()
+                    handleEditorClick(x, y, true)
+                  }
+            }
+            onDragOver={isReadOnly ? undefined : handleOnDragOver}
+            onDragLeave={isReadOnly ? undefined : handleOnDragEnd}
+            onDrop={isReadOnly ? undefined : (e) => handleDrop(x, y, e)}
           >
             {p && (
-              <div draggable onDragStart={(e) => handleOnDragStart(e, p)}>
+              <div
+                draggable={!isReadOnly}
+                onDragStart={(e) => handleOnDragStart(e, p)}
+              >
                 <PokemonPortrait
                   portrait={{
                     index: PkmIndex[p.name],
@@ -149,11 +174,15 @@ function BoardRow(props: {
                         <img
                           key={j}
                           src={"assets/item/" + it + ".png"}
-                          onContextMenu={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleEditorClick(x, y, true, j)
-                          }}
+                          onContextMenu={
+                            isReadOnly
+                              ? undefined
+                              : (e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleEditorClick(x, y, true, j)
+                                }
+                          }
                         />
                       )
                     })}

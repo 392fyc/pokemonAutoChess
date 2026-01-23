@@ -31,6 +31,7 @@ export default function TeamBuilder(props: {
   updateBoard?: (board: IDetailledPokemon[]) => void
   error?: string
   readOnly?: boolean
+  showEditorTools?: boolean
 }) {
   const { t } = useTranslation()
   const [selection, setSelection] = useState<Item | PkmWithCustom>({
@@ -44,6 +45,7 @@ export default function TeamBuilder(props: {
   const currentPlayer = useAppSelector(selectCurrentPlayer)
   const [board, setBoard] = useState<IDetailledPokemon[]>(props.board ?? [])
   const isReadOnly = props.readOnly === true
+  const showEditorTools = props.showEditorTools !== false
   const isAdmin = useAppSelector(
     (state) => state.network.profile?.role === Role.ADMIN
   )
@@ -306,39 +308,46 @@ export default function TeamBuilder(props: {
             <img src="/assets/ui/photo.svg" /> {t("snapshot")}
           </button>
         )}
-        {!inBotBuilder && (
+        {showEditorTools && !inBotBuilder && (
           <button className="bubbly dark" onClick={saveFile} disabled={isReadOnly}>
             <img src="/assets/ui/save.svg" /> {t("save")}
           </button>
         )}
-        {!inBotBuilder && (
+        {showEditorTools && !inBotBuilder && (
           <button className="bubbly dark" onClick={loadFile} disabled={isReadOnly}>
             <img src="/assets/ui/load.svg" /> {t("load")}
           </button>
         )}
-        <button className="bubbly red" onClick={reset} disabled={isReadOnly}>
-          <img src="/assets/ui/trash.svg" /> {t("reset")}
-        </button>
+        {showEditorTools && (
+          <button className="bubbly red" onClick={reset} disabled={isReadOnly}>
+            <img src="/assets/ui/trash.svg" /> {t("reset")}
+          </button>
+        )}
       </div>
       <TeamEditor
         board={board}
         handleEditorClick={handleEditorClick}
         handleDrop={handleDrop}
         showBench={inBotBuilder}
+        readOnly={isReadOnly}
       />
-      <SelectedEntity entity={selection} onChange={updateSelectedPokemon} />
-      <ItemPicker selectEntity={setSelection} selected={selection} />
-      <PokemonPicker
-        selectEntity={(e) => setSelection(e as PkmWithCustom | Item)}
-        addEntity={addPokemonOnFirstEmptyCell}
-        selected={selection}
-      />
-      {props.bot && props.onChangeAvatar && (
-        <BotAvatar
-          bot={props.bot}
-          onChangeAvatar={props.onChangeAvatar}
-          onClick={changeAvatar}
-        />
+      {showEditorTools && (
+        <>
+          <SelectedEntity entity={selection} onChange={updateSelectedPokemon} />
+          <ItemPicker selectEntity={setSelection} selected={selection} />
+          <PokemonPicker
+            selectEntity={(e) => setSelection(e as PkmWithCustom | Item)}
+            addEntity={addPokemonOnFirstEmptyCell}
+            selected={selection}
+          />
+          {props.bot && props.onChangeAvatar && (
+            <BotAvatar
+              bot={props.bot}
+              onChangeAvatar={props.onChangeAvatar}
+              onClick={changeAvatar}
+            />
+          )}
+        </>
       )}
       {props.error && <p className="error">{props.error}</p>}
     </div>

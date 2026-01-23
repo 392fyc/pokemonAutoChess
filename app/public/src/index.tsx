@@ -5,6 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import i18n from "./i18n"
 import AfterGame from "./pages/after-game"
 import Auth from "./pages/auth"
+import BossTest from "./pages/component/boss-test/boss-test"
 import BotBuilder from "./pages/component/bot-builder/bot-builder"
 import { BotManagerPanel } from "./pages/component/bot-builder/bot-manager-panel"
 import MapViewer from "./pages/component/debug/map-viewer"
@@ -47,6 +48,7 @@ i18n.on("initialized", () => {
               <Route path="/game" element={<Game />} />
               <Route path="/after" element={<AfterGame />} />
               <Route path="/bot-builder" element={<BotBuilder />} />
+              <Route path="/boss-test" element={<BossTest />} />
               <Route path="/bot-admin" element={<BotManagerPanel />} />
               <Route path="/sprite-viewer" element={<SpriteDebug />} />
               <Route path="/map-viewer" element={<MapViewer />} />

@@ -162,6 +162,19 @@
   grid-column: span 3;
 }
 
+.game-pokemon-detail-boss-description {
+  grid-column: span 3;
+  background-color: #4f5160;
+  padding: 0.25em 5px;
+  margin: 0 -5px -5px -5px;
+  white-space: normal;
+}
+
+.game-pokemon-detail-boss-description p {
+  font-style: italic;
+  font-size: 1em;
+}
+
 .game-pokemon-detail-ult .ability-name {
   background-color: #4f5160;
   text-transform: capitalize;

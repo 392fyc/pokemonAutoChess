@@ -47,7 +47,7 @@ export function GamePokemonDetail(props: {
   emotion?: Emotion
   isAlly?: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const pokemon: IPokemon | IPokemonEntity = useMemo(() => {
     if (typeof props.pokemon === "string") {
       const pokemon = PokemonFactory.createPokemonFromName(props.pokemon)
@@ -115,6 +115,14 @@ export function GamePokemonDetail(props: {
   const getStatWithItemBonus = (stat: Stat): number | undefined => {
     return pokemonStats.find((s) => s.stat === stat)?.value
   }
+
+  const isBoss =
+    Boolean(pokemon.bossTraits && pokemon.bossTraits.size > 0) ||
+    String(pokemon.skill).startsWith("BOSS_")
+  const bossDescription =
+    i18n.language?.startsWith("zh") === true
+      ? "通过基因操作诞生的宝可梦。人类科学技术虽能造就它们的身体，却无法创造温柔的心。"
+      : "Pokémon born through genetic manipulation. While human science and technology can create their bodies, it cannot create gentle hearts."
 
   let dish = DishByPkm[pokemon.name]
   if (!dish && pokemon.types.has(Synergy.GOURMET)) {
@@ -286,7 +294,12 @@ export function GamePokemonDetail(props: {
         </div>
       )}
 
-      {pokemon.skill !== Ability.DEFAULT && (
+      {isBoss ? (
+        <div className="game-pokemon-detail-boss-description">
+          <p>{bossDescription}</p>
+        </div>
+      ) : (
+        pokemon.skill !== Ability.DEFAULT && (
         <div className="game-pokemon-detail-ult">
           <div className="ability-name">{t(`ability.${pokemon.skill}`)}</div>
           <div>
@@ -302,6 +315,7 @@ export function GamePokemonDetail(props: {
             />
           </div>
         </div>
+        )
       )}
     </div>
   )

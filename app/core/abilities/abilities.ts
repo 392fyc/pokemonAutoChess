@@ -5881,7 +5881,7 @@ export class MagmaStormStrategy extends AbilityStrategy {
       if (power <= 0) return
       pokemon.commands.push(
         new DelayedCommand(() => {
-          const board = pokemon.simulation.board
+          const { board } = pokemon.simulation
           const { positionX, positionY } = currentTarget
           const nextEnemies = board
             .getAdjacentCells(positionX, positionY)

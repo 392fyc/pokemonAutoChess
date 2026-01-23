@@ -154,7 +154,8 @@ export default class GameRoom extends Room<GameState> {
     tournamentId,
     bracketId,
     pveDifficulty = null,
-    pveDifficultyTier = null
+    pveDifficultyTier = null,
+    debugBossTest
   }: {
     users: Record<string, IGameUser>
     preparationId: string
@@ -169,6 +170,11 @@ export default class GameRoom extends Room<GameState> {
     bracketId: string | null
     pveDifficulty?: EloRank | null
     pveDifficultyTier?: PveDifficulty | null
+    debugBossTest?: {
+      ownerId: string
+      lineup: IDetailledPokemon[]
+      stageLevel?: number
+    }
   }) {
     logger.info("Create Game ", this.roomId)
 
@@ -345,6 +351,11 @@ export default class GameRoom extends Room<GameState> {
         }
       })
     )
+
+    if (debugBossTest) {
+      this.state.isBossTest = true
+      this.applyBossTestSetup(debugBossTest)
+    }
 
     this.clock.setTimeout(
       () => {
@@ -1387,13 +1398,12 @@ export default class GameRoom extends Room<GameState> {
       })
     }
 
-    // Apply 2x damage multiplier for PVE mode (except boss battles)
-    if (this.state.gameMode === GameMode.PVE_MODE && !isBossBattle) {
-      damage *= 2
-    }
-
     // Apply additional multiplier for sudden death phase
-    if (this.state.pveSuddenDeathActive) {
+    if (
+      this.state.pveSuddenDeathActive &&
+      stageLevel >= 41 &&
+      stageLevel <= 48
+    ) {
       damage *= 2
     }
 
@@ -1686,6 +1696,43 @@ export default class GameRoom extends Room<GameState> {
         simulation.start()
       }, 2500)
     })
+  }
+
+  private applyBossTestSetup(test: {
+    ownerId: string
+    lineup: IDetailledPokemon[]
+    stageLevel?: number
+  }) {
+    const player = this.state.players.get(test.ownerId)
+    if (!player) {
+      logger.warn(`Boss test player not found: ${test.ownerId}`)
+      return
+    }
+
+    if (!test.lineup || test.lineup.length === 0) {
+      logger.warn("Boss test lineup is empty")
+      return
+    }
+
+    this.applyCustomBoard(player, test.lineup)
+
+    this.state.stageLevel = test.stageLevel ?? 49
+    this.setMetadata({ stageLevel: this.state.stageLevel })
+    this.state.phase = GamePhaseState.TOWN
+    this.state.time = 0
+  }
+
+  private applyCustomBoard(player: Player, board: IDetailledPokemon[]) {
+    player.board.clear()
+    board.forEach((p) => {
+      const pokemon = PokemonFactory.createPokemonFromName(p.name, p)
+      pokemon.positionX = p.x
+      pokemon.positionY = p.y
+      p.items.forEach((item) => pokemon.items.add(item))
+      player.board.set(pokemon.id, pokemon)
+    })
+    player.updateSynergies()
+    player.boardSize = this.getTeamSize(player.board)
   }
 
   refreshPveBotOrder(pveBots: Player[], shuffle = false) {

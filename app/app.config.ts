@@ -8,12 +8,14 @@ import admin from "firebase-admin"
 import { UserRecord } from "firebase-admin/lib/auth/user-record"
 import helmet from "helmet"
 import { connect } from "mongoose"
+import { nanoid } from "nanoid"
 import path from "path"
 import pkg from "../package.json"
 import { MAX_CONCURRENT_PLAYERS_ON_SERVER, SynergyTriggers } from "./config"
 import { migrateShardsOfAltForms } from "./core/collection"
 import { initTilemap } from "./core/design"
 import { GameRecord } from "./models/colyseus-models/game-record"
+import { IDetailledPokemon, IBot } from "./models/mongo-models/bot-v2"
 import chatV2 from "./models/mongo-models/chat-v2"
 import DetailledStatistic from "./models/mongo-models/detailled-statistic-v2"
 import TitleStatistic from "./models/mongo-models/title-statistic"
@@ -21,6 +23,7 @@ import UserMetadata, {
   toUserMetadataJSON
 } from "./models/mongo-models/user-metadata"
 import { PRECOMPUTED_POKEMONS_PER_TYPE } from "./models/precomputed/precomputed-types"
+import { PVEBossStages } from "./models/pve-boss-stages"
 import AfterGameRoom from "./rooms/after-game-room"
 import CustomLobbyRoom from "./rooms/custom-lobby-room"
 import GameRoom from "./rooms/game-room"
@@ -42,10 +45,12 @@ import {
   getMetaV2
 } from "./services/meta"
 import { Role } from "./types"
+import { GameMode, PveDifficulty } from "./types/enum/Game"
 import { DungeonPMDO } from "./types/enum/Dungeon"
 import { Item } from "./types/enum/Item"
 import { Pkm, PkmIndex } from "./types/enum/Pokemon"
 import { logger } from "./utils/logger"
+import { mapPveDifficultyToEloRank } from "./utils/pve"
 
 const clientSrc = __dirname.includes("server")
   ? path.join(__dirname, "..", "..", "client")
@@ -429,6 +434,42 @@ export default config({
       }
     }
 
+    const resolveBotLineupForStage = (
+      bot: IBot,
+      stageLevel: number
+    ): IDetailledPokemon[] | null => {
+      if (bot.presetLineup && bot.presetLineup.length > 0) {
+        return bot.presetLineup
+      }
+      if (!bot.steps || bot.steps.length === 0) return null
+
+      let remainingRounds = Math.max(stageLevel, 1)
+      let lastNonEmptyBoard: IDetailledPokemon[] | null = null
+      for (const step of bot.steps) {
+        if (step.board && step.board.length > 0) {
+          lastNonEmptyBoard = step.board
+        }
+        const roundsRequired = Math.max(1, step.roundsRequired || 1)
+        if (remainingRounds <= roundsRequired) {
+          return step.board && step.board.length > 0
+            ? step.board
+            : lastNonEmptyBoard
+        }
+        remainingRounds -= roundsRequired
+      }
+
+      return lastNonEmptyBoard
+    }
+
+    const getBossStageOptions = () =>
+      Object.values(PVEBossStages)
+        .filter((stage) => stage.stageLevel >= 49)
+        .map((stage) => ({
+          stageLevel: stage.stageLevel,
+          name: stage.name
+        }))
+        .sort((a, b) => a.stageLevel - b.stageLevel)
+
     app.get("/profile", async (req, res) => {
       try {
         const userAuth = await authUser(req, res)
@@ -507,6 +548,101 @@ export default config({
         logger.error("Error approving bot", error)
         res.status(500).send("Error approving bot")
       }
+    })
+
+    app.post("/pve/boss-test", async (req, res) => {
+      const userAuth = await authUser(req, res)
+      if (!userAuth) return
+      const user = await UserMetadata.findOne({ uid: userAuth.uid })
+      if (
+        !user ||
+        (user.role !== Role.ADMIN && user.role !== Role.BOT_MANAGER)
+      ) {
+        res.status(403).send("Unauthorized")
+        return
+      }
+
+      const { bot, botId, difficulty, stageLevel } = req.body ?? {}
+      const bossStageLevel =
+        typeof stageLevel === "number" ? stageLevel : 49
+      const bossStage = PVEBossStages[bossStageLevel]
+      if (!bossStage) {
+        res.status(400).send("Invalid boss stage")
+        return
+      }
+
+      const botData =
+        botId && typeof botId === "string" ? await fetchBot(botId) : bot
+      if (!botData) {
+        res.status(400).send("Missing bot payload")
+        return
+      }
+
+      const difficultyTier = Object.values(PveDifficulty).includes(difficulty)
+        ? (difficulty as PveDifficulty)
+        : PveDifficulty.NORMAL
+
+      const lineup = resolveBotLineupForStage(botData as IBot, bossStageLevel)
+      if (!lineup || lineup.length === 0) {
+        res.status(400).send("Bot lineup is empty")
+        return
+      }
+
+      if (!user.displayName) {
+        res.status(404).send("User not found")
+        return
+      }
+
+      const gameRoom = await matchMaker.createRoom("game", {
+        users: {
+          [user.uid]: {
+            uid: user.uid,
+            name: user.displayName,
+            avatar: user.avatar,
+            ready: false,
+            isBot: false,
+            elo: user.elo,
+            games: user.games,
+            title: user.title ?? "",
+            role: user.role ?? Role.BASIC,
+            anonymous: false
+          }
+        },
+        preparationId: `boss-test-${nanoid(8)}`,
+        name: `Boss Test - ${user.displayName}`,
+        ownerName: user.displayName,
+        noElo: true,
+        gameMode: GameMode.PVE_MODE,
+        specialGameRule: null,
+        minRank: null,
+        maxRank: null,
+        tournamentId: null,
+        bracketId: null,
+        pveDifficulty: mapPveDifficultyToEloRank(difficultyTier),
+        pveDifficultyTier: difficultyTier,
+        debugBossTest: {
+          ownerId: user.uid,
+          lineup,
+          stageLevel: bossStageLevel
+        }
+      })
+
+      res.status(201).json({ roomId: gameRoom.roomId })
+    })
+
+    app.get("/pve/boss-stages", async (req, res) => {
+      const userAuth = await authUser(req, res)
+      if (!userAuth) return
+      const user = await UserMetadata.findOne({ uid: userAuth.uid })
+      if (
+        !user ||
+        (user.role !== Role.ADMIN && user.role !== Role.BOT_MANAGER)
+      ) {
+        res.status(403).send("Unauthorized")
+        return
+      }
+
+      res.status(200).json({ stages: getBossStageOptions() })
     })
 
     app.get("/status", async (req, res) => {

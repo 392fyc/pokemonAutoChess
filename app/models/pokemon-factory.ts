@@ -75,6 +75,20 @@ export default class PokemonFactory {
         pokemon.positionX = x
         pokemon.positionY = y
 
+        // Apply difficulty scaling to PVE stages (base stats only)
+        if (!("statMultipliers" in stage) && difficultyMultiplier !== 1) {
+          pokemon.hp = Math.round(pokemon.hp * difficultyMultiplier)
+          pokemon.maxHP = pokemon.hp
+          pokemon.atk = Math.round(pokemon.atk * difficultyMultiplier)
+          pokemon.def = Math.round(pokemon.def * difficultyMultiplier)
+          pokemon.ap = Math.round(pokemon.ap * difficultyMultiplier)
+          if (pokemon.speDef !== undefined) {
+            pokemon.speDef = Math.round(
+              pokemon.speDef * difficultyMultiplier
+            )
+          }
+        }
+
         // Apply stat boosts for regular PVE stages
         if ("statBoosts" in stage && stage.statBoosts) {
           for (const stat in stage.statBoosts) {

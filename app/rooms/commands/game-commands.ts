@@ -122,6 +122,7 @@ import {
   randomBetween
 } from "../../utils/random"
 import { resetArraySchema, values } from "../../utils/schemas"
+import { getPveBossDifficultyMultiplier } from "../../utils/pve"
 import { getWeather } from "../../utils/weather"
 import GameRoom from "../game-room"
 
@@ -1047,13 +1048,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       if (this.state.stageLevel === 0) {
         this.state.stageLevel = 1
       }
-      if (
-        this.state.gameMode === GameMode.PVE_MODE &&
-        this.state.stageLevel >= 49
-      ) {
-        this.initializeFightingPhase()
-        return
-      }
       this.initializePickingPhase()
     } else if (this.state.phase == GamePhaseState.PICK) {
       this.stopPickingPhase()
@@ -1073,13 +1067,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     } else if (this.state.phase == GamePhaseState.FIGHT) {
       this.stopFightingPhase()
       if (this.state.gameFinished) {
-        return
-      }
-      if (
-        this.state.gameMode === GameMode.PVE_MODE &&
-        this.state.stageLevel >= 49
-      ) {
-        this.initializeFightingPhase()
         return
       }
       if (
@@ -1377,8 +1364,9 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
   initializePickingPhase() {
     this.state.phase = GamePhaseState.PICK
-    this.state.time =
+    const baseDuration =
       (StageDuration[this.state.stageLevel] ?? StageDuration.DEFAULT) * 1000
+    this.state.time = baseDuration * 2
 
     if (
       [3, 15].includes(this.state.stageLevel) &&
@@ -1764,10 +1752,12 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         this.state.gameFinished = true
         winners.forEach((player, index) => {
           player.rank = index + 1
-          const client = this.room.clients.find(
-            (cli) => cli.auth.uid === player.id
-          )
-          client?.send(Transfer.FINAL_RANK, player.rank)
+          if (!this.state.isBossTest) {
+            const client = this.room.clients.find(
+              (cli) => cli.auth.uid === player.id
+            )
+            client?.send(Transfer.FINAL_RANK, player.rank)
+          }
         })
 
         const loserCandidates = values(this.state.players).filter(
@@ -1788,17 +1778,20 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         let nextRank = winners.length + 1
         losersWithOrder.forEach(({ player }) => {
           player.rank = nextRank
-          const client = this.room.clients.find(
-            (cli) => cli.auth.uid === player.id
-          )
-          client?.send(Transfer.FINAL_RANK, player.rank)
+          if (!this.state.isBossTest) {
+            const client = this.room.clients.find(
+              (cli) => cli.auth.uid === player.id
+            )
+            client?.send(Transfer.FINAL_RANK, player.rank)
+          }
           nextRank += 1
         })
 
+        const endDelayMs = this.state.isBossTest ? 5 * 1000 : 30 * 1000
         this.clock.setTimeout(() => {
           this.room.broadcast(Transfer.GAME_END)
           this.room.disconnect()
-        }, 30 * 1000)
+        }, endDelayMs)
 
       return
     }
@@ -1971,10 +1964,15 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
           resetArraySchema(player.pveRewardsPropositions, rewardsPropositions)
 
+          const difficultyMultiplier =
+            this.state.gameMode === GameMode.PVE_MODE
+              ? getPveBossDifficultyMultiplier(this.state.pveDifficultyTier)
+              : 1
           const pveBoard = PokemonFactory.makePveBoard(
             pveStage,
             this.state.shinyEncounter,
-            this.state.townEncounter
+            this.state.townEncounter,
+            difficultyMultiplier
           )
           const weather = getWeather(player, null, pveBoard)
           const simulation = new Simulation(

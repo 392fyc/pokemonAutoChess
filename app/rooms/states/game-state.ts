@@ -24,7 +24,7 @@ import { pickRandomIn, randomBetween } from "../../utils/random"
 
 export default class GameState extends Schema {
   @type("string") afterGameId = ""
-  @type("uint8") roundTime = StageDuration[0]
+  @type("uint16") roundTime = StageDuration[0]
   @type("uint8") phase = GamePhaseState.TOWN
   @type({ map: Player }) players = new MapSchema<Player>()
   @type({ map: PokemonAvatarModel }) avatars =
@@ -37,6 +37,7 @@ export default class GameState extends Schema {
   @type("string") weather: Weather
   @type("boolean") shinyEncounter = false
   @type("boolean") noElo = false
+  @type("boolean") isBossTest = false
   @type("string") gameMode: GameMode = GameMode.CUSTOM_LOBBY
   @type({ set: "string" }) spectators = new SetSchema<string>()
   @type({ map: Simulation }) simulations = new MapSchema<Simulation>()

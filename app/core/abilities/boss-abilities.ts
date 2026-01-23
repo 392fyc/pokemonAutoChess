@@ -92,43 +92,15 @@ export class BossTeleportStrategy extends AbilityStrategy {
     board: Board,
     teleportCell: { x: number; y: number }
   ): void {
-    if (pokemon.size == "SIZE_2X2") {
-      const canMove = this.check2x2Movement(
-        pokemon,
-        board,
-        teleportCell.x,
-        teleportCell.y
-      )
-      if (!canMove) {
-        logger.warn(
-          "BossTeleportStrategy: 2x2 entity cannot move to target cell"
-        )
-        return
-      }
+    const oldX = pokemon.positionX
+    const oldY = pokemon.positionY
+    if (oldX !== teleportCell.x || oldY !== teleportCell.y) {
+      board.setEntityOnCell(oldX, oldY, undefined)
     }
-
     board.setEntityOnCell(teleportCell.x, teleportCell.y, pokemon)
     logger.debug(
       `BossTeleportStrategy: ${pokemon.name} teleported to (${teleportCell.x}, ${teleportCell.y})`
     )
-  }
-
-  private check2x2Movement(
-    pokemon: PokemonEntity,
-    board: Board,
-    targetX: number,
-    targetY: number
-  ): boolean {
-    for (let dy = 0; dy < 2; dy++) {
-      for (let dx = 0; dx < 2; dx++) {
-        const x = targetX + dx
-        const y = targetY + dy
-        if (!board.isOnBoard(x, y) || board.getEntityOnCell(x, y)) {
-          return false
-        }
-      }
-    }
-    return true
   }
 
   private enhanceNextAttack(pokemon: PokemonEntity): void {
@@ -192,16 +164,16 @@ export class BossPsychicStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    const targets = this.getTargetsInRange(pokemon, board, 2)
+    const targets = this.getTargetsInRange(pokemon, board, 3)
     if (targets.length == 0) {
       logger.warn("BossPsychicStrategy: No targets in range")
       return
     }
 
     const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
-    const baseDamage = 150 * difficultyMultiplier + pokemon.ap
+    const baseDamage = 20 + difficultyMultiplier * pokemon.ap
     const damagePerTarget =
-      targets.length == 1 ? baseDamage * 2 : baseDamage / targets.length
+      targets.length == 1 ? baseDamage * 3 : baseDamage / targets.length
 
     targets.forEach((targetEntity) => {
       this.dealDamage(pokemon, targetEntity, board, damagePerTarget, crit)
@@ -301,15 +273,14 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
     }
 
     const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
-    const baseDamage = 80 * difficultyMultiplier + pokemon.ap
+    const baseDamage = 0.8 * pokemon.ap * difficultyMultiplier
     targetsHit.forEach((enemy) => {
       this.dealAuraSphereDamage(pokemon, enemy, board, baseDamage, crit)
 
-      const teleportationCell = board.getTeleportationCell(
+      const teleportationCell = this.getRandomEmptyCell(
+        board,
         enemy.positionX,
-        enemy.positionY,
-        enemy.team,
-        enemy.size ?? "SIZE_1X1"
+        enemy.positionY
       )
       if (teleportationCell) {
         enemy.moveTo(teleportationCell.x, teleportationCell.y, board, true)
@@ -319,6 +290,20 @@ export class BossAuraSphereStrategy extends AbilityStrategy {
     logger.debug(
       `BossAuraSphereStrategy: ${pokemon.name} dealt ${baseDamage} base damage to ${targetsHit.size} enemies`
     )
+  }
+
+  private getRandomEmptyCell(
+    board: Board,
+    excludeX: number,
+    excludeY: number
+  ): { x: number; y: number } | null {
+    const candidates: Array<{ x: number; y: number }> = []
+    board.forEach((x, y, value) => {
+      if (value === undefined && (x !== excludeX || y !== excludeY)) {
+        candidates.push({ x, y })
+      }
+    })
+    return candidates.length > 0 ? pickRandomIn(candidates) : null
   }
 
   private dealAuraSphereDamage(

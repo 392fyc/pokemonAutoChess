@@ -16409,7 +16409,7 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.BOSS_TELEPORT]: new BossTeleportStrategy(),
   [Ability.BOSS_MEDITATE]: new BossMeditateStrategy(),
   [Ability.BOSS_PSYCHIC]: new BossPsychicStrategy(),
-  [Ability.BOSS_AURASPHERE]: new BossAuraSphereStrategy(),
+  [Ability.BOSS_PSYSTRIKE]: new BossAuraSphereStrategy(),
   [Ability.RAGING_BULL]: new RagingBullStrategy()
 }
 

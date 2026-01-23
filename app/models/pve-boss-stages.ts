@@ -90,9 +90,9 @@ export const mewtwoBossStage: PVEBossStage = {
   avatar: Pkm.MEWTWO,
   emotion: Emotion.ANGRY,
   stageLevel: 49,
-  board: [[Pkm.MEWTWO, 3, 2]], // 中心位置，实际占用2x2区域
+  board: [[Pkm.MEWTWO, 3, 2]], // 中心位置
   baseStats: {
-    hp: 20000,
+    hp: 12000,
     atk: 50,
     def: 10,
     ap: 0,
@@ -114,7 +114,7 @@ export const mewtwoBossStage: PVEBossStage = {
   abilities: [
     Ability.BOSS_TELEPORT,
     Ability.BOSS_MEDITATE,
-    Ability.BOSS_AURASPHERE,
+    Ability.BOSS_PSYSTRIKE,
     Ability.BOSS_PSYCHIC
   ],
   bossTraits: [
@@ -144,7 +144,7 @@ export const mewtwoBossStage: PVEBossStage = {
       priority: 2
     },
     {
-      ability: Ability.BOSS_AURASPHERE,
+      ability: Ability.BOSS_PSYSTRIKE,
       triggerType: "mpControl",
       triggerValue: 110, // MP满时触发
       cooldown: 3000,
@@ -154,7 +154,7 @@ export const mewtwoBossStage: PVEBossStage = {
       ability: Ability.BOSS_PSYCHIC,
       triggerType: "hpThreshold",
       triggerValue: 100, // 100%血量触发
-      delay: 5000, // 5秒顺延
+      delay: 5000, // Max defer window (ms) if silenced or locked
       priority: 4
     },
     {

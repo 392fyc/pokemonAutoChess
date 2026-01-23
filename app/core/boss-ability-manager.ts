@@ -25,6 +25,8 @@ export class BossAbilityManager {
     ability: Ability
     triggerTime: number
     priority: number
+    expiresAt?: number
+    requiresReady?: boolean
   }> = []
   private hpThresholdsTriggered: Set<number> = new Set()
 
@@ -92,17 +94,13 @@ export class BossAbilityManager {
         }
 
         case "hpThreshold":
-          // 血量阈值触发
+          // HP threshold trigger
           if (
             !this.hpThresholdsTriggered.has(config.triggerValue) &&
             currentHpPercent <= config.triggerValue
           ) {
             shouldTrigger = true
             this.hpThresholdsTriggered.add(config.triggerValue)
-            // 如果有顺延时间，设置延迟触发
-            if (config.delay) {
-              triggerTime = currentTime + config.delay
-            }
           }
           break
 
@@ -122,7 +120,9 @@ export class BossAbilityManager {
         this.addPendingAbility(
           config.ability,
           triggerTime,
-          config.priority || 0
+          config.priority || 0,
+          config.triggerType === "hpThreshold" ? config.delay : undefined,
+          config.triggerType === "hpThreshold"
         )
         if (config.cooldown) {
           this.cooldowns.set(config.ability, config.cooldown)
@@ -137,12 +137,17 @@ export class BossAbilityManager {
   private addPendingAbility(
     ability: Ability,
     triggerTime: number,
-    priority: number
+    priority: number,
+    deferWindowMs?: number,
+    requiresReady?: boolean
   ): void {
     this.pendingAbilities.push({
       ability,
       triggerTime,
-      priority
+      priority,
+      expiresAt:
+        deferWindowMs !== undefined ? triggerTime + deferWindowMs : undefined,
+      requiresReady
     })
 
     // 按触发时间和优先级排序
@@ -156,17 +161,42 @@ export class BossAbilityManager {
 
   private processPendingAbilities(deltaTime: number): void {
     const currentTime = this.elapsedMs
+    const remaining: typeof this.pendingAbilities = []
 
-    // 执行所有已到触发时间的技能
-    while (
-      this.pendingAbilities.length > 0 &&
-      this.pendingAbilities[0].triggerTime <= currentTime
-    ) {
-      const pendingAbility = this.pendingAbilities.shift()
-      if (pendingAbility) {
-        this.executeAbility(pendingAbility.ability)
+    this.pendingAbilities.forEach((pendingAbility) => {
+      if (pendingAbility.triggerTime > currentTime) {
+        remaining.push(pendingAbility)
+        return
       }
-    }
+      if (
+        pendingAbility.expiresAt !== undefined &&
+        currentTime > pendingAbility.expiresAt
+      ) {
+        return
+      }
+      if (
+        pendingAbility.requiresReady &&
+        !this.canExecuteAbility(pendingAbility.ability)
+      ) {
+        remaining.push(pendingAbility)
+        return
+      }
+      this.executeAbility(pendingAbility.ability)
+    })
+
+    this.pendingAbilities = remaining
+    this.pendingAbilities.sort((a, b) => {
+      if (a.triggerTime !== b.triggerTime) {
+        return a.triggerTime - b.triggerTime
+      }
+      return b.priority - a.priority
+    })
+  }
+
+  private canExecuteAbility(ability: Ability): boolean {
+    if (this.boss.status.silence) return false
+    if (!this.boss.canMove || this.boss.status.skydiving) return false
+    return true
   }
 
   private executeAbility(ability: Ability): void {

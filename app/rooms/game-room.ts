@@ -1825,6 +1825,8 @@ export default class GameRoom extends Room<GameState> {
     const townPool = allowTownItems
       ? TownItems.filter(
           (item) =>
+            item !== Item.TREASURE_BOX &&
+            item !== Item.WANTED_NOTICE &&
             !this.isChameleonEggItem(item) &&
             !(stageLevel >= 41 && MissionOrders.includes(item))
         )
@@ -1880,7 +1882,7 @@ export default class GameRoom extends Room<GameState> {
   private getChameleonShopPrice(item: Item): number {
     if (ShinyItems.includes(item)) return 40
     if (TownItems.includes(item)) return 10
-    return 25
+    return 20
   }
 
   private isChameleonEggItem(item: Item): boolean {

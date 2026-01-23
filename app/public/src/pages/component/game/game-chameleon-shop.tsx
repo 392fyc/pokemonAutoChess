@@ -17,7 +17,7 @@ const CHAMELEON_REFRESH_COST = 5
 function getChameleonPrice(item: Item) {
   if (ShinyItems.includes(item)) return 40
   if (TownItems.includes(item)) return 10
-  return 25
+  return 20
 }
 
 export default function GameChameleonShop() {

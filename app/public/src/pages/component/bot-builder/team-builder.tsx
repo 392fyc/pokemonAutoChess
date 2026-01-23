@@ -28,8 +28,9 @@ export default function TeamBuilder(props: {
   bot?: IBot
   onChangeAvatar?: (pkm: PkmWithCustom) => void
   board: IDetailledPokemon[]
-  updateBoard: (board: IDetailledPokemon[]) => void
+  updateBoard?: (board: IDetailledPokemon[]) => void
   error?: string
+  readOnly?: boolean
 }) {
   const { t } = useTranslation()
   const [selection, setSelection] = useState<Item | PkmWithCustom>({
@@ -42,6 +43,7 @@ export default function TeamBuilder(props: {
   const inBotBuilder = useLocation().pathname.startsWith("/bot-builder")
   const currentPlayer = useAppSelector(selectCurrentPlayer)
   const [board, setBoard] = useState<IDetailledPokemon[]>(props.board ?? [])
+  const isReadOnly = props.readOnly === true
   const isAdmin = useAppSelector(
     (state) => state.network.profile?.role === Role.ADMIN
   )
@@ -54,6 +56,7 @@ export default function TeamBuilder(props: {
   }, [props.board])
 
   function updateBoard(board) {
+    if (isReadOnly) return
     if (props.updateBoard) props.updateBoard(board)
     else setBoard(board)
   }
@@ -79,6 +82,7 @@ export default function TeamBuilder(props: {
   }, [board])
 
   function addPokemon(x: number, y: number, pkm: PkmWithCustom) {
+    if (isReadOnly) return
     let existingItems
     const i = board.findIndex((p) => p.x === x && p.y === y)
     if (i >= 0) {
@@ -96,6 +100,7 @@ export default function TeamBuilder(props: {
   }
 
   function addItem(x: number, y: number, item: Item) {
+    if (isReadOnly) return
     const p = board.find((p) => p.x === x && p.y === y)
     if (p && p.items.length < 3) {
       p.items.push(item)
@@ -111,6 +116,7 @@ export default function TeamBuilder(props: {
     rightClick: boolean,
     itemIndex?: number
   ) {
+    if (isReadOnly) return
     const pokemonOnCell = board.find((p) => p.x === x && p.y === y)
     if (rightClick) {
       if (itemIndex !== undefined) {
@@ -139,6 +145,7 @@ export default function TeamBuilder(props: {
   }
 
   function handleDrop(x: number, y: number, e: React.DragEvent) {
+    if (isReadOnly) return
     e.stopPropagation()
     e.preventDefault()
     const data = e.dataTransfer.getData("text/plain")
@@ -183,6 +190,7 @@ export default function TeamBuilder(props: {
   }
 
   function addPokemonOnFirstEmptyCell(entity: PkmWithCustom) {
+    if (isReadOnly) return
     const firstEmptyCell = getFirstEmptyCell()
     if (firstEmptyCell) {
       addPokemon(firstEmptyCell.x, firstEmptyCell.y, entity)
@@ -231,6 +239,7 @@ export default function TeamBuilder(props: {
   }
 
   function reset() {
+    if (isReadOnly) return
     updateBoard([])
   }
 
@@ -298,16 +307,16 @@ export default function TeamBuilder(props: {
           </button>
         )}
         {!inBotBuilder && (
-          <button className="bubbly dark" onClick={saveFile}>
+          <button className="bubbly dark" onClick={saveFile} disabled={isReadOnly}>
             <img src="/assets/ui/save.svg" /> {t("save")}
           </button>
         )}
         {!inBotBuilder && (
-          <button className="bubbly dark" onClick={loadFile}>
+          <button className="bubbly dark" onClick={loadFile} disabled={isReadOnly}>
             <img src="/assets/ui/load.svg" /> {t("load")}
           </button>
         )}
-        <button className="bubbly red" onClick={reset}>
+        <button className="bubbly red" onClick={reset} disabled={isReadOnly}>
           <img src="/assets/ui/trash.svg" /> {t("reset")}
         </button>
       </div>

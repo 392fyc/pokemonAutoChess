@@ -99,6 +99,7 @@ export enum LocalStoreKeys {
   RECONNECTION_PREPARATION = "reconnection_preparation",
   RECONNECTION_GAME = "reconnection_game",
   RECONNECTION_AFTER_GAME = "reconnection_after-game",
+  BOSS_TEST_RETURN = "boss_test_return",
   TEAM_PLANNER = "team_planner",
   TIER_LIST = "tier_list",
   LAST_PATCH_READ = "last_patch_read",

@@ -259,6 +259,21 @@ export default function Game() {
 
     const token = await firebase.auth().currentUser?.getIdToken()
 
+    if (room?.state?.isBossTest) {
+      const returnTarget =
+        localStore.get(LocalStoreKeys.BOSS_TEST_RETURN)?.path ?? "/bot-builder"
+      localStore.delete(LocalStoreKeys.BOSS_TEST_RETURN)
+      if (gameContainer && gameContainer.game) {
+        gameContainer.game.destroy(true)
+      }
+      dispatch(leaveGame())
+      navigate(returnTarget)
+      if (room?.connection.isOpen) {
+        room.leave()
+      }
+      return
+    }
+
     if (gameContainer && gameContainer.game) {
       gameContainer.game.destroy(true)
     }
@@ -447,6 +462,7 @@ export default function Game() {
         setLoaded(true)
       })
       room.onMessage(Transfer.FINAL_RANK, (finalRank) => {
+        if (room.state.isBossTest) return
         setFinalRank(finalRank)
         setFinalRankVisibility(FinalRankVisibility.VISIBLE)
       })
@@ -563,7 +579,27 @@ export default function Game() {
         }
       })
 
-      room.onMessage(Transfer.GAME_END, leave)
+      room.onMessage(Transfer.GAME_END, () => {
+        if (room.state.isBossTest) {
+          const returnTarget =
+            localStore.get(LocalStoreKeys.BOSS_TEST_RETURN)?.path ??
+            "/bot-builder"
+          localStore.delete(LocalStoreKeys.BOSS_TEST_RETURN)
+          if (gameContainer?.gameScene?.music) {
+            gameContainer.gameScene.music.destroy()
+          }
+          if (gameContainer && gameContainer.game) {
+            gameContainer.game.destroy(true)
+          }
+          dispatch(leaveGame())
+          navigate(returnTarget)
+          if (room?.connection.isOpen) {
+            room.leave()
+          }
+          return
+        }
+        leave()
+      })
 
       room.onLeave((code) => {
         const shouldGoToLobby = [
@@ -741,7 +777,8 @@ export default function Game() {
             value !== previousValue &&
             player.id === uid &&
             !spectate &&
-            finalRankVisibility === FinalRankVisibility.HIDDEN
+            finalRankVisibility === FinalRankVisibility.HIDDEN &&
+            !room.state.isBossTest
           ) {
             setFinalRankVisibility(FinalRankVisibility.VISIBLE)
             getGameScene()?.input.keyboard?.removeAllListeners()

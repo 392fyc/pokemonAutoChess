@@ -726,6 +726,70 @@ export class MiniGame {
       )
     })
 
+    const baseSynergyPool = values(this.symbols!).map((symbol) => symbol.synergy)
+    const fallbackSynergyPool =
+      baseSynergyPool.length > 0 ? baseSynergyPool : SynergyArray
+    const maxPerSynergyPerPortal = 2
+    const getPortalSynergyCounts = (portalSymbols: SynergySymbol[]) => {
+      const counts = new Map<Synergy, number>()
+      portalSymbols.forEach((symbol) => {
+        counts.set(symbol.synergy, (counts.get(symbol.synergy) ?? 0) + 1)
+      })
+      return counts
+    }
+    const pickSynergyForPortal = (counts: Map<Synergy, number>) => {
+      const candidates = fallbackSynergyPool.filter(
+        (type) => (counts.get(type) ?? 0) < maxPerSynergyPerPortal
+      )
+      if (candidates.length > 0) {
+        return pickRandomIn(candidates)
+      }
+      const globalCandidates = SynergyArray.filter(
+        (type) => (counts.get(type) ?? 0) < maxPerSynergyPerPortal
+      )
+      return globalCandidates.length > 0
+        ? pickRandomIn(globalCandidates)
+        : pickRandomIn(SynergyArray)
+    }
+
+    this.portals?.forEach((portal) => {
+      const portalSymbols = this.symbolsByPortal.get(portal.id) ?? []
+      const counts = getPortalSynergyCounts(portalSymbols)
+
+      portalSymbols.forEach((symbol) => {
+        if ((counts.get(symbol.synergy) ?? 0) <= maxPerSynergyPerPortal) {
+          return
+        }
+        counts.set(symbol.synergy, (counts.get(symbol.synergy) ?? 1) - 1)
+        const replacement = pickSynergyForPortal(counts)
+        symbol.synergy = replacement
+        counts.set(replacement, (counts.get(replacement) ?? 0) + 1)
+      })
+
+      const desiredCount = randomBetween(3, 4)
+      let safety = 0
+      while (portalSymbols.length < desiredCount && safety < 20) {
+        const nextSynergy = pickSynergyForPortal(counts)
+        if ((counts.get(nextSynergy) ?? 0) >= maxPerSynergyPerPortal) {
+          safety++
+          continue
+        }
+        const symbol = new SynergySymbol(
+          portal.x,
+          portal.y,
+          nextSynergy,
+          portalSymbols.length
+        )
+        symbol.portalId = portal.id
+        this.symbols?.set(symbol.id, symbol)
+        portalSymbols.push(symbol)
+        counts.set(nextSynergy, (counts.get(nextSynergy) ?? 0) + 1)
+        safety++
+      }
+
+      this.symbolsByPortal.set(portal.id, portalSymbols)
+    })
+
     // assign a map to each portal
     const maps = new Set(Object.values(DungeonPMDO))
     this.portals?.forEach((portal) => {

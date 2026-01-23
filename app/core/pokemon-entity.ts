@@ -713,10 +713,22 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
 
     const update = (target: { speDef: number }) => {
       target.speDef = min(0)(target.speDef + value)
+      this.applyBossMewtwoSpeDefCap(target)
     }
     update(this)
     if (permanent && !this.isGhostOpponent) {
       update(this.refToBoardPokemon)
+    }
+  }
+
+  private applyBossMewtwoSpeDefCap(target: { speDef: number }) {
+    if (this.name !== Pkm.MEWTWO) return
+    if (!this.bossTraits?.size && !String(this.skill).startsWith("BOSS_")) {
+      return
+    }
+    const maxSpeDef = Math.round(50 * this.bossDifficultyMultiplier)
+    if (target.speDef > maxSpeDef) {
+      target.speDef = maxSpeDef
     }
   }
 

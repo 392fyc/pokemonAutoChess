@@ -121,12 +121,13 @@ export const mewtwoBossStage: PVEBossStage = {
     BossTrait.LEGENDARY_POKEMON,
     BossTrait.IGNORE_SYNERGIES,
     BossTrait.LEGENDARY_RESISTANCE,
-    BossTrait.INCREASED_RANGE
+    BossTrait.INCREASED_RANGE,
+    BossTrait.MEWTWO_HEART
   ],
   initialItems: [
     Item.HEAVY_DUTY_BOOTS,
-    Item.MEWTWO_HEART,
-    Item.SHINY_CHARM
+    Item.PROTECTIVE_PADS,
+    Item.MUSCLE_BAND
   ],
   bossAbilityConfigs: [
     {

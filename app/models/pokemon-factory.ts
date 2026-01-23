@@ -119,6 +119,12 @@ export default class PokemonFactory {
               stage.baseStats.speDef * difficultyMultiplier
             )
           }
+          if (pkm === Pkm.MEWTWO && pokemon.speDef !== undefined) {
+            const maxSpeDef = Math.round(50 * difficultyMultiplier)
+            if (pokemon.speDef > maxSpeDef) {
+              pokemon.speDef = maxSpeDef
+            }
+          }
           if (stage.baseStats.speed !== undefined) {
             pokemon.speed = Math.round(stage.baseStats.speed)
           }

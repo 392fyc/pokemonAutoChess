@@ -23,6 +23,7 @@ import {
   BossTrait,
   Orientation,
   PokemonActionState,
+  PveDifficulty,
   Rarity,
   Team
 } from "../types/enum/Game"
@@ -112,6 +113,9 @@ export default class Simulation extends Schema implements ISimulation {
   stormLightningTimer = 0
   tidalWaveTimer = 0
   tidalWaveCounter = 0
+  mewtwoHeartTimer = 15000
+  mewtwoHeartActive = false
+  mewtwoHeartBoss: PokemonEntity | null = null
   private delayedCommands: SimulationCommand[] = []
   // Boss技能管理器
   bossAbilityManager: BossAbilityManager | null = null
@@ -242,6 +246,34 @@ export default class Simulation extends Schema implements ISimulation {
 
     // 应用Boss特性
     this.applyBossTraits(bossEntity, bossStage)
+
+    if (this.shouldActivateMewtwoHeart(bossEntity)) {
+      this.mewtwoHeartActive = true
+      this.mewtwoHeartBoss = bossEntity
+      this.mewtwoHeartTimer = 15000
+    }
+  }
+
+  private shouldActivateMewtwoHeart(bossEntity: PokemonEntity): boolean {
+    if (!bossEntity.bossTraits?.has(BossTrait.MEWTWO_HEART)) return false
+    const difficulty = this.room.state.pveDifficultyTier
+    return (
+      difficulty === PveDifficulty.HARD ||
+      difficulty === PveDifficulty.EXTREME
+    )
+  }
+
+  private applyMewtwoHeart(): void {
+    if (!this.mewtwoHeartBoss) return
+    const targetTeam =
+      this.mewtwoHeartBoss.team === Team.BLUE_TEAM
+        ? this.redTeam
+        : this.blueTeam
+    targetTeam.forEach((pokemon) => {
+      if (pokemon.shield > 0) {
+        pokemon.shield = Math.floor(pokemon.shield * 0.4)
+      }
+    })
   }
 
   private applyBossTraits(
@@ -1579,6 +1611,13 @@ export default class Simulation extends Schema implements ISimulation {
     // 更新Boss技能管理器
     if (this.isBossBattle && this.bossAbilityManager) {
       this.bossAbilityManager.update(dt)
+    }
+    if (this.mewtwoHeartActive) {
+      this.mewtwoHeartTimer -= dt
+      if (this.mewtwoHeartTimer <= 0) {
+        this.mewtwoHeartTimer = 15000
+        this.applyMewtwoHeart()
+      }
     }
 
     // 更新延迟命令

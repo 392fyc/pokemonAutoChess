@@ -40,7 +40,7 @@ export interface IUserLobbyState {
 }
 
 const initialState: IUserLobbyState = {
-  language: Language.en,
+  language: Language.zh,
   suggestions: [],
   boosterContent: [],
   lastBoostersOpened: [],

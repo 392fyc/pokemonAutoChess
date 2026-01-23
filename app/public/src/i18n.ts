@@ -22,8 +22,9 @@ i18n
   // init i18next
   // for all options read: https://www.i18next.com/overview/configuration-options
   .init({
-    fallbackLng: "en",
+    fallbackLng: "zh",
     supportedLngs: Object.values(Language),
+    load: "languageOnly",
     debug: process.env.NODE_ENV !== "production",
     backend: {
       loadPath(lngs, namespaces) {

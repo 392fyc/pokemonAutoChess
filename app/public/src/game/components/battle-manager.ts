@@ -24,7 +24,7 @@ import { Passive } from "../../../../types/enum/Passive"
 import { Pkm, PkmByIndex } from "../../../../types/enum/Pokemon"
 import type { NonFunctionPropNames } from "../../../../types/HelperTypes"
 import { isOnBench } from "../../../../utils/board"
-import { max } from "../../../../utils/number"
+import { clamp, max } from "../../../../utils/number"
 import { OrientationVector } from "../../../../utils/orientation"
 import { pickRandomIn } from "../../../../utils/random"
 import { GamePokemonDetailDOMWrapper } from "../../pages/component/game/game-pokemon-detail"
@@ -607,7 +607,7 @@ export default class BattleManager {
 
         case "maxHP": {
           const baseHP = getPokemonData(pokemon.name).hp
-          const sizeBuff = (pokemon.maxHP - baseHP) / baseHP
+          const sizeBuff = clamp((pokemon.maxHP - baseHP) / baseHP, 0, 2)
           pkmSprite.sprite.setScale(2 + sizeBuff)
           pkmSprite.lifebar?.setMaxHp(pokemon.maxHP)
           break

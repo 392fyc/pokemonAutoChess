@@ -32,7 +32,7 @@ import {
 } from "../../../../types/enum/Game"
 import { Item } from "../../../../types/enum/Item"
 import { Pkm, PkmByIndex } from "../../../../types/enum/Pokemon"
-import { min } from "../../../../utils/number"
+import { clamp, min } from "../../../../utils/number"
 import {
   OrientationArray,
   OrientationVector
@@ -186,7 +186,7 @@ export default class PokemonSprite extends DraggableObject {
           (acc, item) => acc + (ItemStats[item]?.[Stat.HP] ?? 0),
           pokemon.maxHP
         )
-    const sizeBuff = (maxHP - baseHP) / baseHP
+    const sizeBuff = clamp((maxHP - baseHP) / baseHP, 0, 2)
     this.sprite
       .setScale(2 + sizeBuff)
       .setDepth(DEPTH.POKEMON)

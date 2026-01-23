@@ -41,7 +41,7 @@ import { Weather } from "../../../../types/enum/Weather"
 import type { NonFunctionPropNames } from "../../../../types/HelperTypes"
 import { isOnBench } from "../../../../utils/board"
 import { logger } from "../../../../utils/logger"
-import { max } from "../../../../utils/number"
+import { clamp, max } from "../../../../utils/number"
 import { randomBetween } from "../../../../utils/random"
 import { values } from "../../../../utils/schemas"
 import { GamePokemonDetailDOMWrapper } from "../../pages/component/game/game-pokemon-detail"
@@ -930,7 +930,7 @@ export default class BoardManager {
             (acc, item) => acc + (ItemStats[item]?.[Stat.HP] ?? 0),
             pokemon.hp
           )
-          const sizeBuff = (hp - baseHP) / baseHP
+          const sizeBuff = clamp((hp - baseHP) / baseHP, 0, 2)
           pokemonUI.sprite.setScale(2 + sizeBuff)
           if (previousValue != null && value && value > previousValue)
             pokemonUI.displayBoost(Stat.HP)

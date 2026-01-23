@@ -90,7 +90,7 @@ export function pickRandomPokemonBooster(
 
   if (name in PkmAltFormsByPkm) {
     // If the selected Pokemon has alt forms, pick one of them randomly
-    name = pickRandomIn([...name, PkmAltFormsByPkm[name]!])
+    name = pickRandomIn([name, ...PkmAltFormsByPkm[name]!])
   }
 
   const availableEmotions = getAvailableEmotions(PkmIndex[name], shiny)

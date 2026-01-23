@@ -50,6 +50,7 @@ import {
   removeDpsMeter,
   removePlayer,
   setAdditionalPokemons,
+  setChameleonShop,
   setEmotesUnlocked,
   setInterest,
   setItemsProposition,
@@ -83,6 +84,7 @@ import GameLoadingScreen from "./component/game/game-loading-screen"
 import GamePlayers from "./component/game/game-players"
 import GamePokemonsProposition from "./component/game/game-pokemons-proposition"
 import GameReadyButton from "./component/game/game-ready-button"
+import GameChameleonShop from "./component/game/game-chameleon-shop"
 import GameShop from "./component/game/game-shop"
 import GameSpectatePlayerInfo from "./component/game/game-spectate-player-info"
 import GameStageInfo from "./component/game/game-stage-info"
@@ -743,6 +745,7 @@ export default function Game() {
           dispatch(setShopLocked(player.shopLocked))
           dispatch(setShopFreeRolls(player.shopFreeRolls))
           dispatch(setEmotesUnlocked(player.emotesUnlocked))
+          dispatch(setChameleonShop(values(player.chameleonShop)))
 
           $player.listen("interest", (value) => {
             dispatch(setInterest(value))
@@ -752,6 +755,9 @@ export default function Game() {
           })
           $player.shop.onChange((pkm: Pkm, index: number) => {
             dispatch(changeShop({ value: pkm, index }))
+          })
+          $player.chameleonShop.onChange(() => {
+            dispatch(setChameleonShop(values(player.chameleonShop)))
           })
           $player.listen("shopLocked", (value) => {
             dispatch(setShopLocked(value))
@@ -977,7 +983,14 @@ export default function Game() {
             leave={leave}
             visible={finalRankVisibility === FinalRankVisibility.VISIBLE}
           />
-          {spectate ? <GameSpectatePlayerInfo /> : <GameShop />}
+          {spectate ? (
+            <GameSpectatePlayerInfo />
+          ) : (
+            <>
+              <GameShop />
+              <GameChameleonShop />
+            </>
+          )}
           <GameStageInfo />
           <GamePlayers click={(id: string) => playerClick(id)} />
           <GameSynergies />

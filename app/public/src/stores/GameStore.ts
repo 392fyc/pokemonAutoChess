@@ -43,6 +43,7 @@ export interface GameStateStore {
   shop: Pkm[]
   itemsProposition: Item[]
   pokemonsProposition: PkmProposition[]
+  chameleonShop: Item[]
   currentPlayerSynergies: [string, number][]
   weather: Weather
   blueDpsMeter: IDps[]
@@ -75,6 +76,7 @@ export interface IGameStore {
   shop: Pkm[]
   itemsProposition: Item[]
   pokemonsProposition: PkmProposition[]
+  chameleonShop: Item[]
   currentPlayerSynergies: [string, number][]
   weather: Weather
   blueDpsMeter: IDps[]
@@ -107,6 +109,7 @@ const initialState: GameStateStore = {
   shop: new Array<Pkm>(),
   itemsProposition: new Array<Item>(),
   pokemonsProposition: new Array<Pkm>(),
+  chameleonShop: new Array<Item>(),
   currentPlayerSynergies: new Array<[Synergy, number]>(),
   blueDpsMeter: new Array<IDps>(),
   redDpsMeter: new Array<IDps>(),
@@ -204,6 +207,9 @@ export const gameSlice = createSlice({
     },
     setPokemonProposition: (state, action: PayloadAction<PkmProposition[]>) => {
       state.pokemonsProposition = action.payload
+    },
+    setChameleonShop: (state, action: PayloadAction<Item[]>) => {
+      state.chameleonShop = action.payload
     },
     setAdditionalPokemons: (state, action: PayloadAction<Pkm[]>) => {
       state.additionalPokemons = action.payload
@@ -370,6 +376,7 @@ export const {
   changeShop,
   refreshShopUI,
   setItemsProposition,
+  setChameleonShop,
   setPodium
 } = gameSlice.actions
 

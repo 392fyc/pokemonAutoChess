@@ -1,0 +1,85 @@
+import React from "react"
+import { useTranslation } from "react-i18next"
+import { getPortraitSrc } from "../../../../../utils/avatar"
+import { Item, ShinyItems, TownItems } from "../../../../../types/enum/Item"
+import { Pkm, PkmIndex } from "../../../../../types/enum/Pokemon"
+import { useAppDispatch, useAppSelector } from "../../../hooks"
+import {
+  chameleonShopBuy,
+  chameleonShopRefresh
+} from "../../../stores/NetworkStore"
+import { ItemDetailTooltip } from "../../../game/components/item-detail"
+import "./game-chameleon-shop.css"
+
+const CHAMELEON_SHOP_STAGE = 31
+const CHAMELEON_REFRESH_COST = 5
+
+function getChameleonPrice(item: Item) {
+  if (ShinyItems.includes(item)) return 40
+  if (TownItems.includes(item)) return 10
+  return 25
+}
+
+export default function GameChameleonShop() {
+  const { t } = useTranslation()
+  const dispatch = useAppDispatch()
+  const stageLevel = useAppSelector((state) => state.game.stageLevel)
+  const items = useAppSelector((state) => state.game.chameleonShop)
+  const money = useAppSelector((state) => state.game.money)
+
+  if (stageLevel < CHAMELEON_SHOP_STAGE) return null
+
+  const slots: Array<Item | null> = [...items]
+  while (slots.length < 3) slots.push(null)
+
+  return (
+    <div id="chameleon-shop" className="my-container">
+      <div className="chameleon-shop-header">
+        <img
+          className="chameleon-shop-icon"
+          src={getPortraitSrc(PkmIndex[Pkm.KECLEON])}
+          alt="Kecleon"
+        />
+        <div className="chameleon-shop-title">变色龙商店</div>
+        <button
+          className="bubbly blue"
+          disabled={money < CHAMELEON_REFRESH_COST}
+          onClick={() => dispatch(chameleonShopRefresh())}
+          type="button"
+        >
+          {t("refresh")} {CHAMELEON_REFRESH_COST}
+        </button>
+      </div>
+      <div className="chameleon-shop-items">
+        {slots.map((item, index) => {
+          if (!item) {
+            return (
+              <div key={`empty-${index}`} className="chameleon-shop-item empty" />
+            )
+          }
+          const price = getChameleonPrice(item)
+          return (
+            <button
+              key={`${item}-${index}`}
+              className="chameleon-shop-item"
+              type="button"
+              disabled={money < price}
+              onClick={() => dispatch(chameleonShopBuy(index))}
+              data-tooltip-id="item-detail-tooltip"
+              data-tooltip-content={item}
+            >
+              <img src={`/assets/item/${item}.png`} alt={item} />
+              <div className="chameleon-shop-item-info">
+                <span className="chameleon-shop-item-name">
+                  {t(`item.${item}`)}
+                </span>
+                <span className="chameleon-shop-item-price">{price}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <ItemDetailTooltip />
+    </div>
+  )
+}

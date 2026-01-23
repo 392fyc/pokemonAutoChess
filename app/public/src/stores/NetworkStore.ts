@@ -202,6 +202,12 @@ export const networkSlice = createSlice({
     itemClick: (state, action: PayloadAction<Item>) => {
       state.game?.send(Transfer.ITEM, action.payload)
     },
+    chameleonShopRefresh: (state) => {
+      state.game?.send(Transfer.CHAMELEON_SHOP_REFRESH)
+    },
+    chameleonShopBuy: (state, action: PayloadAction<number>) => {
+      state.game?.send(Transfer.CHAMELEON_SHOP_BUY, { index: action.payload })
+    },
     gameStartRequest: (state, action: PayloadAction<string>) => {
       state.preparation?.send(Transfer.GAME_START_REQUEST, {
         token: action.payload
@@ -376,6 +382,8 @@ export const {
   toggleReady,
   setNoElo,
   itemClick,
+  chameleonShopRefresh,
+  chameleonShopBuy,
   shopClick,
   levelClick,
   lockShop,

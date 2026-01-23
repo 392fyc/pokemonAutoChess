@@ -1,0 +1,85 @@
+#chameleon-shop {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  width: 260px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+}
+
+#chameleon-shop .chameleon-shop-header {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+#chameleon-shop .chameleon-shop-icon {
+  width: 36px;
+  height: 36px;
+  border: var(--border-thin);
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+
+#chameleon-shop .chameleon-shop-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+#chameleon-shop .chameleon-shop-items {
+  display: grid;
+  gap: 6px;
+}
+
+#chameleon-shop .chameleon-shop-item {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg-secondary);
+  border: var(--border-thin);
+  border-radius: 8px;
+  padding: 4px;
+  color: #fff;
+  cursor: var(--cursor-hover);
+}
+
+#chameleon-shop .chameleon-shop-item.empty {
+  height: 48px;
+  background: rgba(84, 89, 107, 0.2);
+  border-style: dashed;
+  cursor: default;
+}
+
+#chameleon-shop .chameleon-shop-item img {
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+}
+
+#chameleon-shop .chameleon-shop-item-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#chameleon-shop .chameleon-shop-item-name {
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+#chameleon-shop .chameleon-shop-item-price {
+  font-weight: 700;
+  min-width: 2ch;
+  text-align: right;
+}
+
+#chameleon-shop .chameleon-shop-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

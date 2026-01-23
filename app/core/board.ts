@@ -53,62 +53,26 @@ export class Board {
   setEntityOnCell(x: number, y: number, entity: PokemonEntity | undefined) {
     if (this.isOnBoard(x, y)) {
       const index = this.columns * y + x
-      const existing = this.cells[index]
+      const prevX = entity?.positionX
+      const prevY = entity?.positionY
+      this.setCellValue(x, y, entity)
+      if (entity && (prevX !== x || prevY !== y)) {
+        const effectsOnPreviousCell =
+          this.boardEffects[prevY * this.columns + prevX]
 
-      if (entity === undefined && existing?.size === "SIZE_2X2") {
-        this.clear2x2Entity(existing.positionX, existing.positionY)
-        return
-      }
+        effectsOnPreviousCell.forEach((effectOnPreviousCell) => {
+          entity.effects.delete(effectOnPreviousCell)
+        })
 
-      if (entity?.size === "SIZE_2X2") {
-        const prevX = entity.positionX
-        const prevY = entity.positionY
-        if (prevX !== x || prevY !== y || !this.check2x2Area(x, y)) {
-          this.clear2x2Entity(prevX, prevY)
-          if (!this.check2x2Area(x, y)) {
-            this.set2x2Entity(prevX, prevY, entity)
-            return
+        entity.positionX = x
+        entity.positionY = y
+
+        const effectsOnNewCell = this.boardEffects[index]
+        effectsOnNewCell.forEach((effectOnNewCell) => {
+          if (!entity.effects.has(EffectEnum.IMMUNITY_BOARD_EFFECTS)) {
+            entity.effects.add(effectOnNewCell)
           }
-        }
-
-        this.set2x2Entity(x, y, entity)
-        if (prevX !== x || prevY !== y) {
-          const effectsOnPreviousCell =
-            this.boardEffects[prevY * this.columns + prevX]
-
-          effectsOnPreviousCell.forEach((effectOnPreviousCell) => {
-            entity.effects.delete(effectOnPreviousCell)
-          })
-
-          const effectsOnNewCell = this.boardEffects[index]
-          effectsOnNewCell.forEach((effectOnNewCell) => {
-            if (!entity.effects.has(EffectEnum.IMMUNITY_BOARD_EFFECTS)) {
-              entity.effects.add(effectOnNewCell)
-            }
-          })
-        }
-      } else {
-        const prevX = entity?.positionX
-        const prevY = entity?.positionY
-        this.setCellValue(x, y, entity)
-        if (entity && (prevX !== x || prevY !== y)) {
-          const effectsOnPreviousCell =
-            this.boardEffects[prevY * this.columns + prevX]
-
-          effectsOnPreviousCell.forEach((effectOnPreviousCell) => {
-            entity.effects.delete(effectOnPreviousCell)
-          })
-
-          entity.positionX = x
-          entity.positionY = y
-
-          const effectsOnNewCell = this.boardEffects[index]
-          effectsOnNewCell.forEach((effectOnNewCell) => {
-            if (!entity.effects.has(EffectEnum.IMMUNITY_BOARD_EFFECTS)) {
-              entity.effects.add(effectOnNewCell)
-            }
-          })
-        }
+        })
       }
     }
   }
@@ -116,9 +80,6 @@ export class Board {
   swapCells(x0: number, y0: number, x1: number, y1: number) {
     const entity0 = this.getEntityOnCell(x0, y0)
     const entity1 = this.getEntityOnCell(x1, y1)
-    if (entity0?.size === "SIZE_2X2" || entity1?.size === "SIZE_2X2") {
-      return
-    }
     this.setEntityOnCell(x1, y1, entity0)
     this.setEntityOnCell(x0, y0, entity1)
   }
@@ -394,8 +355,7 @@ export class Board {
   getTeleportationCell(
     x: number,
     y: number,
-    boardSide: Team,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    boardSide: Team
   ) {
     const candidates = new Array<Cell>()
     const blueCorners = [
@@ -416,10 +376,7 @@ export class Board {
     corners.forEach((coord) => {
       const cells = this.getCellsBetween(x, y, coord.x, coord.y)
       cells.forEach((cell) => {
-        if (
-          cell.value === undefined &&
-          (entitySize === "SIZE_1X1" || this.check2x2Area(cell.x, cell.y))
-        ) {
+        if (cell.value === undefined) {
           candidates.push(cell)
         }
       })
@@ -436,8 +393,7 @@ export class Board {
 
   getFlyAwayCell(
     x: number,
-    y: number,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    y: number
   ): Cell | null {
     const cx = Math.round((x + this.columns * 0.5) % this.columns)
     const cy = Math.round((y + this.rows * 0.5) % this.rows)
@@ -445,9 +401,7 @@ export class Board {
     const candidates: Cell[] = [
       { x: cx, y: cy, value: this.getEntityOnCell(cx, cy) }
     ]
-    const isCellAvailable = (cell: Cell) =>
-      cell.value === undefined &&
-      (entitySize === "SIZE_1X1" || this.check2x2Area(cell.x, cell.y))
+    const isCellAvailable = (cell: Cell) => cell.value === undefined
     while (candidates[0] && !isCellAvailable(candidates[0]) && radius < 5) {
       candidates.shift()
       if (candidates.length === 0) {
@@ -464,8 +418,7 @@ export class Board {
   getSafePlaceAwayFrom(
     originX: number,
     originY: number,
-    specificSide: Team | null = null,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    specificSide: Team | null = null
   ): { x: number; y: number; distance: number } | null {
     const candidateCells = new Array<{
       distance: number
@@ -474,8 +427,7 @@ export class Board {
     }>()
     this.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
       if (
-        value === undefined &&
-        (entitySize === "SIZE_1X1" || this.check2x2Area(x, y))
+        value === undefined
       ) {
         if (specificSide === null) {
           candidateCells.push({
@@ -504,8 +456,7 @@ export class Board {
 
   getClosestAvailablePlace(
     targetX: number,
-    targetY: number,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    targetY: number
   ): { x: number; y: number; distance: number } | null {
     const candidateCells = new Array<{
       distance: number
@@ -515,8 +466,7 @@ export class Board {
 
     this.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
       if (
-        value === undefined &&
-        (entitySize === "SIZE_1X1" || this.check2x2Area(x, y))
+        value === undefined
       ) {
         candidateCells.push({
           x,
@@ -532,12 +482,10 @@ export class Board {
 
   getFarthestTargetCoordinateAvailablePlace(
     pokemon: IPokemonEntity,
-    targetAlly: boolean = false,
-    entitySize?: "SIZE_1X1" | "SIZE_2X2"
+    targetAlly: boolean = false
   ):
     | { x: number; y: number; distance: number; target: PokemonEntity }
     | undefined {
-    const size = entitySize ?? pokemon.size ?? "SIZE_1X1"
     let maxTargetDistance = 0
     let maxCellDistance = 0
     let selectedCell:
@@ -556,8 +504,7 @@ export class Board {
           maxCellDistance = 0
           const freeCells = this.getAdjacentCells(x, y).filter(
             (cell) =>
-              this.getEntityOnCell(cell.x, cell.y) === undefined &&
-              (size === "SIZE_1X1" || this.check2x2Area(cell.x, cell.y))
+              this.getEntityOnCell(cell.x, cell.y) === undefined
           )
           for (const cell of freeCells) {
             const cellDistance = distanceM(
@@ -631,8 +578,7 @@ export class Board {
   getKnockBackPlace(
     x: number,
     y: number,
-    knockBackOrientation: Orientation,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    knockBackOrientation: Orientation
   ): { x: number; y: number } | null {
     const possibleOrientations = OrientationKnockback[knockBackOrientation]
     for (const orientation of possibleOrientations) {
@@ -642,10 +588,7 @@ export class Board {
       const newY = y + dy
       if (this.isOnBoard(newX, newY)) {
         const cell = this.getEntityOnCell(newX, newY)
-        if (
-          cell === undefined &&
-          (entitySize === "SIZE_1X1" || this.check2x2Area(newX, newY))
-        ) {
+        if (cell === undefined) {
           return { x: newX, y: newY }
         }
       }
@@ -666,72 +609,6 @@ export class Board {
     return x >= 0 && x < this.columns && y >= 0 && y < this.rows
   }
 
-  /**
-   * Check if a 2x2 area is available for placement
-   * @param x Top-left corner x coordinate
-   * @param y Top-left corner y coordinate
-   * @returns true if all 4 cells are free and on board
-   */
-  check2x2Area(x: number, y: number): boolean {
-    for (let dy = 0; dy < 2; dy++) {
-      for (let dx = 0; dx < 2; dx++) {
-        const checkX = x + dx
-        const checkY = y + dy
-        if (
-          !this.isOnBoard(checkX, checkY) ||
-          this.getEntityOnCell(checkX, checkY) !== undefined
-        ) {
-          return false
-        }
-      }
-    }
-    return true
-  }
-
-  /**
-   * Get all cells occupied by a 2x2 entity
-   * @param x Top-left corner x coordinate
-   * @param y Top-left corner y coordinate
-   * @returns Array of {x, y} coordinates for all 4 cells
-   */
-  get2x2Cells(x: number, y: number): Array<{ x: number; y: number }> {
-    const cells: Array<{ x: number; y: number }> = []
-    for (let dy = 0; dy < 2; dy++) {
-      for (let dx = 0; dx < 2; dx++) {
-        cells.push({ x: x + dx, y: y + dy })
-      }
-    }
-    return cells
-  }
-
-  /**
-   * Set a 2x2 entity on the board, occupying all 4 cells
-   * @param x Top-left corner x coordinate
-   * @param y Top-left corner y coordinate
-   * @param entity The entity to place
-   */
-  set2x2Entity(x: number, y: number, entity: PokemonEntity | undefined) {
-    const cells = this.get2x2Cells(x, y)
-    for (const cell of cells) {
-      this.setCellValue(cell.x, cell.y, entity)
-    }
-    if (entity) {
-      entity.positionX = x
-      entity.positionY = y
-    }
-  }
-
-  /**
-   * Remove a 2x2 entity from the board, clearing all 4 cells
-   * @param x Top-left corner x coordinate
-   * @param y Top-left corner y coordinate
-   */
-  clear2x2Entity(x: number, y: number) {
-    const cells = this.get2x2Cells(x, y)
-    for (const cell of cells) {
-      this.setCellValue(cell.x, cell.y, undefined)
-    }
-  }
 
   /**
    * Finds and returns the closest enemy `PokemonEntity` to the specified position.

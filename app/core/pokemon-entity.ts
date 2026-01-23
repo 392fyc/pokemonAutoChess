@@ -111,7 +111,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   @type("uint8") stars: number
   @type("string") skill: Ability
   @type("string") passive: Passive
-  @type("string") size: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+  @type("string") size: "SIZE_1X1" = "SIZE_1X1"
   @type({ set: "string" }) bossTraits = new SetSchema<BossTrait>()
   @type(Status) status: Status
   @type(Count) count: Count
@@ -203,7 +203,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     this.shieldDamageTaken = 0
     this.healDone = 0
     this.shieldDone = 0
-    this.size = pokemon.size ?? "SIZE_1X1"
+    this.size = "SIZE_1X1"
     if (pokemon.bossDifficultyMultiplier) {
       this.bossDifficultyMultiplier = pokemon.bossDifficultyMultiplier
     }
@@ -885,19 +885,6 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
 
   moveTo(x: number, y: number, board: Board, forcedDisplacement: boolean) {
     if (forcedDisplacement && !this.canBeMoved) return
-    if (this.size === "SIZE_2X2") {
-      this.toMovingState()
-      const prevX = this.positionX
-      const prevY = this.positionY
-      board.clear2x2Entity(prevX, prevY)
-      if (!board.check2x2Area(x, y)) {
-        board.set2x2Entity(prevX, prevY, this)
-        return
-      }
-      board.set2x2Entity(x, y, this)
-      this.cooldown = 100
-      return
-    }
 
     const target = board.getEntityOnCell(x, y)
     if (forcedDisplacement && target && !target.canBeMoved) return
@@ -1394,11 +1381,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   }
 
   flyAway(board: Board) {
-    const flyAwayCell = board.getFlyAwayCell(
-      this.positionX,
-      this.positionY,
-      this.size ?? "SIZE_1X1"
-    )
+    const flyAwayCell = board.getFlyAwayCell(this.positionX, this.positionY)
     if (flyAwayCell) {
       this.moveTo(flyAwayCell.x, flyAwayCell.y, board, false)
     }

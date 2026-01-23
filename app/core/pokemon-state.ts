@@ -780,11 +780,7 @@ export default abstract class PokemonState {
       : pokemon.team
     pokemon.team = originalTeam
     pokemon.onDeath({ board, attacker })
-    if (pokemon.size === "SIZE_2X2") {
-      board.clear2x2Entity(pokemon.positionX, pokemon.positionY)
-    } else {
-      board.setEntityOnCell(pokemon.positionX, pokemon.positionY, undefined)
-    }
+    board.setEntityOnCell(pokemon.positionX, pokemon.positionY, undefined)
     if (attacker && pokemon !== attacker) {
       attacker.onKill({ target: pokemon, board, attackType })
     }
@@ -1224,19 +1220,14 @@ export default abstract class PokemonState {
 
   getMostSurroundedCoordinateAvailablePlace(
     pokemon: PokemonEntity,
-    board: Board,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = pokemon.size ?? "SIZE_1X1"
+    board: Board
   ): { x: number; y: number } | undefined {
-    const requires2x2 = entitySize === "SIZE_2X2"
     let x: number | undefined = undefined
     let y: number | undefined = undefined
     const team = pokemon.team
     const emptyPlaces = new Array<{ x: number; y: number; neighbour: number }>()
     board.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
-      if (
-        value === undefined &&
-        (!requires2x2 || board.check2x2Area(x, y))
-      ) {
+      if (value === undefined) {
         const cells = board.getAdjacentCells(x, y)
         let n = 0
         cells.forEach((cell) => {
@@ -1267,18 +1258,15 @@ export default abstract class PokemonState {
   getNearestAvailablePlaceCoordinates(
     pokemon: PokemonEntity,
     board: Board,
-    maxRange?: number | undefined,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = pokemon.size ?? "SIZE_1X1"
+    maxRange?: number | undefined
   ): Cell | null {
-    const requires2x2 = entitySize === "SIZE_2X2"
     let candidateCells: Cell[] = []
     let minDistance = 999
     board.forEach((x: number, y: number, value: PokemonEntity | undefined) => {
       const distance = distanceM(pokemon.positionX, pokemon.positionY, x, y)
       if (
         value === undefined &&
-        (maxRange === undefined || distance <= maxRange) &&
-        (!requires2x2 || board.check2x2Area(x, y))
+        (maxRange === undefined || distance <= maxRange)
       ) {
         if (distance < minDistance) {
           candidateCells = [{ x, y, value }]

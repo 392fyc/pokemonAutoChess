@@ -378,16 +378,12 @@ export default class Simulation extends Schema implements ISimulation {
   }
 
   getFirstFreeCell(
-    team: Team,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    team: Team
   ): { x: number; y: number } | null {
     if (team === Team.BLUE_TEAM) {
       for (let y = 0; y < this.board.rows; y++) {
         for (let x = 0; x < this.board.columns; x++) {
-          if (
-            this.board.getEntityOnCell(x, y) === undefined &&
-            (entitySize === "SIZE_1X1" || this.board.check2x2Area(x, y))
-          ) {
+          if (this.board.getEntityOnCell(x, y) === undefined) {
             return { x, y }
           }
         }
@@ -395,10 +391,7 @@ export default class Simulation extends Schema implements ISimulation {
     } else {
       for (let y = 0; y < this.board.rows; y++) {
         for (let x = this.board.columns - 1; x >= 0; x--) {
-          if (
-            this.board.getEntityOnCell(x, y) === undefined &&
-            (entitySize === "SIZE_1X1" || this.board.check2x2Area(x, y))
-          ) {
+          if (this.board.getEntityOnCell(x, y) === undefined) {
             return { x, y }
           }
         }
@@ -410,8 +403,7 @@ export default class Simulation extends Schema implements ISimulation {
   getClosestFreeCellTo(
     positionX: number,
     positionY: number,
-    team: Team,
-    entitySize: "SIZE_1X1" | "SIZE_2X2" = "SIZE_1X1"
+    team: Team
   ): { x: number; y: number } | null {
     const placesToConsiderByOrderOfPriority = [
       [0, 0],
@@ -459,13 +451,12 @@ export default class Simulation extends Schema implements ISimulation {
         x < this.board.columns &&
         y >= 0 &&
         y < this.board.rows &&
-        this.board.getEntityOnCell(x, y) === undefined &&
-        (entitySize === "SIZE_1X1" || this.board.check2x2Area(x, y))
+        this.board.getEntityOnCell(x, y) === undefined
       ) {
         return { x, y }
       }
     }
-    return this.getFirstFreeCell(team, entitySize)
+    return this.getFirstFreeCell(team)
   }
 
   getClosestFreeCellToPokemon(
@@ -484,12 +475,7 @@ export default class Simulation extends Schema implements ISimulation {
     pokemon: IPokemonEntity,
     team: Team = pokemon.team
   ): { x: number; y: number } | null {
-    return this.getClosestFreeCellTo(
-      pokemon.positionX,
-      pokemon.positionY,
-      team,
-      pokemon.size === "SIZE_2X2" ? "SIZE_2X2" : "SIZE_1X1"
-    )
+    return this.getClosestFreeCellTo(pokemon.positionX, pokemon.positionY, team)
   }
 
   applyItemsEffects(pokemon: PokemonEntity) {

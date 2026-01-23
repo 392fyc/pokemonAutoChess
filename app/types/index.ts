@@ -372,7 +372,7 @@ export interface IPokemon {
   killCount: number
   readonly hasEvolution: boolean
   supercharged: boolean
-  size?: "SIZE_1X1" | "SIZE_2X2"
+  size?: "SIZE_1X1"
   bossTraits?: SetSchema<BossTrait>
   bossDifficultyMultiplier?: number
   canBeBenched: boolean

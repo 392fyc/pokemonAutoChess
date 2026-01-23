@@ -17,6 +17,8 @@
 
 #boss-test #team-builder {
   flex: 1;
+  height: 75vh;
+  min-height: 0;
 }
 
 #boss-test .boss-test-panel {

@@ -608,7 +608,8 @@ export default class BattleManager {
         case "maxHP": {
           const baseHP = getPokemonData(pokemon.name).hp
           const sizeBuff = clamp((pokemon.maxHP - baseHP) / baseHP, 0, 2)
-          pkmSprite.sprite.setScale(2 + sizeBuff)
+          const modelScale = pokemon.modelScale ?? 1
+          pkmSprite.sprite.setScale((2 + sizeBuff) * modelScale)
           pkmSprite.lifebar?.setMaxHp(pokemon.maxHP)
           break
         }

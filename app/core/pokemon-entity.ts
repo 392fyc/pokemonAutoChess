@@ -112,6 +112,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   @type("string") skill: Ability
   @type("string") passive: Passive
   @type("string") size: "SIZE_1X1" = "SIZE_1X1"
+  @type("float32") modelScale = 1
   @type({ set: "string" }) bossTraits = new SetSchema<BossTrait>()
   @type(Status) status: Status
   @type(Count) count: Count
@@ -195,6 +196,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     this.luck = pokemon.luck
     this.stacks = pokemon.stacks
     this.stacksRequired = pokemon.stacksRequired
+    this.modelScale = pokemon.modelScale ?? 1
     this.dodge = 0
     this.physicalDamage = 0
     this.specialDamage = 0

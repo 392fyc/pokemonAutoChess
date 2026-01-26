@@ -377,7 +377,8 @@ export interface IPokemon {
   killCount: number
   readonly hasEvolution: boolean
   supercharged: boolean
-  size?: "SIZE_1X1"
+  size?: "SIZE_1X1" | "SIZE_2X2"
+  modelScale?: number
   bossTraits?: SetSchema<BossTrait>
   bossDifficultyMultiplier?: number
   canBeBenched: boolean
@@ -589,6 +590,8 @@ export interface IPokemonEntity {
   stacks: number
   stacksRequired: number
   isSpawn: boolean
+  size?: "SIZE_1X1" | "SIZE_2X2"
+  modelScale?: number
   commands: ISimulationCommand[]
   effectsSet: Set<EffectClass>
   inSpotlight: boolean

@@ -1763,6 +1763,21 @@ export default class GameRoom extends Room<GameState> {
     const pokemon = PokemonFactory.createPokemonFromName(legendary)
     pokemon.positionX = position.x
     pokemon.positionY = position.y
+    pokemon.modelScale = 1.15
+
+    const difficultyMultiplier = getPveBossDifficultyMultiplier(
+      this.state.pveDifficultyTier
+    )
+    if (difficultyMultiplier !== 1) {
+      pokemon.hp = Math.round(pokemon.hp * difficultyMultiplier)
+      pokemon.maxHP = pokemon.hp
+      pokemon.atk = Math.round(pokemon.atk * difficultyMultiplier)
+      pokemon.def = Math.round(pokemon.def * difficultyMultiplier)
+      pokemon.ap = Math.round(pokemon.ap * difficultyMultiplier)
+      if (pokemon.speDef !== undefined) {
+        pokemon.speDef = Math.round(pokemon.speDef * difficultyMultiplier)
+      }
+    }
 
     const itemsPool = CraftableItems.filter((item) => item !== Item.WONDER_BOX)
     pickNRandomIn(itemsPool, 3).forEach((item) => pokemon.items.add(item))

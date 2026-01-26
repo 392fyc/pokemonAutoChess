@@ -94,6 +94,7 @@ export class Pokemon extends Schema implements IPokemon {
   @type("uint8") stacks: number = 0
   @type("uint8") stacksRequired: number = 0
   @type("boolean") supercharged: boolean = false
+  @type("float32") modelScale = 1
   dodge: number = 0
   deathCount: number = 0
   killCount: number = 0

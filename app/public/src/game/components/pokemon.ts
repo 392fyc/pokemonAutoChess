@@ -187,8 +187,10 @@ export default class PokemonSprite extends DraggableObject {
           pokemon.maxHP
         )
     const sizeBuff = clamp((maxHP - baseHP) / baseHP, 0, 2)
+    const baseScale = 2 + sizeBuff
+    const modelScale = pokemon.modelScale ?? 1
     this.sprite
-      .setScale(2 + sizeBuff)
+      .setScale(baseScale * modelScale)
       .setDepth(DEPTH.POKEMON)
       .setTint(getRegionTint(scene.mapName, preference("colorblindMode")))
 
@@ -206,7 +208,7 @@ export default class PokemonSprite extends DraggableObject {
       this.shadow = new GameObjects.Sprite(scene, 0, 5, textureIndex)
       this.shadow
         .setVisible(false)
-        .setScale(2, 2)
+        .setScale(baseScale * modelScale, baseScale * modelScale)
         .setDepth(DEPTH.POKEMON_SHADOW)
       if (
         preference("colorblindMode") &&

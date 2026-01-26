@@ -130,10 +130,8 @@ export class BossMeditateStrategy extends AbilityStrategy {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
     const spAtkIncrease = 10
-    const spDefIncrease = 10
 
     pokemon.ap += spAtkIncrease
-    pokemon.speDef += spDefIncrease
 
     pokemon.effects.add(EffectEnum.MEDITATE)
     pokemon.simulation.addDelayedCommand(
@@ -146,7 +144,7 @@ export class BossMeditateStrategy extends AbilityStrategy {
     )
 
     logger.debug(
-      `BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease} and SpDef by ${spDefIncrease}`
+      `BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease}`
     )
   }
 }

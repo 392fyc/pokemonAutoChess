@@ -94,9 +94,9 @@ export const mewtwoBossStage: PVEBossStage = {
   baseStats: {
     hp: 12000,
     atk: 50,
-    def: 10,
+    def: 30,
     ap: 0,
-    speDef: 10,
+    speDef: 30,
     speed: 67,
     critChance: 10,
     critPower: 2,

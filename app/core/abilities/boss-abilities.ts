@@ -129,7 +129,8 @@ export class BossMeditateStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    const spAtkIncrease = 10
+    const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
+    const spAtkIncrease = Math.round(100 * difficultyMultiplier)
 
     pokemon.ap += spAtkIncrease
 

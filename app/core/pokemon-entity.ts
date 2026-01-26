@@ -137,6 +137,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   specialDamageReduced: number
   shieldDamageTaken: number
   shieldDone: number
+  preventApReduction = false
   grassHealCooldown = 2000
   sandstormDamageTimer = 0
   fairySplashCooldown = 0
@@ -492,6 +493,9 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
       caster.team !== this.team
     ) {
       value *= -1 // twist band turn debuffs into buffs
+    }
+    if (value < 0 && this.preventApReduction) {
+      return
     }
 
     if (

@@ -246,6 +246,9 @@ export default class Simulation extends Schema implements ISimulation {
 
     // 应用Boss特性
     this.applyBossTraits(bossEntity, bossStage)
+    if (bossStage.abilities.includes(Ability.BOSS_MEDITATE)) {
+      bossEntity.preventApReduction = true
+    }
 
     if (this.shouldActivateMewtwoHeart(bossEntity)) {
       this.mewtwoHeartActive = true
@@ -271,7 +274,7 @@ export default class Simulation extends Schema implements ISimulation {
         : this.blueTeam
     targetTeam.forEach((pokemon) => {
       if (pokemon.shield > 0) {
-        pokemon.shield = Math.floor(pokemon.shield * 0.4)
+        pokemon.shield = Math.floor(pokemon.shield * 0.5)
       }
     })
   }

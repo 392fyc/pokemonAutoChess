@@ -9,6 +9,8 @@ import {
   chameleonShopRefresh
 } from "../../../stores/NetworkStore"
 import { ItemDetailTooltip } from "../../../game/components/item-detail"
+import { Money } from "../icons/money"
+import { Tooltip } from "react-tooltip"
 import "./game-chameleon-shop.css"
 
 const CHAMELEON_SHOP_STAGE = 31
@@ -40,14 +42,16 @@ export default function GameChameleonShop() {
           src={getPortraitSrc(PkmIndex[Pkm.KECLEON])}
           alt="Kecleon"
         />
-        <div className="chameleon-shop-title">变色龙商店</div>
+        <div className="chameleon-shop-title">Chameleon Shop</div>
         <button
-          className="bubbly blue"
+          className="bubbly blue chameleon-refresh-button"
           disabled={money < CHAMELEON_REFRESH_COST}
           onClick={() => dispatch(chameleonShopRefresh())}
           type="button"
+          data-tooltip-id="chameleon-refresh-tooltip"
+          aria-label={t("refresh")}
         >
-          {t("refresh")} {CHAMELEON_REFRESH_COST}
+          <img src="/assets/ui/refresh.svg" alt="" />
         </button>
       </div>
       <div className="chameleon-shop-items">
@@ -80,6 +84,13 @@ export default function GameChameleonShop() {
         })}
       </div>
       <ItemDetailTooltip />
+      <Tooltip
+        id="chameleon-refresh-tooltip"
+        className="custom-theme-tooltip"
+        place="top"
+      >
+        <Money value={`${t("refresh")} ${CHAMELEON_REFRESH_COST}`} />
+      </Tooltip>
     </div>
   )
 }

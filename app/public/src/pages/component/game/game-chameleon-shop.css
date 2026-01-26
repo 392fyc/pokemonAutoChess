@@ -30,6 +30,18 @@
   font-size: 0.95rem;
 }
 
+#chameleon-shop .chameleon-refresh-button {
+  padding: 0.25em 0.5em;
+  min-height: 2.25em;
+  display: grid;
+  place-items: center;
+}
+
+#chameleon-shop .chameleon-refresh-button img {
+  width: 1.25em;
+  height: 1.25em;
+}
+
 #chameleon-shop .chameleon-shop-items {
   display: grid;
   gap: 6px;

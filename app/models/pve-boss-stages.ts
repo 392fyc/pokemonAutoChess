@@ -92,9 +92,9 @@ export const mewtwoBossStage: PVEBossStage = {
   stageLevel: 49,
   board: [[Pkm.MEWTWO, 3, 2]], // 中心位置
   baseStats: {
-    hp: 12000,
+    hp: 4000,
     atk: 50,
-    def: 30,
+    def: 40,
     ap: 0,
     speDef: 30,
     speed: 67,

@@ -119,6 +119,9 @@ export default class PokemonFactory {
               stage.baseStats.speDef * difficultyMultiplier
             )
           }
+          if (pkm === Pkm.MEWTWO) {
+            pokemon.shield = Math.round(8000 * difficultyMultiplier)
+          }
           if (pkm === Pkm.MEWTWO && pokemon.speDef !== undefined) {
             const maxSpeDef = Math.round(50 * difficultyMultiplier)
             if (pokemon.speDef > maxSpeDef) {

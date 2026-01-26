@@ -509,7 +509,6 @@ export const ItemEffects: { [i in Item]?: (Effect | (() => Effect))[] } = {
         board,
         attackType: AttackType.PHYSICAL,
         attacker,
-        sourceItem: Item.PUNCHING_GLOVE,
         shouldTargetGainMana: true
       })
     })

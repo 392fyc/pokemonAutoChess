@@ -319,7 +319,6 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     attackType: AttackType
     attacker: PokemonEntity | null
     shouldTargetGainMana: boolean
-    sourceItem?: Item
     isRetaliation?: boolean
   }) {
     return this.state.handleDamage({ target: this, ...params })

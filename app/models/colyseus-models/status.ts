@@ -437,11 +437,6 @@ export default class Status extends Schema implements IStatus {
       if (this.burnOrigin) {
         let burnDamage = pkm.maxHP * 0.05
 
-        // Legendary resistance: reduce burn damage to 1% of max HP
-        if (pkm.bossTraits.has(BossTrait.LEGENDARY_RESISTANCE)) {
-          burnDamage = pkm.maxHP * 0.01
-        }
-
         if (pkm.simulation.weather === Weather.DROUGHT) {
           burnDamage *= 1.3
           const nbHeatRocks = pkm.player
@@ -608,11 +603,6 @@ export default class Status extends Schema implements IStatus {
       if (pkm.passive === Passive.GLISCOR) {
         poisonDamage = pkm.maxHP * 0.05 * (this.poisonStacks - 2)
       }
-      if (pkm.bossTraits.has(BossTrait.LEGENDARY_RESISTANCE)) {
-        const cappedStacks = Math.min(this.poisonStacks, 3)
-        poisonDamage = pkm.maxHP * 0.005 * cappedStacks
-      }
-
       if (pkm.simulation.weather === Weather.RAIN) {
         poisonDamage *= 0.7
       }

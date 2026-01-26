@@ -5,7 +5,6 @@ import { IPokemonEntity, Transfer } from "../types"
 import { EffectEnum } from "../types/enum/Effect"
 import {
   AttackType,
-  BossTrait,
   HealType,
   PokemonActionState,
   Team
@@ -390,7 +389,6 @@ export default abstract class PokemonState {
     attackType,
     attacker,
     shouldTargetGainMana,
-    sourceItem,
     isRetaliation = false
   }: {
     target: PokemonEntity
@@ -399,7 +397,6 @@ export default abstract class PokemonState {
     attackType: AttackType
     attacker: PokemonEntity | null
     shouldTargetGainMana: boolean
-    sourceItem?: Item
     isRetaliation?: boolean
   }): { death: boolean; takenDamage: number } {
     let death = false
@@ -523,12 +520,7 @@ export default abstract class PokemonState {
 
       let reducedDamage = damage
       if (attackType == AttackType.PHYSICAL) {
-        const armorMultiplier =
-          sourceItem === Item.PUNCHING_GLOVE &&
-          pokemon.bossTraits?.has(BossTrait.LEGENDARY_RESISTANCE)
-            ? 3
-            : 1
-        reducedDamage = damage / (1 + ARMOR_FACTOR * def * armorMultiplier)
+        reducedDamage = damage / (1 + ARMOR_FACTOR * def)
       } else if (attackType == AttackType.SPECIAL) {
         reducedDamage = damage / (1 + ARMOR_FACTOR * speDef)
       } else if (attackType == AttackType.TRUE) {

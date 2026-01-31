@@ -47,6 +47,7 @@ import { DelayedCommand } from "../simulation-command"
 import { AbilityStrategy } from "./ability-strategy"
 import {
   BossAuraSphereStrategy,
+  BossMeditateStrategy,
   BossPsychicStrategy,
   BossTeleportStrategy
 } from "./boss-abilities"
@@ -16406,6 +16407,7 @@ export const AbilityStrategies: { [key in Ability]: AbilityStrategy } = {
   [Ability.POWDER]: new PowderStrategy(),
   [Ability.LINGERING_AROMA]: new LingeringAromaStrategy(),
   [Ability.BOSS_TELEPORT]: new BossTeleportStrategy(),
+  [Ability.BOSS_MEDITATE]: new BossMeditateStrategy(),
   [Ability.BOSS_PSYCHIC]: new BossPsychicStrategy(),
   [Ability.BOSS_PSYSTRIKE]: new BossAuraSphereStrategy(),
   [Ability.RAGING_BULL]: new RagingBullStrategy()

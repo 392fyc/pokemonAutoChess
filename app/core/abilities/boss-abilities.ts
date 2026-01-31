@@ -116,40 +116,6 @@ export class BossTeleportStrategy extends AbilityStrategy {
   }
 }
 
-export class BossMeditateStrategy extends AbilityStrategy {
-  copyable = false
-  canCritByDefault = false
-
-  process(
-    pokemon: PokemonEntity,
-    board: Board,
-    target: PokemonEntity,
-    crit: boolean,
-    preventDefaultAnim?: boolean
-  ) {
-    super.process(pokemon, board, target, crit, preventDefaultAnim)
-
-    const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
-    const spAtkIncrease = Math.round(100 * difficultyMultiplier)
-
-    pokemon.ap += spAtkIncrease
-
-    pokemon.effects.add(EffectEnum.MEDITATE)
-    pokemon.simulation.addDelayedCommand(
-      new RemoveEffectCommand(
-        pokemon.id,
-        EffectEnum.MEDITATE,
-        5000,
-        pokemon.simulation
-      )
-    )
-
-    logger.debug(
-      `BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease}`
-    )
-  }
-}
-
 export class BossPsychicStrategy extends AbilityStrategy {
   copyable = false
   canCritByDefault = true

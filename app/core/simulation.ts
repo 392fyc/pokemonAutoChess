@@ -246,7 +246,7 @@ export default class Simulation extends Schema implements ISimulation {
 
     // 应用Boss特性
     this.applyBossTraits(bossEntity, bossStage)
-    if (bossStage.abilities.includes(Ability.BOSS_MEDITATE)) {
+    if (bossEntity.name === Pkm.MEWTWO) {
       bossEntity.preventApReduction = true
     }
 

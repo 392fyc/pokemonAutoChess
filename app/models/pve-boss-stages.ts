@@ -113,7 +113,6 @@ export const mewtwoBossStage: PVEBossStage = {
   },
   abilities: [
     Ability.BOSS_TELEPORT,
-    Ability.BOSS_MEDITATE,
     Ability.BOSS_PSYSTRIKE,
     Ability.BOSS_PSYCHIC
   ],
@@ -136,13 +135,6 @@ export const mewtwoBossStage: PVEBossStage = {
       triggerValue: 8000, // 每8秒触发
       cooldown: 8000,
       priority: 1
-    },
-    {
-      ability: Ability.BOSS_MEDITATE,
-      triggerType: "periodic",
-      triggerValue: 5000, // 每5秒触发
-      cooldown: 5000,
-      priority: 2
     },
     {
       ability: Ability.BOSS_PSYSTRIKE,

@@ -454,6 +454,16 @@ export default class GameRoom extends Room<GameState> {
       }
     })
 
+    this.onMessage(Transfer.PORTAL_POKEMON_REFRESH, (client) => {
+      if (!this.state.gameFinished && client.auth) {
+        try {
+          this.refreshPortalPokemonPropositions(client.auth.uid)
+        } catch (error) {
+          logger.error(error)
+        }
+      }
+    })
+
     this.onMessage(Transfer.DRAG_DROP, (client, message: IDragDropMessage) => {
       if (!this.state.gameFinished) {
         try {
@@ -1420,6 +1430,30 @@ export default class GameRoom extends Room<GameState> {
       player.items.push(item)
       player.itemsProposition.clear()
     }
+  }
+
+  refreshPortalPokemonPropositions(playerId: string) {
+    const player = this.state.players.get(playerId)
+    if (!player) return
+    if (this.state.gameMode !== GameMode.PVE_MODE) return
+    if (
+      this.state.stageLevel !== PortalCarouselStages[1] &&
+      this.state.stageLevel !== PortalCarouselStages[2]
+    )
+      return
+    if (player.pokemonsProposition.length === 0) return
+    if (player.portalRefreshUsed >= 1) return
+
+    const excluded = values(player.pokemonsProposition)
+    player.pokemonsProposition.clear()
+    player.itemsProposition.clear()
+    this.state.shop.assignUniquePropositions(
+      player,
+      this.state,
+      values(player.portalSynergies),
+      excluded
+    )
+    player.portalRefreshUsed = 1
   }
 
   computeRoundDamage(

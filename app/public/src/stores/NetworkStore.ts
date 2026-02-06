@@ -199,6 +199,9 @@ export const networkSlice = createSlice({
     pokemonPropositionClick: (state, action: PayloadAction<PkmProposition>) => {
       state.game?.send(Transfer.POKEMON_PROPOSITION, action.payload)
     },
+    portalPokemonRefresh: (state) => {
+      state.game?.send(Transfer.PORTAL_POKEMON_REFRESH)
+    },
     itemClick: (state, action: PayloadAction<Item>) => {
       state.game?.send(Transfer.ITEM, action.payload)
     },
@@ -348,6 +351,7 @@ export const {
   unban,
   ban,
   pokemonPropositionClick,
+  portalPokemonRefresh,
   giveTitle,
   giveRole,
   removeMessage,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { AdditionalPicksStages } from "../../../../../config"
+import { AdditionalPicksStages, PortalCarouselStages } from "../../../../../config"
 import { IDetailledPokemon } from "../../../../../models/mongo-models/bot-v2"
 import { ShinyItems } from "../../../../../types/enum/Item"
 import {
@@ -9,6 +9,7 @@ import {
   PkmDuos,
   PkmFamily
 } from "../../../../../types/enum/Pokemon"
+import { GameMode } from "../../../../../types/enum/Game"
 import { SpecialGameRule } from "../../../../../types/enum/SpecialGameRule"
 import { isIn } from "../../../../../utils/array"
 import { DEPTH } from "../../../game/depths"
@@ -17,7 +18,10 @@ import {
   useAppDispatch,
   useAppSelector
 } from "../../../hooks"
-import { pokemonPropositionClick } from "../../../stores/NetworkStore"
+import {
+  pokemonPropositionClick,
+  portalPokemonRefresh
+} from "../../../stores/NetworkStore"
 import { getGameScene } from "../../game"
 import { playSound, SOUNDS } from "../../utils/audio"
 import { addIconsToDescription } from "../../utils/descriptions"
@@ -37,6 +41,7 @@ export default function GamePokemonsPropositions() {
   )
   const stageLevel = useAppSelector((state) => state.game.stageLevel)
   const specialGameRule = useAppSelector((state) => state.game.specialGameRule)
+  const gameMode = useAppSelector((state) => state.network.game?.state.gameMode)
 
   const board = getGameScene()?.board
   const isBenchFull =
@@ -45,6 +50,11 @@ export default function GamePokemonsPropositions() {
       (pokemonsProposition.some((p) => p in PkmDuo) ? 7 : 8)
   const connectedPlayer = useAppSelector(selectConnectedPlayer)
   const life = connectedPlayer?.life ?? 0
+  const portalRefreshUsed = connectedPlayer?.portalRefreshUsed ?? 0
+  const canPortalRefresh =
+    gameMode === GameMode.PVE_MODE &&
+    (stageLevel === PortalCarouselStages[1] ||
+      stageLevel === PortalCarouselStages[2])
 
   const [teamPlanner, setTeamPlanner] = useState<IDetailledPokemon[]>(
     localStore.get(LocalStoreKeys.TEAM_PLANNER)
@@ -153,6 +163,24 @@ export default function GamePokemonsPropositions() {
               )
             })}
           </div>
+          {canPortalRefresh && (
+            <div className="game-pokemons-proposition-refresh">
+              <button
+                className="bubbly blue refresh-button"
+                disabled={portalRefreshUsed >= 1}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  playSound(SOUNDS.BUTTON_CLICK)
+                  if (portalRefreshUsed < 1) {
+                    dispatch(portalPokemonRefresh())
+                  }
+                }}
+              >
+                <img src={`/assets/ui/refresh.svg`} />
+                {t("refresh")} ({portalRefreshUsed}/1 次)
+              </button>
+            </div>
+          )}
           {isBenchFull && <p>{t("free_slot_hint")}</p>}
         </div>
 

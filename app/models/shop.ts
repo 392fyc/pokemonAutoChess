@@ -64,7 +64,7 @@ import {
   pickRandomIn,
   shuffleArray
 } from "../utils/random"
-import { values } from "../utils/schemas"
+import { resetArraySchema, values } from "../utils/schemas"
 import Player from "./colyseus-models/player"
 import { Pokemon, PokemonClasses } from "./colyseus-models/pokemon"
 import { getPokemonBaseline } from "./pokemon-factory"
@@ -368,7 +368,8 @@ export default class Shop {
   assignUniquePropositions(
     player: Player,
     state: GameState,
-    portalSynergies: Synergy[]
+    portalSynergies: Synergy[],
+    excludedPropositions: PkmProposition[] = []
   ) {
     const stageLevel = state.stageLevel
     let allCandidates =
@@ -390,6 +391,16 @@ export default class Shop {
     if (portalSynergies.length > NB_UNIQUE_PROPOSITIONS) {
       portalSynergies = pickNRandomIn(portalSynergies, NB_UNIQUE_PROPOSITIONS)
     }
+    resetArraySchema(player.portalSynergies, portalSynergies)
+    player.portalRefreshUsed = 0
+
+    const excludedBaselines = new Set<Pkm>(
+      excludedPropositions.map((proposition) => {
+        const pkm: Pkm =
+          proposition in PkmDuos ? PkmDuos[proposition][0] : proposition
+        return getPokemonBaseline(pkm)
+      })
+    )
 
     const nbPropositions =
       stageLevel === PortalCarouselStages[0]
@@ -408,6 +419,10 @@ export default class Shop {
           synergyWanted === undefined || types.includes(synergyWanted)
 
         if (!hasSynergyWanted) return false
+
+        if (excludedBaselines.has(getPokemonBaseline(pkm))) {
+          return false
+        }
 
         if (regional) {
           const pokemon = new PokemonClasses[pkm](pkm)

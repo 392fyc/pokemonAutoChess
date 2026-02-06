@@ -85,6 +85,7 @@ export enum Transfer {
   ITEM = "ITEM",
   CHAMELEON_SHOP_REFRESH = "CHAMELEON_SHOP_REFRESH",
   CHAMELEON_SHOP_BUY = "CHAMELEON_SHOP_BUY",
+  PORTAL_POKEMON_REFRESH = "PORTAL_POKEMON_REFRESH",
   COOK = "COOK",
   DIG = "DIG",
   GAME_START = "GAME_START",
@@ -299,6 +300,8 @@ export interface IPlayer {
   role: Role
   itemsProposition: ArraySchema<Item>
   pokemonsProposition: ArraySchema<PkmProposition>
+  portalSynergies: ArraySchema<Synergy>
+  portalRefreshUsed: number
   chameleonShop: ArraySchema<Item>
   chameleonTownPurchases: number
   chameleonShinyPurchased: boolean

@@ -20,6 +20,7 @@ import { Item } from "../../../types/enum/Item"
 import { Language } from "../../../types/enum/Language"
 import { PkmProposition } from "../../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../../types/enum/SpecialGameRule"
+import { NightmareReward, NightmareWindowAction } from "../../../types/nightmare"
 import {
   IPokemonCollectionItemUnpacked,
   IUserMetadataJSON,
@@ -196,11 +197,38 @@ export const networkSlice = createSlice({
     shopClick: (state, action: PayloadAction<number>) => {
       state.game?.send(Transfer.SHOP, { id: action.payload })
     },
-    pokemonPropositionClick: (state, action: PayloadAction<PkmProposition>) => {
+    pokemonPropositionClick: (
+      state,
+      action: PayloadAction<{ proposition: PkmProposition; index: number }>
+    ) => {
       state.game?.send(Transfer.POKEMON_PROPOSITION, action.payload)
     },
     portalPokemonRefresh: (state) => {
       state.game?.send(Transfer.PORTAL_POKEMON_REFRESH)
+    },
+    nightmareRewardSelect: (
+      state,
+      action: PayloadAction<{ reward: NightmareReward; pokemonId?: string }>
+    ) => {
+      state.game?.send(Transfer.NIGHTMARE_REWARD_SELECT, action.payload)
+    },
+    nightmareRewardRefresh: (
+      state,
+      action: PayloadAction<{ slotIndex: number }>
+    ) => {
+      state.game?.send(Transfer.NIGHTMARE_REWARD_REFRESH, action.payload)
+    },
+    nightmareSingleEquipApply: (
+      state,
+      action: PayloadAction<{ reward: NightmareReward; pokemonId: string }>
+    ) => {
+      state.game?.send(Transfer.NIGHTMARE_SINGLE_EQUIP_APPLY, action.payload)
+    },
+    nightmareWindowAction: (
+      state,
+      action: PayloadAction<{ action: NightmareWindowAction }>
+    ) => {
+      state.game?.send(Transfer.NIGHTMARE_WINDOW_ACTION, action.payload)
     },
     itemClick: (state, action: PayloadAction<Item>) => {
       state.game?.send(Transfer.ITEM, action.payload)
@@ -236,6 +264,9 @@ export const networkSlice = createSlice({
     },
     setPveDifficulty: (state, action: PayloadAction<PveDifficulty>) => {
       state.preparation?.send(Transfer.CHANGE_PVE_DIFFICULTY, action.payload)
+    },
+    setPveNightmareEnabled: (state, action: PayloadAction<boolean>) => {
+      state.preparation?.send(Transfer.CHANGE_PVE_NIGHTMARE, action.payload)
     },
     changeSelectedEmotion: (
       state,
@@ -352,6 +383,10 @@ export const {
   ban,
   pokemonPropositionClick,
   portalPokemonRefresh,
+  nightmareRewardSelect,
+  nightmareRewardRefresh,
+  nightmareSingleEquipApply,
+  nightmareWindowAction,
   giveTitle,
   giveRole,
   removeMessage,
@@ -369,6 +404,7 @@ export const {
   changeRoomMinMaxRanks,
   setSpecialRule,
   setPveDifficulty,
+  setPveNightmareEnabled,
   gameStartRequest,
   logIn,
   logOut,

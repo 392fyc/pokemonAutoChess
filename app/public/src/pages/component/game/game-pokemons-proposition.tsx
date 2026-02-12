@@ -102,7 +102,12 @@ export default function GamePokemonsPropositions() {
                   onClick={(e) => {
                     e.stopPropagation()
                     playSound(SOUNDS.BUTTON_CLICK)
-                    dispatch(pokemonPropositionClick(proposition))
+                    dispatch(
+                      pokemonPropositionClick({
+                        proposition,
+                        index
+                      })
+                    )
                   }}
                 >
                   {proposition in PkmDuos ? (
@@ -177,7 +182,7 @@ export default function GamePokemonsPropositions() {
                 }}
               >
                 <img src={`/assets/ui/refresh.svg`} />
-                {t("refresh")} ({portalRefreshUsed}/1 次)
+                {portalRefreshUsed >= 1 ? "已刷新" : t("refresh")}
               </button>
             </div>
           )}

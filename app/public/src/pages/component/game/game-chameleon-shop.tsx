@@ -13,12 +13,12 @@ import { Money } from "../icons/money"
 import { Tooltip } from "react-tooltip"
 import "./game-chameleon-shop.css"
 
-const CHAMELEON_SHOP_STAGE = 31
-const CHAMELEON_REFRESH_COST = 5
+const CHAMELEON_SHOP_STAGE = 21
+const CHAMELEON_REFRESH_COST = 2
 
 function getChameleonPrice(item: Item) {
-  if (ShinyItems.includes(item)) return 40
-  if (TownItems.includes(item)) return 10
+  if ((ShinyItems as Item[]).includes(item)) return 10
+  if ((TownItems as Item[]).includes(item)) return 5
   return 20
 }
 

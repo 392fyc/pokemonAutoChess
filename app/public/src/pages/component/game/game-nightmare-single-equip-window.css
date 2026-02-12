@@ -1,0 +1,156 @@
+.game-nightmare-single-equip-window-draggable {
+  overflow: visible;
+}
+
+.game-nightmare-single-equip-window-draggable .draggable-window-content {
+  overflow-y: auto;
+  overflow-x: visible;
+  max-height: min(62vh, 620px);
+}
+
+.game-nightmare-single-equip-window-draggable h3 {
+  margin-bottom: 0;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.game-nightmare-single-equip-window-draggable .window-hint {
+  margin-bottom: 0;
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.2;
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-nightmare-single-equip-window-draggable .window-subtitle {
+  margin: 8px 0 4px;
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.game-nightmare-single-equip-window-draggable .pending-list {
+  margin-bottom: 6px;
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 7px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(25, 37, 52, 0.9);
+  color: #fff;
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.pending {
+  cursor: var(--cursor-hover);
+  width: 100%;
+  text-align: left;
+  border-radius: 8px;
+  border-width: 2px;
+  outline: none;
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.pending.armed {
+  box-shadow: inset 0 0 0 1px rgba(123, 187, 255, 0.9);
+  filter: brightness(1.08);
+}
+
+.game-nightmare-single-equip-window-draggable
+  .single-equip-row.pending:hover {
+  border-color: #7bbbff;
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.tier-c {
+  border-color: rgba(93, 204, 122, 0.8);
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.tier-b {
+  border-color: rgba(90, 166, 255, 0.8);
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.tier-a {
+  border-color: rgba(168, 116, 255, 0.85);
+}
+
+.game-nightmare-single-equip-window-draggable .single-equip-row.tier-s {
+  border-color: rgba(242, 201, 76, 0.85);
+}
+
+.game-nightmare-single-equip-window-draggable .reward-small-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-icon-action {
+  border: 1px solid rgba(123, 187, 255, 0.45);
+  background: rgba(20, 30, 44, 0.85);
+  border-radius: 8px;
+  padding: 2px;
+  line-height: 0;
+  cursor: var(--cursor-hover);
+}
+
+.game-nightmare-single-equip-window-draggable .reward-icon-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-cost {
+  font-size: 0.82em;
+  color: #f3d17a;
+  min-width: 42px;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-name {
+  font-size: 0.84em;
+  line-height: 1.2;
+  flex: 1;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-type-tag {
+  font-size: 0.72em;
+  color: #c8dcff;
+  background: rgba(95, 150, 255, 0.2);
+  border: 1px solid rgba(123, 187, 255, 0.6);
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-inline-hint {
+  width: 100%;
+  font-size: 0.74em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.game-nightmare-single-equip-window-draggable .window-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.game-nightmare-single-equip-window-draggable .reward-armed-hint {
+  color: #9fc6ff;
+  font-size: 0.92em;
+  margin-left: 4px;
+}
+
+.single-equip-tooltip p {
+  margin-top: 4px;
+  font-size: 0.9em;
+}
+
+@media (width <= 1400px) {
+  .game-nightmare-single-equip-window-draggable {
+    max-height: min(58vh, 560px);
+  }
+}

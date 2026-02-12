@@ -81,6 +81,8 @@ import GameDpsMeter from "./component/game/game-dps-meter"
 import GameFinalRank from "./component/game/game-final-rank"
 import GameItemsProposition from "./component/game/game-items-proposition"
 import GameLoadingScreen from "./component/game/game-loading-screen"
+import GameNightmareRewardPicker from "./component/game/game-nightmare-reward-picker"
+import GameNightmareSingleEquipWindow from "./component/game/game-nightmare-single-equip-window"
 import GamePlayers from "./component/game/game-players"
 import GamePokemonsProposition from "./component/game/game-pokemons-proposition"
 import GameReadyButton from "./component/game/game-ready-button"
@@ -811,7 +813,10 @@ export default function Game() {
             })
           }
           $experienceManager.listen("level", (value) => {
-            if (value > 1) {
+            const suppressBotLevelToast =
+              room.state.gameMode === GameMode.PVE_MODE &&
+              (player.isBot || isPveBotId(player.id))
+            if (value > 1 && !suppressBotLevelToast) {
               toast(
                 <p>
                   {t("level")} {value}
@@ -895,7 +900,7 @@ export default function Game() {
         fields.forEach((field) => {
           $player.listen(field, (value) => {
             dispatch(
-              changePlayer({ id: player.id, field: field, value: value })
+              changePlayer({ id: player.id, field: String(field), value: value })
             )
           })
         })
@@ -913,6 +918,68 @@ export default function Game() {
         $player.pokemonsProposition.onChange((value, index) => {
           if (player.id == uid) {
             dispatch(setPokemonProposition(values(player.pokemonsProposition)))
+          }
+        })
+
+        $player.nightmareRewardProposition.onChange(() => {
+          if (player.id === uid) {
+            dispatch(
+              changePlayer({
+                id: player.id,
+                field: "nightmareRewardProposition",
+                value: values(player.nightmareRewardProposition)
+              })
+            )
+          }
+        })
+
+        if ($player.nightmareRewardRefreshCountPerSlot) {
+          $player.nightmareRewardRefreshCountPerSlot.onChange(() => {
+            if (player.id === uid) {
+              dispatch(
+                changePlayer({
+                  id: player.id,
+                  field: "nightmareRewardRefreshCountPerSlot",
+                  value: values(player.nightmareRewardRefreshCountPerSlot)
+                })
+              )
+            }
+          })
+        }
+
+        $player.nightmareSingleEquipRewards.onChange(() => {
+          if (player.id === uid) {
+            dispatch(
+              changePlayer({
+                id: player.id,
+                field: "nightmareSingleEquipRewards",
+                value: values(player.nightmareSingleEquipRewards)
+              })
+            )
+          }
+        })
+
+        $player.nightmareRewards.onChange(() => {
+          if (player.id === uid) {
+            dispatch(
+              changePlayer({
+                id: player.id,
+                field: "nightmareRewards",
+                value: values(player.nightmareRewards)
+              })
+            )
+          }
+        })
+
+        $player.nightmareCounters.onChange(() => {
+          if (player.id === uid) {
+            dispatch(
+              changePlayer({
+                id: player.id,
+                field: "nightmareCounters",
+                value: new Map(player.nightmareCounters.entries())
+              })
+            )
           }
         })
 
@@ -996,6 +1063,8 @@ export default function Game() {
           <GameSynergies />
           <GameItemsProposition />
           <GamePokemonsProposition />
+          <GameNightmareRewardPicker />
+          <GameNightmareSingleEquipWindow />
           <GameDpsMeter />
           <GameToasts />
           {showReadyButton && (

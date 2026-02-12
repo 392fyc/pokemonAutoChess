@@ -1,5 +1,6 @@
 import { ArraySchema, SetSchema } from "@colyseus/schema"
 import { GameObjects } from "phaser"
+import { getNightmareItemSlotLimit } from "../../../../models/nightmare"
 import Player from "../../../../models/colyseus-models/player"
 import { Item } from "../../../../types/enum/Item"
 import { values } from "../../../../utils/schemas"
@@ -34,14 +35,24 @@ export default class ItemsContainer extends GameObjects.Container {
     this.removeAll(true)
 
     const itemSize = this.pokemonId === null ? 70 : 25
-    const ITEMS_PER_COLUMN = 6
+    const itemsPerColumn = this.pokemonId === null ? 6 : 3
+    const xDirection = this.pokemonId === null ? -1 : 1
     const items = values(inventory)
+    let itemSlotLimit: number | null = null
+    if (this.pokemonId) {
+      const boardPokemon = this.scene.room?.state.players
+        .get(this.playerId)
+        ?.board.get(this.pokemonId)
+      itemSlotLimit = getNightmareItemSlotLimit(boardPokemon?.nightmareReward)
+    }
 
     this.items = []
-    items.forEach((item, i) => {
+    const renderedItems =
+      itemSlotLimit == null ? items : items.slice(0, itemSlotLimit)
+    renderedItems.forEach((item, i) => {
       this.items.push(item)
-      const x = -1 * itemSize * Math.floor(i / ITEMS_PER_COLUMN)
-      const y = (i % ITEMS_PER_COLUMN) * itemSize
+      const x = xDirection * itemSize * Math.floor(i / itemsPerColumn)
+      const y = (i % itemsPerColumn) * itemSize
       this.add(
         new ItemContainer(this.scene, x, y, item, this.pokemonId, this.playerId)
       )

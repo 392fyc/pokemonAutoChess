@@ -1,11 +1,28 @@
 .synergies-container .draggable-window-content {
-  display: flex;
-  flex-flow: column;
+  display: block;
   color: #fff;
   background-color: var(--color-bg-primary);
   font-size: 1em;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0;
+  max-height: min(74vh, 760px);
+  width: 184px;
+}
+
+.synergies-list {
+  display: block;
+  width: 184px;
+  min-width: 184px;
+  max-width: 184px;
+  overflow-x: hidden;
+  column-count: 1;
+  column-gap: 0;
+}
+
+.synergies-list > * {
+  width: 100%;
+  break-inside: avoid;
 }
 
 #game-wrapper .synergies-container {
@@ -13,6 +30,7 @@
   left: 0.5%;
   top: 9%;
   padding: 0;
+  width: 196px;
   max-height: 70%;
   background-color: var(--color-bg-primary);
 }

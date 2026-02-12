@@ -38,6 +38,8 @@ import {
 } from "../../core/evolution-rules"
 import { getFlowerPotsUnlocked } from "../../core/flower-pots"
 import { selectMatchups } from "../../core/matchmaking"
+import { applyNightmareEffectsOnSimulationStart } from "../../core/nightmare-rewards"
+import { getNightmareItemSlotLimit } from "../../models/nightmare"
 import { canSell } from "../../core/pokemon-entity"
 import Simulation from "../../core/simulation"
 import { getLevelUpCost } from "../../models/colyseus-models/experience-manager"
@@ -49,6 +51,7 @@ import UserMetadata from "../../models/mongo-models/user-metadata"
 import PokemonFactory, {
   getPokemonBaseline
 } from "../../models/pokemon-factory"
+import { getPokemonData } from "../../models/precomputed/precomputed-pokemon-data"
 import { PVEBossStages } from "../../models/pve-boss-stages"
 import { PVEStages } from "../../models/pve-stages"
 import { getBuyPrice, getSellPrice } from "../../models/shop"
@@ -102,6 +105,7 @@ import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
 import { TownEncounters } from "../../types/enum/TownEncounter"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
+import { NightmareReward } from "../../types/nightmare"
 import { isIn, removeInArray } from "../../utils/array"
 import { getAvatarString } from "../../utils/avatar"
 import {
@@ -125,6 +129,53 @@ import { resetArraySchema, values } from "../../utils/schemas"
 import { getPveBossDifficultyMultiplier } from "../../utils/pve"
 import { getWeather } from "../../utils/weather"
 import GameRoom from "../game-room"
+
+function hasNightmareReward(player: Player, reward: NightmareReward) {
+  return values(player.nightmareRewards).includes(reward)
+}
+
+function getNightmareCounter(player: Player, key: string) {
+  return player.nightmareCounters.get(key) ?? 0
+}
+
+function setNightmareCounter(player: Player, key: string, value: number) {
+  player.nightmareCounters.set(key, value)
+}
+
+function isPlayerOnWinStreak(player: Player) {
+  const history = player.history.filter((stage) => stage.result !== BattleResult.DRAW)
+  let consecutiveWins = 0
+  for (let index = history.length - 1; index >= 0; index--) {
+    if (history[index].result === BattleResult.WIN) {
+      consecutiveWins += 1
+    } else {
+      break
+    }
+  }
+  return consecutiveWins >= 2
+}
+
+function getPlayerMaxTeamSize(player: Player, state: { specialGameRule: SpecialGameRule | null }) {
+  const baseTeamSize = getMaxTeamSize(
+    player.experienceManager.level,
+    state.specialGameRule
+  )
+  const numbersAdvantageBonus = getNightmareCounter(
+    player,
+    "numbers_advantage_bonus"
+  )
+  const soloLevelingRoundsLeft = getNightmareCounter(
+    player,
+    "solo_leveling_rounds_left"
+  )
+  if (
+    soloLevelingRoundsLeft > 0 &&
+    hasNightmareReward(player, NightmareReward.SOLO_LEVELING)
+  ) {
+    return 1
+  }
+  return Math.max(1, baseTeamSize + numbersAdvantageBonus)
+}
 
 export class OnBuyPokemonCommand extends Command<
   GameRoom,
@@ -165,6 +216,27 @@ export class OnBuyPokemonCommand extends Command<
     if (!canBuy) return
 
     player.money -= cost
+
+    if (
+      hasNightmareReward(player, NightmareReward.INFINITE_GROWTH) &&
+      pokemon.stars === 1
+    ) {
+      const targetThreeStar = values(player.board).find(
+        (existing) => existing.name === pokemon.name && existing.stars >= 3
+      )
+      if (targetThreeStar) {
+        const hpGain = Math.max(1, Math.floor(targetThreeStar.hp * 0.05))
+        const atkGain = Math.max(1, Math.floor(targetThreeStar.atk * 0.05))
+        const defGain = Math.max(1, Math.floor(targetThreeStar.def * 0.05))
+        const speDefGain = Math.max(1, Math.floor(targetThreeStar.speDef * 0.05))
+        targetThreeStar.addMaxHP(hpGain, player)
+        targetThreeStar.addAttack(atkGain)
+        targetThreeStar.addDefense(defGain)
+        targetThreeStar.addSpecialDefense(speDefGain)
+        this.state.shop.releasePokemon(name, player, this.state)
+        return
+      }
+    }
 
     const x = getFirstAvailablePositionInBench(player.board)
     pokemon.positionX = x !== null ? x : -1
@@ -370,11 +442,7 @@ export class OnDragDropPokemonCommand extends Command<
           // On pick, allow to drop on / from board
           const teamSize = this.room.getTeamSize(player.board)
           const isBoardFull =
-            teamSize >=
-            getMaxTeamSize(
-              player.experienceManager.level,
-              this.room.state.specialGameRule
-            )
+            teamSize >= getPlayerMaxTeamSize(player, this.room.state)
           const dropToEmptyPlace = isPositionEmpty(x, y, player.board)
           const target = player.getPokemonAt(x, y)
 
@@ -466,11 +534,7 @@ export class OnSwitchBenchAndBoardCommand extends Command<
       // pokemon is on bench, switch to board
       const teamSize = this.room.getTeamSize(player.board)
       const isBoardFull =
-        teamSize >=
-        getMaxTeamSize(
-          player.experienceManager.level,
-          this.room.state.specialGameRule
-        )
+        teamSize >= getPlayerMaxTeamSize(player, this.room.state)
       const destination = getFirstAvailablePositionOnBoard(
         player.board,
         pokemon.range
@@ -758,10 +822,11 @@ export class OnDragDropItemCommand extends Command<
     const existingBasicItemToCombine = values(pokemon.items).find((i) =>
       ItemComponents.includes(i)
     )
+    const pokemonItemSlotLimit = getNightmareItemSlotLimit(pokemon.nightmareReward)
 
     // check if full items and nothing to combine
     if (
-      pokemon.items.size >= 3 &&
+      pokemon.items.size >= pokemonItemSlotLimit &&
       !(isBasicItem && existingBasicItemToCombine) &&
       UnholdableItems.includes(item) === false
     ) {
@@ -909,6 +974,35 @@ export class OnShopRerollCommand extends Command<GameRoom, string> {
           player.shopFreeRolls += repeatBallHolders.length
       }
       this.state.shop.assignShop(player, true, this.state)
+
+      if (
+        hasNightmareReward(player, NightmareReward.TARGETED_SEARCH) &&
+        chance(0.7)
+      ) {
+        const activeSynergies = new Set<Synergy>()
+        player.synergies.forEach((value, key) => {
+          if (value > 0) activeSynergies.add(key as Synergy)
+        })
+
+        const scoreShop = (shop: Pkm[]) =>
+          shop.reduce((score, pkm) => {
+            const types = getPokemonData(pkm).types
+            const hasMatch = types.some((type) => activeSynergies.has(type))
+            return score + (hasMatch ? 2 : 0)
+          }, 0)
+
+        const currentShop = values(player.shop)
+        const currentScore = scoreShop(currentShop)
+        const originalShop = [...currentShop]
+
+        this.state.shop.assignShop(player, true, this.state)
+        const newShop = values(player.shop)
+        const newScore = scoreShop(newShop)
+
+        if (newScore < currentScore) {
+          resetArraySchema(player.shop, originalShop)
+        }
+      }
     }
   }
 }
@@ -1042,6 +1136,7 @@ export class OnUpdateCommand extends Command<
 export class OnUpdatePhaseCommand extends Command<GameRoom> {
   execute() {
     this.state.updatePhaseNeeded = false
+    const phaseBefore = this.state.phase
     if (this.state.phase == GamePhaseState.TOWN) {
       this.stopTownPhase()
       /* Normally Stage level is bumped after a fighting phase, but since magikarp is round 1, we need to increase stage level from 0 -> 1 to avoid a PVP round 1. There is probably a better solution*/
@@ -1079,6 +1174,16 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         this.initializePickingPhase()
       }
     }
+    logger.info("[ROUND_TRANSITION]", {
+      round: this.state.stageLevel,
+      phaseFrom: phaseBefore,
+      phaseTo: this.state.phase
+    })
+    this.room.appendMatchLog("ROUND_TRANSITION", {
+      round: this.state.stageLevel,
+      phaseFrom: phaseBefore,
+      phaseTo: this.state.phase
+    })
   }
 
   computeAchievements() {
@@ -1305,20 +1410,128 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           values(player.board).filter((pokemon) =>
             pokemon.items.has(Item.AMULET_COIN)
           ).length
-        player.maxInterest = 5 + nbGimmighoulCoins - nbAmuletCoins
-        if (specialGameRule !== SpecialGameRule.BLOOD_MONEY) {
-          player.interest = max(player.maxInterest)(
-            Math.floor(player.money / 10)
-          )
+        const financialTycoonBonus = hasNightmareReward(
+          player,
+          NightmareReward.FINANCIAL_TYCOON
+        )
+          ? this.state.stageLevel >= 25
+            ? 2
+            : 1
+          : 0
+        const baseInterestCap = 5 + nbGimmighoulCoins - nbAmuletCoins
+        player.maxInterest = baseInterestCap + financialTycoonBonus
+        const hasWuWeiRule = hasNightmareReward(player, NightmareReward.WU_WEI_RULE)
+        logger.info("[RULE_COMPUTE]", {
+          playerId: player.id,
+          ruleName: "interest_max_cap",
+          baseValue: 5 + nbGimmighoulCoins - nbAmuletCoins,
+          modifiers: [{ id: "FINANCIAL_TYCOON", value: financialTycoonBonus }],
+          priorityOrder: ["HARD_OVERRIDE", "CAP_MOD", "NORMAL"],
+          finalValue: player.maxInterest
+        })
+        if (specialGameRule !== SpecialGameRule.BLOOD_MONEY && !hasWuWeiRule) {
+          player.interest = max(player.maxInterest)(Math.floor(player.money / 10))
+          if (financialTycoonBonus > 0) {
+            const baselineInterest = max(baseInterestCap)(Math.floor(player.money / 10))
+            const tycoonExtraInterest = Math.max(0, player.interest - baselineInterest)
+            if (tycoonExtraInterest > 0) {
+              setNightmareCounter(
+                player,
+                "financial_tycoon_bonus_interest_total",
+                getNightmareCounter(player, "financial_tycoon_bonus_interest_total") +
+                  tycoonExtraInterest
+              )
+            }
+          }
           income += player.interest
+        } else if (hasWuWeiRule) {
+          const wuWeiUpgrade = getNightmareCounter(player, "wu_wei_upgraded") > 0
+          const baseGold = wuWeiUpgrade ? 3 : 2
+          const baseExp = wuWeiUpgrade ? 3 : 2
+          let expGranted = 0
+          let expConvertedToGold = 0
+          if (
+            player.experienceManager.level >= player.experienceManager.maxLevel
+          ) {
+            expConvertedToGold = baseExp
+          } else {
+            const expRemainingToMax = Math.max(
+              0,
+              player.experienceManager.expNeeded - player.experienceManager.experience
+            )
+            expGranted = Math.min(baseExp, expRemainingToMax)
+            if (expGranted > 0) {
+              player.addExperience(expGranted)
+            }
+            expConvertedToGold = Math.max(0, baseExp - expGranted)
+          }
+          const wuWeiGoldGain = baseGold + expConvertedToGold
+          income += wuWeiGoldGain
+          setNightmareCounter(
+            player,
+            "wu_wei_bonus_gold_total",
+            getNightmareCounter(player, "wu_wei_bonus_gold_total") + wuWeiGoldGain
+          )
+          setNightmareCounter(
+            player,
+            "wu_wei_bonus_exp_total",
+            getNightmareCounter(player, "wu_wei_bonus_exp_total") + expGranted
+          )
+          setNightmareCounter(
+            player,
+            "wu_wei_exp_to_gold_total",
+            getNightmareCounter(player, "wu_wei_exp_to_gold_total") +
+              expConvertedToGold
+          )
+          logger.info("[RULE_COMPUTE]", {
+            playerId: player.id,
+            ruleName: "wu_wei_income",
+            baseValue: 0,
+            modifiers: [
+              { id: "WU_WEI_RULE", gold: baseGold, exp: baseExp },
+              { id: "WU_WEI_UPGRADED", active: wuWeiUpgrade }
+            ],
+            priorityOrder: ["HARD_OVERRIDE", "CAP_MOD", "NORMAL"],
+            finalValue: {
+              gold: wuWeiGoldGain,
+              exp: expGranted,
+              expConvertedToGold
+            }
+          })
+        }
+        if (financialTycoonBonus > 0) {
+          income += 1
+          setNightmareCounter(
+            player,
+            "financial_tycoon_bonus_gold_total",
+            getNightmareCounter(player, "financial_tycoon_bonus_gold_total") + 1
+          )
         }
         if (!isPVE) {
           income += max(5)(player.streak)
         }
         if (
+          hasNightmareReward(player, NightmareReward.WAR_DIVIDEND) &&
+          isPlayerOnWinStreak(player)
+        ) {
+          const extraGold =
+            this.state.stageLevel >= 25
+              ? chance(0.9)
+                ? 2
+                : 1
+              : chance(0.5)
+                ? 2
+                : 1
+          income += extraGold
+          setNightmareCounter(
+            player,
+            "war_dividend_bonus_gold_total",
+            getNightmareCounter(player, "war_dividend_bonus_gold_total") + extraGold
+          )
+        }
+        if (
           isPVE &&
           completedStageLevel &&
-          completedStageLevel > 3 &&
           completedStageLevel in PVEStages
         ) {
           income += 10
@@ -1393,6 +1606,8 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       let remainingAddPicks = ignoreRemainingAddPicks ? 0 : 8
       this.state.players.forEach((player: Player) => {
         if (!player.isBot) {
+          resetArraySchema(player.pokemonsProposition, [])
+          resetArraySchema(player.itemsProposition, [])
           const items = pickNRandomIn(ItemComponentsNoScarf, 3)
           for (let i = 0; i < 3; i++) {
             const p = pool.pop()
@@ -1437,6 +1652,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.state.players.forEach((p) => this.updatePlayerBetweenStages(p))
 
     this.room.spawnWanderingPokemons()
+    this.room.prepareNightmareRewardsForStage(this.state.stageLevel)
 
     // PvE stage initialization
     const pveStage = PVEStages[this.state.stageLevel]
@@ -1453,6 +1669,28 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
   updatePlayerBetweenStages(player: Player) {
     const board = values(player.board)
+    const soloRoundsLeft = getNightmareCounter(player, "solo_leveling_rounds_left")
+    if (soloRoundsLeft > 0) {
+      const nextRounds = soloRoundsLeft - 1
+      setNightmareCounter(player, "solo_leveling_rounds_left", nextRounds)
+      if (
+        nextRounds <= 0 &&
+        hasNightmareReward(player, NightmareReward.SOLO_LEVELING)
+      ) {
+        this.room.completeSoloLevelingReward(player)
+      }
+    }
+    const calculatedLossRoundsLeft = getNightmareCounter(
+      player,
+      "calculated_loss_rounds_left"
+    )
+    if (calculatedLossRoundsLeft > 0) {
+      setNightmareCounter(
+        player,
+        "calculated_loss_rounds_left",
+        calculatedLossRoundsLeft - 1
+      )
+    }
 
     if (
       player.synergies.getSynergyStep(Synergy.FIRE) === 4 &&
@@ -1653,10 +1891,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
       if (player.isBot) return
 
       const teamSize = this.room.getTeamSize(player.board)
-      const maxTeamSize = getMaxTeamSize(
-        player.experienceManager.level,
-        this.state.specialGameRule
-      )
+      const maxTeamSize = getPlayerMaxTeamSize(player, this.state)
       if (teamSize < maxTeamSize) {
         const numberOfPokemonsToMove = maxTeamSize - teamSize
         for (let i = 0; i < numberOfPokemonsToMove; i++) {
@@ -1711,6 +1946,14 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         this.room.pickItemProposition(player.id, pickRandomIn(itemsProposition))
         player.itemsProposition.clear()
       }
+
+      const nightmareRewards = values(player.nightmareRewardProposition)
+      if (nightmareRewards.length > 0) {
+        this.room.applyNightmareReward(
+          player.id,
+          pickRandomIn(nightmareRewards) as NightmareReward
+        )
+      }
     })
   }
 
@@ -1727,6 +1970,39 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.computeAchievements()
     this.computeStreak(isPVE)
     this.checkDeath()
+
+    this.state.players.forEach((player: Player) => {
+      if (player.isBot || !player.alive) return
+      const roundsLeft = getNightmareCounter(player, "calculated_loss_rounds_left")
+      if (roundsLeft <= 0) return
+      const latest = player.history.at(-1)
+      if (!latest || latest.result !== BattleResult.DEFEAT) return
+      player.addMoney(8, true, null)
+      player.addExperience(4)
+      player.life = Math.min(100, player.life + 2)
+      setNightmareCounter(
+        player,
+        "calculated_loss_bonus_gold_total",
+        getNightmareCounter(player, "calculated_loss_bonus_gold_total") + 8
+      )
+      setNightmareCounter(
+        player,
+        "calculated_loss_bonus_exp_total",
+        getNightmareCounter(player, "calculated_loss_bonus_exp_total") + 4
+      )
+      setNightmareCounter(
+        player,
+        "calculated_loss_heal_total",
+        getNightmareCounter(player, "calculated_loss_heal_total") + 2
+      )
+      const client = this.room.clients.find((cli) => cli.auth.uid === player.id)
+      client?.send(Transfer.PLAYER_INCOME, 8)
+      logger.info("[NIGHTMARE_CALCULATED_LOSS]", {
+        playerId: player.id,
+        roundsLeft,
+        life: player.life
+      })
+    })
 
     const bossStage =
       this.state.gameMode === GameMode.PVE_MODE && this.state.stageLevel >= 49
@@ -1935,6 +2211,11 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.state.players.forEach((player: Player) => {
       if (player.alive) {
         player.registerPlayedPokemons()
+        player.nightmareSoulLinkActive =
+          !!player.nightmareSoulLinkAlphaId &&
+          !!player.nightmareSoulLinkBetaId &&
+          player.board.has(player.nightmareSoulLinkAlphaId) &&
+          player.board.has(player.nightmareSoulLinkBetaId)
       }
     })
 
@@ -1986,9 +2267,16 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
             this.state.stageLevel,
             weather
           )
+          if (this.room.isNightmareModeEnabled()) {
+            applyNightmareEffectsOnSimulationStart(
+              simulation,
+              player,
+              simulation.blueTeam
+            )
+          }
           player.simulationId = simulation.id
           this.state.simulations.set(simulation.id, simulation)
-            simulation.start()
+          simulation.start()
           }
         })
       } else if (this.state.gameMode === GameMode.PVE_MODE) {

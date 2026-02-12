@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { monitor } from "@colyseus/monitor"
 import config from "@colyseus/tools"
 import { matchMaker, RedisDriver, RedisPresence, ServerOptions } from "colyseus"

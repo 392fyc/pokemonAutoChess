@@ -1,5 +1,11 @@
 import { EvolutionTime } from "../config"
 import Player from "../models/colyseus-models/player"
+import {
+  encodePokemonNightmareRewards,
+  getNightmareItemSlotLimit,
+  getPokemonNightmareRewards,
+  hasPokemonNightmareReward
+} from "../models/nightmare"
 import { Pokemon } from "../models/colyseus-models/pokemon"
 import PokemonFactory from "../models/pokemon-factory"
 import { IPlayer } from "../types"
@@ -9,6 +15,7 @@ import { PokemonActionState } from "../types/enum/Game"
 import { Item, ItemComponents, ShinyItems } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import { Pkm } from "../types/enum/Pokemon"
+import { NightmareReward } from "../types/nightmare"
 import { sum } from "../utils/array"
 import { isOnBench } from "../utils/board"
 import { logger } from "../utils/logger"
@@ -162,6 +169,36 @@ export class CountEvolutionRule extends EvolutionRule {
       pokemonEvolutionName,
       player
     )
+    const evolvedFromIds = new Set<string>(pokemonsBeforeEvolution.map((p) => p.id))
+    const inheritedNightmareRewards = Array.from(
+      new Set(
+        pokemonsBeforeEvolution.flatMap((p) =>
+          getPokemonNightmareRewards(p.nightmareReward)
+        )
+      )
+    )
+    pokemonEvolved.nightmareReward = encodePokemonNightmareRewards(
+      inheritedNightmareRewards
+    )
+    if (
+      hasPokemonNightmareReward(
+        pokemonEvolved.nightmareReward,
+        NightmareReward.SOUL_LINK
+      )
+    ) {
+      if (evolvedFromIds.has(player.nightmareSoulLinkAlphaId)) {
+        player.nightmareSoulLinkAlphaId = pokemonEvolved.id
+      }
+      if (evolvedFromIds.has(player.nightmareSoulLinkBetaId)) {
+        player.nightmareSoulLinkBetaId = pokemonEvolved.id
+      }
+    }
+    if (
+      player.nightmareSoloLevelingTargetId &&
+      evolvedFromIds.has(player.nightmareSoloLevelingTargetId)
+    ) {
+      player.nightmareSoloLevelingTargetId = pokemonEvolved.id
+    }
 
     carryOverPermanentStats(pokemonEvolved, pokemonsBeforeEvolution)
     if (pokemonsBeforeEvolution.some((p) => p.dishes.size > 0)) {
@@ -184,8 +221,12 @@ export class CountEvolutionRule extends EvolutionRule {
       ...itemsCompleteOnBench
     ]
 
+    const itemSlotLimit = getNightmareItemSlotLimit(pokemonEvolved.nightmareReward)
     for (const item of itemsCompleteToAdd) {
-      if (pokemonEvolved.items.has(item) || pokemonEvolved.items.size >= 3) {
+      if (
+        pokemonEvolved.items.has(item) ||
+        pokemonEvolved.items.size >= itemSlotLimit
+      ) {
         player.items.push(item)
       } else {
         pokemonEvolved.items.add(item)
@@ -204,7 +245,7 @@ export class CountEvolutionRule extends EvolutionRule {
     for (const itemComponent of itemComponentsToAdd) {
       if (
         values(pokemonEvolved.items).some((i) => ItemComponents.includes(i)) ||
-        pokemonEvolved.items.size >= 3
+        pokemonEvolved.items.size >= itemSlotLimit
       ) {
         player.items.push(itemComponent)
       } else {

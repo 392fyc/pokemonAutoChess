@@ -56,8 +56,14 @@ start-cloudflared.ps1
 /docs/sprite-asset-reference.md
 
 # development documentation
+AGENTS.md
+NightmareDifficulty.md
 nightmare_mode_v1_spec.md
+nightmare_test_log_reference.md
 future_work.md
 work_summary.md
 policy.md
 community-servers.md
+
+# local debug logs
+test_log/

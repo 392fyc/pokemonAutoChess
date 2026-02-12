@@ -116,6 +116,7 @@ export default class Simulation extends Schema implements ISimulation {
   mewtwoHeartTimer = 15000
   mewtwoHeartActive = false
   mewtwoHeartBoss: PokemonEntity | null = null
+  mewtwoDebugLogTimer = 3000
   private delayedCommands: SimulationCommand[] = []
   // Boss技能管理器
   bossAbilityManager: BossAbilityManager | null = null
@@ -262,7 +263,8 @@ export default class Simulation extends Schema implements ISimulation {
     const difficulty = this.room.state.pveDifficultyTier
     return (
       difficulty === PveDifficulty.HARD ||
-      difficulty === PveDifficulty.EXTREME
+      difficulty === PveDifficulty.EXTREME ||
+      difficulty === PveDifficulty.NIGHTMARE
     )
   }
 
@@ -373,6 +375,10 @@ export default class Simulation extends Schema implements ISimulation {
   ) {
     const player = team === Team.BLUE_TEAM ? this.bluePlayer : this.redPlayer
     const pokemonEntity = new PokemonEntity(pokemon, x, y, team, this)
+    if (this.isBossBattle && team === Team.RED_TEAM) {
+      const bossStage = PVEBossStages[this.stageLevel]
+      bossStage?.bossTraits?.forEach((trait) => pokemonEntity.bossTraits?.add(trait))
+    }
     pokemonEntity.isSpawn = isSpawn
     pokemonEntity.orientation =
       team === Team.BLUE_TEAM ? Orientation.UPRIGHT : Orientation.DOWNLEFT
@@ -548,6 +554,9 @@ export default class Simulation extends Schema implements ISimulation {
   }
 
   applySynergyEffects(pokemon: PokemonEntity, singleType?: Synergy) {
+    if (pokemon.bossTraits?.has(BossTrait.IGNORE_SYNERGIES)) {
+      return
+    }
     const allyEffects =
       pokemon.team === Team.BLUE_TEAM ? this.blueEffects : this.redEffects
     const player =
@@ -1620,6 +1629,24 @@ export default class Simulation extends Schema implements ISimulation {
       if (this.mewtwoHeartTimer <= 0) {
         this.mewtwoHeartTimer = 15000
         this.applyMewtwoHeart()
+      }
+    }
+    if (this.isBossBattle) {
+      this.mewtwoDebugLogTimer -= dt
+      if (this.mewtwoDebugLogTimer <= 0) {
+        this.mewtwoDebugLogTimer = 3000
+        const mewtwo =
+          values(this.blueTeam).find((pokemon) => pokemon.name === Pkm.MEWTWO) ??
+          values(this.redTeam).find((pokemon) => pokemon.name === Pkm.MEWTWO)
+        if (mewtwo) {
+          logger.info("[MEWTWO_DEBUG]", {
+            simulationId: this.id,
+            stageLevel: this.stageLevel,
+            hp: Math.round(mewtwo.hp),
+            shield: Math.round(mewtwo.shield ?? 0),
+            ap: Math.round(mewtwo.ap)
+          })
+        }
       }
     }
 

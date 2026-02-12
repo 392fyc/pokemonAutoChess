@@ -12,6 +12,7 @@ export function mapPveDifficultyToEloRank(
     case PveDifficulty.HARD:
       return EloRank.ULTRA_BALL
     case PveDifficulty.EXTREME:
+    case PveDifficulty.NIGHTMARE:
       return EloRank.MASTER_BALL
     default:
       return EloRank.POKE_BALL
@@ -30,11 +31,22 @@ export function getPveBossDifficultyMultiplier(
       return 1.2
     case PveDifficulty.EXTREME:
       return 1.5
+    case PveDifficulty.NIGHTMARE:
+      return 1.5
     default:
       return 1.0
   }
 }
 
-export function isPveBotId(id: string): boolean {
-  return id.startsWith("pve_bot_")
+export function isPveExtremeOrHigher(
+  difficulty: PveDifficulty | null | undefined
+): boolean {
+  return (
+    difficulty === PveDifficulty.EXTREME ||
+    difficulty === PveDifficulty.NIGHTMARE
+  )
+}
+
+export function isPveBotId(id?: string | null): boolean {
+  return typeof id === "string" && id.startsWith("pve_bot_")
 }

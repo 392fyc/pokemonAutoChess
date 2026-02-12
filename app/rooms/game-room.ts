@@ -1,8 +1,10 @@
 import { Dispatcher } from "@colyseus/command"
-import { MapSchema, SetSchema } from "@colyseus/schema"
+import { ArraySchema, MapSchema, SetSchema } from "@colyseus/schema"
 import { Client, Room } from "colyseus"
 import admin from "firebase-admin"
+import fs from "fs"
 import { nanoid } from "nanoid"
+import path from "path"
 import {
   AdditionalPicksStages,
   ALLOWED_GAME_RECONNECTION_TIME,
@@ -50,6 +52,16 @@ import {
 import { PRECOMPUTED_POKEMONS_PER_RARITY } from "../models/precomputed/precomputed-rarity"
 import { PVEBossStages } from "../models/pve-boss-stages"
 import { PVEStages } from "../models/pve-stages"
+import {
+  addPokemonNightmareReward,
+  getPokemonNightmareRewards,
+  hasPokemonNightmareReward,
+  getNightmareRewardsByTier,
+  isNightmareSingleEquip,
+  rollNightmareReward,
+  rollNightmareRewardFromTier
+} from "../models/nightmare"
+import { applyNightmareEffectsOnSimulationStart } from "../core/nightmare-rewards"
 import { getAdditionalsTier1, getSellPrice } from "../models/shop"
 import { fetchEventLeaderboard } from "../services/leaderboard"
 import {
@@ -80,6 +92,7 @@ import {
 import {
   CraftableItems,
   Item,
+  ItemComponents,
   MissionOrders,
   ShinyItems,
   SynergyStones,
@@ -99,6 +112,14 @@ import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy } from "../types/enum/Synergy"
 import { WandererBehavior, WandererType } from "../types/enum/Wanderer"
 import { IPokemonCollectionItemMongo } from "../types/interfaces/UserMetadata"
+import {
+  NIGHTMARE_MILESTONES,
+  NightmareReward,
+  NightmareRewardTier,
+  NightmareRewardType,
+  NIGHTMARE_REWARD_CONFIG,
+  NightmareWindowAction
+} from "../types/nightmare"
 import { removeInArray } from "../utils/array"
 import { getAvatarString } from "../utils/avatar"
 import {
@@ -119,7 +140,10 @@ import {
 } from "../utils/random"
 import { resetArraySchema, values } from "../utils/schemas"
 import { getWeather } from "../utils/weather"
-import { getPveBossDifficultyMultiplier } from "../utils/pve"
+import {
+  getPveBossDifficultyMultiplier,
+  isPveExtremeOrHigher
+} from "../utils/pve"
 import {
   OnBuyPokemonCommand,
   OnDragDropCombineCommand,
@@ -146,6 +170,11 @@ export default class GameRoom extends Room<GameState> {
   additionalRarePool: Array<Pkm>
   additionalEpicPool: Array<Pkm>
   miniGame: MiniGame
+  nightmareSandboxEnabled = false
+  pveNightmareEnabled = false
+  nightmareRunSeed = ""
+  private matchLogFilePath = ""
+  private matchLogClosed = false
   constructor() {
     super()
     this.dispatcher = new Dispatcher(this)
@@ -170,7 +199,10 @@ export default class GameRoom extends Room<GameState> {
     bracketId,
     pveDifficulty = null,
     pveDifficultyTier = null,
-    debugBossTest
+    pveNightmareEnabled = false,
+    debugBossTest,
+    debugNightmareSandbox = false,
+    nightmareSeed
   }: {
     users: Record<string, IGameUser>
     preparationId: string
@@ -185,13 +217,25 @@ export default class GameRoom extends Room<GameState> {
     bracketId: string | null
     pveDifficulty?: EloRank | null
     pveDifficultyTier?: PveDifficulty | null
+    pveNightmareEnabled?: boolean
     debugBossTest?: {
       ownerId: string
       lineup: IDetailledPokemon[]
       stageLevel?: number
     }
+    debugNightmareSandbox?: boolean
+    nightmareSeed?: string
   }) {
     logger.info("Create Game ", this.roomId)
+    this.initializeMatchLogFile()
+    this.nightmareSandboxEnabled =
+      debugNightmareSandbox || process.env.NIGHTMARE_SANDBOX === "1"
+    this.pveNightmareEnabled =
+      pveDifficultyTier === PveDifficulty.NIGHTMARE || pveNightmareEnabled
+    this.nightmareRunSeed =
+      nightmareSeed ??
+      process.env.NIGHTMARE_SEED ??
+      `${this.roomId}-${Date.now()}`
 
     this.onRoomDeleted = this.onRoomDeleted.bind(this)
     this.presence.subscribe("room-deleted", this.onRoomDeleted)
@@ -227,6 +271,26 @@ export default class GameRoom extends Room<GameState> {
       pveDifficulty,
       pveDifficultyTier
     )
+    logger.info("[RUN_META]", {
+      runId: this.roomId,
+      seed: this.nightmareRunSeed,
+      scenarioVersion: this.nightmareSandboxEnabled
+        ? "nightmare-sandbox-v1"
+        : "nightmare-live-v1",
+      mode: this.state.gameMode,
+      pveDifficultyTier: this.state.pveDifficultyTier,
+      pveNightmareEnabled: this.pveNightmareEnabled
+    })
+    this.appendMatchLog("RUN_META", {
+      runId: this.roomId,
+      seed: this.nightmareRunSeed,
+      scenarioVersion: this.nightmareSandboxEnabled
+        ? "nightmare-sandbox-v1"
+        : "nightmare-live-v1",
+      mode: this.state.gameMode,
+      pveDifficultyTier: this.state.pveDifficultyTier,
+      pveNightmareEnabled: this.pveNightmareEnabled
+    })
     this.miniGame.create(
       this.state.avatars,
       this.state.floatingItems,
@@ -352,6 +416,12 @@ export default class GameRoom extends Room<GameState> {
 
             this.state.players.set(user.uid, player)
             this.state.shop.assignShop(player, false, this.state)
+            if (this.isNightmareModeEnabled()) {
+              const starterComponent = pickRandomIn(ItemComponents)
+              if (starterComponent) {
+                player.items.push(starterComponent)
+              }
+            }
 
             if (
               this.state.specialGameRule === SpecialGameRule.EVERYONE_IS_HERE
@@ -444,15 +514,29 @@ export default class GameRoom extends Room<GameState> {
       }
     })
 
-    this.onMessage(Transfer.POKEMON_PROPOSITION, (client, pkm: Pkm) => {
+    this.onMessage(
+      Transfer.POKEMON_PROPOSITION,
+      (client, payload: Pkm | { proposition: PkmProposition; index?: number }) => {
       if (!this.state.gameFinished && client.auth) {
         try {
-          this.pickPokemonProposition(client.auth.uid, pkm)
+            const proposition =
+              typeof payload === "object" && payload !== null && "proposition" in payload
+                ? payload.proposition
+                : (payload as PkmProposition)
+            const index =
+              typeof payload === "object" &&
+              payload !== null &&
+              "index" in payload &&
+              typeof payload.index === "number"
+                ? payload.index
+                : undefined
+          this.pickPokemonProposition(client.auth.uid, proposition, false, index)
         } catch (error) {
           logger.error(error)
         }
       }
-    })
+      }
+    )
 
     this.onMessage(Transfer.PORTAL_POKEMON_REFRESH, (client) => {
       if (!this.state.gameFinished && client.auth) {
@@ -463,6 +547,69 @@ export default class GameRoom extends Room<GameState> {
         }
       }
     })
+
+    this.onMessage(
+      Transfer.NIGHTMARE_REWARD_SELECT,
+      (
+        client,
+        message: { reward: NightmareReward; pokemonId?: string | undefined }
+      ) => {
+        if (!this.state.gameFinished && client.auth) {
+          try {
+            this.applyNightmareReward(
+              client.auth.uid,
+              message.reward,
+              message.pokemonId
+            )
+          } catch (error) {
+            logger.error("nightmare reward select error", message, error)
+          }
+        }
+      }
+    )
+
+    this.onMessage(
+      Transfer.NIGHTMARE_REWARD_REFRESH,
+      (client, message: { slotIndex: number }) => {
+        if (!this.state.gameFinished && client.auth) {
+          try {
+            this.refreshNightmareRewardSlot(client.auth.uid, message.slotIndex)
+          } catch (error) {
+            logger.error("nightmare reward refresh error", message, error)
+          }
+        }
+      }
+    )
+
+    this.onMessage(
+      Transfer.NIGHTMARE_SINGLE_EQUIP_APPLY,
+      (client, message: { reward: NightmareReward; pokemonId: string }) => {
+        if (!this.state.gameFinished && client.auth) {
+          try {
+            this.applyNightmareSingleEquipReward(
+              client.auth.uid,
+              message.reward,
+              message.pokemonId
+            )
+          } catch (error) {
+            logger.error("nightmare single equip apply error", message, error)
+          }
+        }
+      }
+    )
+
+    this.onMessage(
+      Transfer.NIGHTMARE_WINDOW_ACTION,
+      (client, message: { action: NightmareWindowAction }) => {
+        if (!this.state.gameFinished && client.auth) {
+          try {
+            this.applyNightmareWindowAction(client.auth.uid, message.action)
+          } catch (error) {
+            logger.error("nightmare window action error", message, error)
+          }
+        }
+      }
+    )
 
     this.onMessage(Transfer.DRAG_DROP, (client, message: IDragDropMessage) => {
       if (!this.state.gameFinished) {
@@ -869,6 +1016,10 @@ export default class GameRoom extends Room<GameState> {
             // player left before being eliminated, in that case we consider this a surrender and give them the worst possible rank
             player.life = -99
             this.rankPlayers()
+            this.appendMatchLog("PLAYER_LEFT_BEFORE_END", {
+              playerId: player.id,
+              stageLevel: this.state.stageLevel
+            })
           }
 
           this.updatePlayerAfterGame(player, hasLeftBeforeEnd)
@@ -886,6 +1037,11 @@ export default class GameRoom extends Room<GameState> {
 
   async onDispose() {
     logger.info("Dispose Game ", this.roomId)
+    this.appendMatchLog("DISPOSE_GAME", {
+      roomId: this.roomId,
+      stageLevel: this.state.stageLevel,
+      gameFinished: this.state.gameFinished
+    })
     this.presence.unsubscribe("room-deleted", this.onRoomDeleted)
     const players = values(this.state.players)
     players.forEach((player) => {
@@ -905,6 +1061,7 @@ export default class GameRoom extends Room<GameState> {
           `Game room has been disposed while they were still ${humansAlive.length} players alive.`
         )
       }
+      this.closeMatchLogFile("disposed_before_end")
       return // game not finished before being disposed, we skip elo compute/game history
     }
 
@@ -966,6 +1123,11 @@ export default class GameRoom extends Room<GameState> {
       this.dispatcher.stop()
     } catch (error) {
       logger.error(error)
+      this.appendMatchLog("DISPOSE_ERROR", {
+        message: error instanceof Error ? error.message : `${error}`
+      })
+    } finally {
+      this.closeMatchLogFile(this.state.gameFinished ? "game_finished" : "disposed")
     }
   }
 
@@ -1325,7 +1487,8 @@ export default class GameRoom extends Room<GameState> {
   pickPokemonProposition(
     playerId: string,
     pkm: PkmProposition,
-    bypassLackOfSpace = false
+    bypassLackOfSpace = false,
+    selectedIndexOverride?: number
   ) {
     const player = this.state.players.get(playerId)
     if (!player || player.pokemonsProposition.length === 0) return
@@ -1369,7 +1532,18 @@ export default class GameRoom extends Room<GameState> {
       return // prevent picking if not enough space on bench
 
     // at this point, the player is allowed to pick a proposition
-    const selectedIndex = player.pokemonsProposition.indexOf(pkm)
+    const selectedIndex =
+      typeof selectedIndexOverride === "number" &&
+      selectedIndexOverride >= 0 &&
+      selectedIndexOverride < player.pokemonsProposition.length
+        ? selectedIndexOverride
+        : values(player.pokemonsProposition).findIndex((candidate) => {
+            if (candidate === pkm) return true
+            if (Array.isArray(candidate) && Array.isArray(pkm)) {
+              return candidate.length === pkm.length && candidate.every((it, idx) => it === pkm[idx])
+            }
+            return false
+          })
     player.pokemonsProposition.clear()
 
     if (AdditionalPicksStages.includes(this.state.stageLevel)) {
@@ -1392,7 +1566,14 @@ export default class GameRoom extends Room<GameState> {
       AdditionalPicksStages.includes(this.state.stageLevel) ||
       this.state.stageLevel <= 1
     ) {
-      const selectedItem = player.itemsProposition[selectedIndex]
+      const fallbackIndex =
+        player.itemsProposition.length === 1
+          ? 0
+          : selectedIndex >= 0 && selectedIndex < player.itemsProposition.length
+            ? selectedIndex
+            : -1
+      const selectedItem =
+        fallbackIndex >= 0 ? player.itemsProposition[fallbackIndex] : undefined
       if (player.itemsProposition.length > 0 && selectedItem != null) {
         player.items.push(selectedItem)
         player.itemsProposition.clear()
@@ -1739,7 +1920,7 @@ export default class GameRoom extends Room<GameState> {
         ? PokemonFactory.makePveBoard(botLineup, false, null)
         : PokemonFactory.makePveBoard([], false, null)
       if (
-        this.state.pveDifficultyTier === PveDifficulty.EXTREME &&
+        isPveExtremeOrHigher(this.state.pveDifficultyTier) &&
         this.state.pveSuddenDeathActive &&
         this.state.stageLevel >= 41 &&
         this.state.stageLevel <= 48
@@ -1769,6 +1950,13 @@ export default class GameRoom extends Room<GameState> {
         false,
         false // isBossBattle
       )
+      if (this.isNightmareModeEnabled()) {
+        applyNightmareEffectsOnSimulationStart(
+          simulation,
+          humanPlayer,
+          simulation.blueTeam
+        )
+      }
 
       this.state.simulations.set(simulation.id, simulation)
       this.clock.setTimeout(() => {
@@ -1824,12 +2012,12 @@ export default class GameRoom extends Room<GameState> {
   ) {
     const player = this.state.players.get(playerId)
     if (!player || player.isBot) return
-    if (this.state.stageLevel < 31) {
+    if (this.state.stageLevel < 21) {
       player.chameleonShop.clear()
       return
     }
     if (manualRefresh) {
-      const refreshCost = 5
+      const refreshCost = 2
       if (player.money < refreshCost) return
       player.addMoney(-refreshCost, false, null)
     }
@@ -1840,49 +2028,33 @@ export default class GameRoom extends Room<GameState> {
   private buyChameleonShopItem(playerId: string, index: number) {
     const player = this.state.players.get(playerId)
     if (!player || player.isBot) return
-    if (this.state.stageLevel < 31) return
+    if (this.state.stageLevel < 21) return
     const items = values(player.chameleonShop)
     const item = items[index]
     if (!item) return
-
-    if (TownItems.includes(item) && player.chameleonTownPurchases >= 3) return
-    if (ShinyItems.includes(item) && player.chameleonShinyPurchased) return
 
     const price = this.getChameleonShopPrice(item)
     if (player.money < price) return
 
     player.addMoney(-price, false, null)
     player.items.push(item)
-    if (TownItems.includes(item)) {
-      player.chameleonTownPurchases += 1
-    }
-    if (ShinyItems.includes(item)) {
-      player.chameleonShinyPurchased = true
-    }
-
     items.splice(index, 1)
     resetArraySchema(player.chameleonShop, items)
   }
 
   private rollChameleonShopItems(player: Player): Item[] {
-    const stageLevel = this.state.stageLevel
     const craftablePool = CraftableItems.filter(
       (item) => item !== Item.WONDER_BOX && !this.isChameleonEggItem(item)
     )
-    const allowTownItems = player.chameleonTownPurchases < 3
-    const allowShinyItems = !player.chameleonShinyPurchased
-    const townPool = allowTownItems
-      ? TownItems.filter(
-          (item) =>
-            item !== Item.TREASURE_BOX &&
-            item !== Item.WANTED_NOTICE &&
-            !this.isChameleonEggItem(item) &&
-            !(stageLevel >= 41 && MissionOrders.includes(item))
-        )
-      : []
-    const shinyPool = allowShinyItems
-      ? ShinyItems.filter((item) => !this.isChameleonEggItem(item))
-      : []
+    const townPool = TownItems.filter(
+      (item) =>
+        item !== Item.TREASURE_BOX &&
+        item !== Item.WANTED_NOTICE &&
+        item !== Item.MISSION_ORDER_RED &&
+        !(MissionOrders as Item[]).includes(item) &&
+        !this.isChameleonEggItem(item)
+    )
+    const shinyPool = ShinyItems.filter((item) => !this.isChameleonEggItem(item))
 
     const results: Item[] = []
     let specialPicked = false
@@ -1897,11 +2069,11 @@ export default class GameRoom extends Room<GameState> {
 
       const item = this.pickChameleonItem(pool)
       results.push(item)
-      if (mutableCraftable.includes(item)) {
-        removeInArray(mutableCraftable, item)
+      if ((mutableCraftable as Item[]).includes(item)) {
+        removeInArray<Item>(mutableCraftable as Item[], item)
       }
-      if (mutableSpecial.includes(item)) {
-        removeInArray(mutableSpecial, item)
+      if ((mutableSpecial as Item[]).includes(item)) {
+        removeInArray<Item>(mutableSpecial as Item[], item)
         specialPicked = true
       }
     }
@@ -1925,12 +2097,12 @@ export default class GameRoom extends Room<GameState> {
   }
 
   private getChameleonItemWeight(item: Item): number {
-    return SynergyStones.includes(item) ? 0.2 : 1
+    return (SynergyStones as Item[]).includes(item) ? 0.2 : 1
   }
 
   private getChameleonShopPrice(item: Item): number {
-    if (ShinyItems.includes(item)) return 40
-    if (TownItems.includes(item)) return 10
+    if ((ShinyItems as Item[]).includes(item)) return 10
+    if ((TownItems as Item[]).includes(item)) return 5
     return 20
   }
 
@@ -2143,6 +2315,14 @@ export default class GameRoom extends Room<GameState> {
         true // isBossBattle
       )
 
+      if (this.isNightmareModeEnabled()) {
+        applyNightmareEffectsOnSimulationStart(
+          simulation,
+          humanPlayer,
+          simulation.blueTeam
+        )
+      }
+
       this.state.simulations.set(simulation.id, simulation)
       this.clock.setTimeout(() => {
         if (this.state) this.state.simulationPaused = false
@@ -2208,12 +2388,756 @@ export default class GameRoom extends Room<GameState> {
         false // isBossBattle
       )
 
+      if (this.isNightmareModeEnabled()) {
+        applyNightmareEffectsOnSimulationStart(
+          simulation,
+          bluePlayer,
+          simulation.blueTeam
+        )
+        if (!matchup.ghost) {
+          applyNightmareEffectsOnSimulationStart(
+            simulation,
+            redPlayer,
+            simulation.redTeam
+          )
+        }
+      }
+
       this.state.simulations.set(simulation.id, simulation)
       this.clock.setTimeout(() => {
         if (this.state) this.state.simulationPaused = false
         simulation.start()
       }, 2500)
     })
+  }
+
+  isNightmareModeEnabled() {
+    return (
+      this.state.gameMode === GameMode.PVE_MODE &&
+      (this.state.pveDifficultyTier === PveDifficulty.NIGHTMARE ||
+        this.pveNightmareEnabled ||
+        this.nightmareSandboxEnabled)
+    )
+  }
+
+  isNightmareSandboxEnabled() {
+    return this.state.gameMode === GameMode.PVE_MODE && this.nightmareSandboxEnabled
+  }
+
+  private getNightmareMilestones() {
+    if (this.isNightmareSandboxEnabled()) return [1, 2, 3, 4]
+    return [...NIGHTMARE_MILESTONES]
+  }
+
+  private getNightmareTierForStage(
+    stageLevel: number
+  ): NightmareRewardTier | null {
+    if (!this.isNightmareSandboxEnabled()) return null
+    if (stageLevel === 1) return NightmareRewardTier.B
+    if (stageLevel === 2) return NightmareRewardTier.C
+    if (stageLevel === 3) return NightmareRewardTier.A
+    if (stageLevel === 4) return NightmareRewardTier.S
+    return null
+  }
+
+  private deterministicIndex(key: string, length: number) {
+    if (length <= 1) return 0
+    let hash = 0
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+    }
+    return hash % length
+  }
+
+  private rollNightmareRewardForStage(
+    player: Player,
+    poolStageLevel: number,
+    excluded: Set<NightmareReward>,
+    preferred: Set<NightmareReward>,
+    slotIndex: number,
+    actualStageLevel = poolStageLevel
+  ) {
+    excluded.add(NightmareReward.NUMBERS_ADVANTAGE)
+    const forcedTier = this.getNightmareTierForStage(poolStageLevel)
+    if (forcedTier) {
+      const candidates = getNightmareRewardsByTier(forcedTier)
+        .filter((reward) => !excluded.has(reward))
+        .filter(
+          (reward) => preferred.size === 0 || preferred.has(reward)
+        )
+        .sort((left, right) => left.localeCompare(right))
+      if (candidates.length === 0) return null
+      const seedKey = `${this.nightmareRunSeed}:${player.id}:${poolStageLevel}:${actualStageLevel}:${slotIndex}:${values(player.nightmareRewardRefreshCountPerSlot).join(",")}`
+      return candidates[this.deterministicIndex(seedKey, candidates.length)]
+    }
+    return rollNightmareReward(poolStageLevel, excluded, preferred)
+  }
+
+  private logNightmareSnapshot(player: Player, reason: string) {
+    const payload = {
+      playerId: player.id,
+      round: this.state.stageLevel,
+      reason,
+      ownedRewards: values(player.nightmareRewards),
+      unboundSingleRewards: values(player.nightmareSingleEquipRewards),
+      bindings: values(player.board)
+        .filter((pokemon) => pokemon.nightmareReward !== NightmareReward.NONE)
+        .flatMap((pokemon) =>
+          getPokemonNightmareRewards(pokemon.nightmareReward).map((reward) => ({
+            reward,
+            pokemonId: pokemon.id
+          }))
+        ),
+      soulLink: {
+        alphaPokemonId: player.nightmareSoulLinkAlphaId,
+        betaPokemonId: player.nightmareSoulLinkBetaId,
+        active: player.nightmareSoulLinkActive
+      },
+      counters: [...player.nightmareCounters.entries()],
+      durations: {
+        soloLevelingRoundsLeft:
+          player.nightmareCounters.get("solo_leveling_rounds_left") ?? 0,
+        calculatedLossRoundsLeft:
+          player.nightmareCounters.get("calculated_loss_rounds_left") ?? 0
+      }
+    }
+    logger.info("[NIGHTMARE_STATE_SNAPSHOT]", payload)
+    this.appendMatchLog("NIGHTMARE_STATE_SNAPSHOT", payload)
+  }
+
+  prepareNightmareRewardsForStage(stageLevel: number) {
+    if (!this.isNightmareModeEnabled()) {
+      return
+    }
+
+    this.state.players.forEach((player) => {
+      if (player.isBot || !player.alive) return
+      if (
+        stageLevel === 21 &&
+        !values(player.nightmareRewards).includes(NightmareReward.NUMBERS_ADVANTAGE)
+      ) {
+        this.applyNightmareReward(
+          player.id,
+          NightmareReward.NUMBERS_ADVANTAGE,
+          undefined,
+          true
+        )
+      }
+      const isMilestone = this.getNightmareMilestones().includes(stageLevel)
+      const deepPlanningDueRound =
+        player.nightmareCounters.get("deep_planning_due_round") ?? 0
+      const shouldTriggerDeepPlanning = deepPlanningDueRound === stageLevel
+
+      if (!isMilestone && !shouldTriggerDeepPlanning) return
+
+      if (shouldTriggerDeepPlanning) {
+        player.nightmareCounters.set("deep_planning_due_round", 0)
+        if (isMilestone) {
+          player.nightmareCounters.set("deep_planning_bonus_pending", 1)
+        } else {
+          this.generateNightmareRewardProposition(
+            player.id,
+            stageLevel,
+            15,
+            "deep_planning_bonus"
+          )
+          return
+        }
+      }
+
+      this.generateNightmareRewardProposition(
+        player.id,
+        stageLevel,
+        stageLevel,
+        "milestone"
+      )
+    })
+  }
+
+  private getNightmareSeenRewardsForStage(
+    player: Player,
+    stageLevel: number
+  ): Set<NightmareReward> {
+    const seen = new Set<NightmareReward>()
+    player.nightmareCounters.forEach((value, key) => {
+      if (value <= 0) return
+      const prefix = `seen:${stageLevel}:`
+      if (key.startsWith(prefix)) {
+        const reward = key.slice(prefix.length) as NightmareReward
+        seen.add(reward)
+      }
+    })
+    return seen
+  }
+
+  private markNightmareSeenReward(
+    player: Player,
+    stageLevel: number,
+    reward: NightmareReward
+  ) {
+    player.nightmareCounters.set(`seen:${stageLevel}:${reward}`, 1)
+  }
+
+  generateNightmareRewardProposition(
+    playerId: string,
+    stageLevel: number,
+    poolStageLevel = stageLevel,
+    reason: "milestone" | "deep_planning_bonus" = "milestone"
+  ) {
+    const player = this.state.players.get(playerId)
+    if (!player) return
+
+    player.nightmareRewardProposition.clear()
+    player.nightmareRewardRefreshCountPerSlot = new ArraySchema<number>(0, 0, 0)
+
+    const owned = new Set(values(player.nightmareRewards))
+    const seen = this.getNightmareSeenRewardsForStage(player, stageLevel)
+    const selected = new Set<NightmareReward>()
+    for (let index = 0; index < 3; index++) {
+    const excluded = new Set<NightmareReward>([
+      ...Array.from(owned),
+      ...Array.from(selected),
+      NightmareReward.NUMBERS_ADVANTAGE
+    ])
+      const reward = this.rollNightmareRewardForStage(
+        player,
+        poolStageLevel,
+        excluded,
+        new Set(),
+        index,
+        stageLevel
+      )
+      if (reward && reward !== NightmareReward.NONE) {
+        selected.add(reward)
+        player.nightmareRewardProposition.push(reward)
+        this.markNightmareSeenReward(player, stageLevel, reward)
+      }
+    }
+
+    const pickerPayload = {
+      playerId,
+      round: stageLevel,
+      poolRound: poolStageLevel,
+      reason,
+      shown3: values(player.nightmareRewardProposition),
+      seen: Array.from(seen)
+    }
+    logger.info("[NIGHTMARE_PICKER]", pickerPayload)
+    this.appendMatchLog("NIGHTMARE_PICKER", pickerPayload)
+    player.nightmareCounters.set("nightmare_picker_pool_round", poolStageLevel)
+    this.logNightmareSnapshot(player, "picker_generated")
+  }
+
+  refreshNightmareRewardSlot(playerId: string, slotIndex: number) {
+    const player = this.state.players.get(playerId)
+    if (!player || !this.isNightmareModeEnabled()) return
+    if (
+      !Number.isInteger(slotIndex) ||
+      slotIndex < 0 ||
+      slotIndex >= player.nightmareRewardProposition.length ||
+      slotIndex >= player.nightmareRewardRefreshCountPerSlot.length
+    ) {
+      return
+    }
+
+    const used = player.nightmareRewardRefreshCountPerSlot[slotIndex] ?? 0
+    if (used >= 1) return
+
+    const current = values(player.nightmareRewardProposition)
+    const owned = new Set(values(player.nightmareRewards))
+    const excluded = new Set<NightmareReward>([
+      ...Array.from(owned),
+      NightmareReward.NUMBERS_ADVANTAGE
+    ])
+    current.forEach((reward, index) => {
+      if (index !== slotIndex) excluded.add(reward)
+    })
+
+    const seen = this.getNightmareSeenRewardsForStage(player, this.state.stageLevel)
+    const preferred = new Set<NightmareReward>()
+    Object.keys(NIGHTMARE_REWARD_CONFIG).forEach((reward) => {
+      const typedReward = reward as NightmareReward
+      if (
+        typedReward !== NightmareReward.NONE &&
+        !seen.has(typedReward) &&
+        !excluded.has(typedReward)
+      ) {
+        preferred.add(typedReward)
+      }
+    })
+
+    const poolRound =
+      player.nightmareCounters.get("nightmare_picker_pool_round") ??
+      this.state.stageLevel
+
+    const rolled =
+      this.rollNightmareRewardForStage(
+        player,
+        poolRound,
+        excluded,
+        preferred,
+        slotIndex,
+        this.state.stageLevel
+      ) ??
+      this.rollNightmareRewardForStage(
+        player,
+        poolRound,
+        excluded,
+        new Set<NightmareReward>(),
+        slotIndex,
+        this.state.stageLevel
+      )
+    if (!rolled) return
+
+    player.nightmareRewardProposition[slotIndex] = rolled
+    player.nightmareRewardRefreshCountPerSlot[slotIndex] = used + 1
+    this.markNightmareSeenReward(player, this.state.stageLevel, rolled)
+
+    const refreshPayload = {
+      playerId,
+      round: this.state.stageLevel,
+      poolRound,
+      slotIndex,
+      refreshUsed: values(player.nightmareRewardRefreshCountPerSlot),
+      shown3: values(player.nightmareRewardProposition)
+    }
+    logger.info("[NIGHTMARE_PICKER_REFRESH]", refreshPayload)
+    this.appendMatchLog("NIGHTMARE_PICKER_REFRESH", refreshPayload)
+    this.logNightmareSnapshot(player, "picker_refreshed")
+  }
+
+  applyNightmareReward(
+    playerId: string,
+    reward: NightmareReward,
+    pokemonId?: string,
+    force = false
+  ) {
+    const player = this.state.players.get(playerId)
+    if (
+      !player ||
+      !this.isNightmareModeEnabled()
+    ) {
+      return
+    }
+
+    const canSelectDirectly = this.isNightmareSandboxEnabled()
+    if (
+      !force &&
+      !canSelectDirectly &&
+      !values(player.nightmareRewardProposition).includes(reward)
+    ) {
+      return
+    }
+
+    if (reward === NightmareReward.NONE && this.isNightmareSandboxEnabled()) {
+      player.nightmareRewardProposition.clear()
+      player.nightmareRewardRefreshCountPerSlot = new ArraySchema<number>(0, 0, 0)
+      player.nightmareCounters.set("nightmare_picker_pool_round", 0)
+      logger.info("[NIGHTMARE_PICKER]", {
+        playerId,
+        round: this.state.stageLevel,
+        action: "SKIP"
+      })
+      this.logNightmareSnapshot(player, "picker_skip")
+      return
+    }
+
+    if (!values(player.nightmareRewards).includes(reward)) {
+      player.nightmareRewards.push(reward)
+    }
+
+    if (reward === NightmareReward.WU_WEI_RULE) {
+      player.nightmareCounters.set("wu_wei_upgraded", 0)
+      if (!player.nightmareCounters.has("wu_wei_kills")) {
+        player.nightmareCounters.set("wu_wei_kills", 0)
+      }
+      if (!player.nightmareCounters.has("wu_wei_bonus_gold_total")) {
+        player.nightmareCounters.set("wu_wei_bonus_gold_total", 0)
+      }
+      if (!player.nightmareCounters.has("wu_wei_bonus_exp_total")) {
+        player.nightmareCounters.set("wu_wei_bonus_exp_total", 0)
+      }
+      if (!player.nightmareCounters.has("wu_wei_exp_to_gold_total")) {
+        player.nightmareCounters.set("wu_wei_exp_to_gold_total", 0)
+      }
+    }
+
+    if (reward === NightmareReward.WAR_DIVIDEND) {
+      if (!player.nightmareCounters.has("war_dividend_bonus_gold_total")) {
+        player.nightmareCounters.set("war_dividend_bonus_gold_total", 0)
+      }
+    }
+
+    if (reward === NightmareReward.FINANCIAL_TYCOON) {
+      if (!player.nightmareCounters.has("financial_tycoon_bonus_interest_total")) {
+        player.nightmareCounters.set("financial_tycoon_bonus_interest_total", 0)
+      }
+      if (!player.nightmareCounters.has("financial_tycoon_bonus_gold_total")) {
+        player.nightmareCounters.set("financial_tycoon_bonus_gold_total", 0)
+      }
+    }
+
+    if (reward === NightmareReward.NUMBERS_ADVANTAGE) {
+      player.nightmareCounters.set("numbers_advantage_unlocked", 1)
+      if (!player.nightmareCounters.has("numbers_advantage_bonus")) {
+        player.nightmareCounters.set("numbers_advantage_bonus", 0)
+      }
+      if (!player.nightmareCounters.has("numbers_advantage_next_cost")) {
+        player.nightmareCounters.set("numbers_advantage_next_cost", 25)
+      }
+    }
+
+    if (reward === NightmareReward.CALCULATED_LOSS) {
+      player.nightmareCounters.set("calculated_loss_rounds_left", 5)
+      if (!player.nightmareCounters.has("calculated_loss_bonus_gold_total")) {
+        player.nightmareCounters.set("calculated_loss_bonus_gold_total", 0)
+      }
+      if (!player.nightmareCounters.has("calculated_loss_bonus_exp_total")) {
+        player.nightmareCounters.set("calculated_loss_bonus_exp_total", 0)
+      }
+      if (!player.nightmareCounters.has("calculated_loss_heal_total")) {
+        player.nightmareCounters.set("calculated_loss_heal_total", 0)
+      }
+    }
+
+    if (reward === NightmareReward.SOLO_LEVELING) {
+      player.nightmareCounters.set("solo_leveling_rounds_left", 5)
+      const normalized = this.normalizeSoloLevelingBoard(player)
+      const deployedTarget = values(player.board).find(
+        (pokemon) =>
+          pokemon.positionY !== 0 &&
+          pokemon.doesCountForTeamSize &&
+          pokemon.passive !== Passive.INANIMATE
+      )
+      if (deployedTarget) {
+        player.nightmareSoloLevelingTargetId = deployedTarget.id
+        this.setSoloLevelingResonance(player, deployedTarget, true)
+      } else {
+        player.nightmareSoloLevelingTargetId = ""
+      }
+      logger.info("[NIGHTMARE_SOLO_LEVELING_START]", {
+        playerId,
+        round: this.state.stageLevel,
+        movedToBench: normalized.movedToBench,
+        sold: normalized.sold
+      })
+    }
+
+    if (isNightmareSingleEquip(reward)) {
+      if (!values(player.nightmareSingleEquipRewards).includes(reward)) {
+        player.nightmareSingleEquipRewards.push(reward)
+      }
+      if (pokemonId) {
+        this.applyNightmareSingleEquipReward(playerId, reward, pokemonId)
+      }
+    }
+
+    if (reward === NightmareReward.DEEP_PLANNING) {
+      player.nightmareCounters.set("deep_planning_due_round", this.state.stageLevel + 5)
+      const extra = rollNightmareRewardFromTier(
+        NightmareRewardTier.B,
+        new Set(values(player.nightmareRewards)),
+        new Set()
+      )
+      if (
+        extra &&
+        extra !== NightmareReward.NONE &&
+        !values(player.nightmareRewards).includes(extra)
+      ) {
+        player.nightmareRewards.push(extra)
+        if (isNightmareSingleEquip(extra)) {
+          if (!values(player.nightmareSingleEquipRewards).includes(extra)) {
+            player.nightmareSingleEquipRewards.push(extra)
+          }
+        }
+      }
+    }
+
+    player.nightmareRewardProposition.clear()
+    player.nightmareRewardRefreshCountPerSlot = new ArraySchema<number>(0, 0, 0)
+    player.nightmareCounters.set("nightmare_picker_pool_round", 0)
+
+    const selectPayload = {
+      playerId,
+      round: this.state.stageLevel,
+      reward,
+      rewardType: NIGHTMARE_REWARD_CONFIG[reward]?.rewardType
+    }
+    logger.info("[NIGHTMARE_REWARD_SELECT]", selectPayload)
+    this.appendMatchLog("NIGHTMARE_REWARD_SELECT", selectPayload)
+    this.logNightmareSnapshot(player, "reward_selected")
+
+    const pendingDeepPlanningBonus =
+      player.nightmareCounters.get("deep_planning_bonus_pending") ?? 0
+    if (pendingDeepPlanningBonus > 0) {
+      player.nightmareCounters.set("deep_planning_bonus_pending", 0)
+      this.generateNightmareRewardProposition(
+        player.id,
+        this.state.stageLevel,
+        15,
+        "deep_planning_bonus"
+      )
+    }
+  }
+
+  applyNightmareSingleEquipReward(
+    playerId: string,
+    reward: NightmareReward,
+    pokemonId?: string
+  ) {
+    const player = this.state.players.get(playerId)
+    if (!player || !pokemonId) return
+    if (!values(player.nightmareSingleEquipRewards).includes(reward)) return
+    if (NIGHTMARE_REWARD_CONFIG[reward]?.rewardType !== NightmareRewardType.SINGLE_EQUIP)
+      return
+
+    const pokemon = player.board.get(pokemonId)
+    if (!pokemon) return
+
+    if (reward === NightmareReward.SOUL_LINK) {
+      if (!player.nightmareSoulLinkAlphaId) {
+        player.nightmareSoulLinkAlphaId = pokemonId
+        pokemon.nightmareReward = addPokemonNightmareReward(
+          pokemon.nightmareReward,
+          reward
+        )
+      } else if (
+        !player.nightmareSoulLinkBetaId &&
+        player.nightmareSoulLinkAlphaId !== pokemonId
+      ) {
+        player.nightmareSoulLinkBetaId = pokemonId
+        pokemon.nightmareReward = addPokemonNightmareReward(
+          pokemon.nightmareReward,
+          reward
+        )
+        player.nightmareSoulLinkActive = true
+        removeInArray(player.nightmareSingleEquipRewards, reward)
+      }
+      const soulLinkPayload = {
+        playerId,
+        alphaBound: player.nightmareSoulLinkAlphaId,
+        betaBound: player.nightmareSoulLinkBetaId,
+        active: player.nightmareSoulLinkActive
+      }
+      logger.info("[NIGHTMARE_SOUL_LINK_EVENT]", soulLinkPayload)
+      this.appendMatchLog("NIGHTMARE_SOUL_LINK_EVENT", soulLinkPayload)
+      this.logNightmareSnapshot(player, "soul_link_updated")
+      return
+    }
+
+    pokemon.nightmareReward = addPokemonNightmareReward(
+      pokemon.nightmareReward,
+      reward
+    )
+    removeInArray(player.nightmareSingleEquipRewards, reward)
+    if (
+      hasPokemonNightmareReward(pokemon.nightmareReward, NightmareReward.SOUL_LINK) &&
+      player.nightmareSoulLinkAlphaId &&
+      player.nightmareSoulLinkBetaId
+    ) {
+      player.nightmareSoulLinkActive = true
+    }
+    const bindPayload = {
+      playerId,
+      reward,
+      pokemonId,
+      commitResult: "SUCCESS"
+    }
+    logger.info("[NIGHTMARE_SINGLE_EQUIP_BIND]", bindPayload)
+    this.appendMatchLog("NIGHTMARE_SINGLE_EQUIP_BIND", bindPayload)
+    this.logNightmareSnapshot(player, "single_equip_bound")
+  }
+
+  completeSoloLevelingReward(player: Player) {
+    if (player.nightmareSoloLevelingTargetId) {
+      const target = player.board.get(player.nightmareSoloLevelingTargetId)
+      if (target) {
+        this.setSoloLevelingResonance(player, target, false)
+      }
+    }
+    const deployedTargets = values(player.board).filter(
+      (pokemon) =>
+        pokemon.positionY !== 0 &&
+        pokemon.doesCountForTeamSize &&
+        pokemon.passive !== Passive.INANIMATE
+    )
+
+    const target =
+      deployedTargets.find(
+        (pokemon) => pokemon.id === player.nightmareSoloLevelingTargetId
+      ) ?? deployedTargets[0]
+
+    if (!target) {
+      player.nightmareCounters.set("solo_leveling_rounds_left", 0)
+      return
+    }
+
+    const hpGain = Math.max(1, Math.floor(target.maxHP * 0.3))
+    const atkGain = Math.max(1, Math.floor(target.atk * 0.3))
+    const apGain = Math.max(0, Math.floor(target.ap * 0.3))
+    const defGain = Math.max(1, Math.floor(target.def * 0.3))
+    const speDefGain = Math.max(1, Math.floor(target.speDef * 0.3))
+    target.addMaxHP(hpGain, player)
+    target.addAttack(atkGain)
+    if (apGain > 0) {
+      target.addAbilityPower(apGain)
+    }
+    target.addDefense(defGain)
+    target.addSpecialDefense(speDefGain)
+
+    player.nightmareCounters.set("solo_leveling_rounds_left", 0)
+    player.nightmareSoloLevelingTargetId = ""
+    logger.info("[NIGHTMARE_SOLO_LEVELING_COMPLETE]", {
+      playerId: player.id,
+      round: this.state.stageLevel,
+      boostedPokemonIds: [target.id]
+    })
+    this.logNightmareSnapshot(player, "solo_leveling_completed")
+  }
+
+  private normalizeSoloLevelingBoard(player: Player): {
+    movedToBench: number
+    sold: number
+  } {
+    let movedToBench = 0
+    let sold = 0
+
+    const deployedOnBoard = values(player.board).filter(
+      (pokemon) =>
+        pokemon.positionY !== 0 &&
+        pokemon.doesCountForTeamSize &&
+        pokemon.passive !== Passive.INANIMATE
+    )
+    const keeper = deployedOnBoard[0]
+    if (!keeper) {
+      return { movedToBench: 0, sold: 0 }
+    }
+    const extrasOnBoard = deployedOnBoard.filter((pokemon) => pokemon.id !== keeper.id)
+
+    extrasOnBoard.forEach((extra) => {
+      const benchX = getFirstAvailablePositionInBench(player.board)
+      if (benchX !== null) {
+        extra.positionX = benchX
+        extra.positionY = 0
+        player.board.set(extra.id, extra)
+        movedToBench += 1
+        return
+      }
+
+      player.board.delete(extra.id)
+      this.state.shop.releasePokemon(extra.name, player, this.state)
+      const sellPrice = getSellPrice(extra, this.state.specialGameRule)
+      player.addMoney(sellPrice, false, null)
+      extra.items.forEach((item) => {
+        player.items.push(item)
+      })
+      extra.afterSell(player)
+      sold += 1
+    })
+
+    player.updateSynergies()
+    player.boardSize = this.getTeamSize(player.board)
+
+    return { movedToBench, sold }
+  }
+
+  applyNightmareWindowAction(playerId: string, action: NightmareWindowAction) {
+    const player = this.state.players.get(playerId)
+    if (!player || !this.isNightmareModeEnabled()) return
+
+    if (action === NightmareWindowAction.NUMBERS_ADVANTAGE_BUY) {
+      if (!values(player.nightmareRewards).includes(NightmareReward.NUMBERS_ADVANTAGE))
+        return
+      const currentCost =
+        player.nightmareCounters.get("numbers_advantage_next_cost") ?? 25
+      if (player.money < currentCost) return
+
+      player.money -= currentCost
+      player.nightmareCounters.set(
+        "numbers_advantage_bonus",
+        (player.nightmareCounters.get("numbers_advantage_bonus") ?? 0) + 1
+      )
+      player.nightmareCounters.set(
+        "numbers_advantage_next_cost",
+        Math.min(32000, currentCost * 2)
+      )
+      const actionPayload = {
+        playerId,
+        action,
+        spentGold: currentCost,
+        currentBonus: player.nightmareCounters.get("numbers_advantage_bonus") ?? 0,
+        nextCost: player.nightmareCounters.get("numbers_advantage_next_cost") ?? 0
+      }
+      logger.info("[NIGHTMARE_WINDOW_ACTION]", actionPayload)
+      this.appendMatchLog("NIGHTMARE_WINDOW_ACTION", actionPayload)
+    }
+  }
+
+  private initializeMatchLogFile() {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .replace("T", "_")
+      .slice(0, 19)
+    const logDir = path.resolve(process.cwd(), "bug_screenshot")
+    fs.mkdirSync(logDir, { recursive: true })
+    this.matchLogFilePath = path.join(logDir, `match_${timestamp}_${this.roomId}.log`)
+    this.matchLogClosed = false
+    fs.appendFileSync(
+      this.matchLogFilePath,
+      `[MATCH_LOG_START] ${new Date().toISOString()} roomId=${this.roomId}\n`
+    )
+  }
+
+  appendMatchLog(event: string, payload: unknown) {
+    if (!this.matchLogFilePath || this.matchLogClosed) return
+    try {
+      const line = `[${new Date().toISOString()}] [${event}] ${JSON.stringify(payload)}\n`
+      fs.appendFileSync(this.matchLogFilePath, line)
+    } catch (error) {
+      logger.error("[MATCH_LOG_WRITE_ERROR]", error)
+    }
+  }
+
+  private closeMatchLogFile(reason: string) {
+    if (!this.matchLogFilePath || this.matchLogClosed) return
+    this.matchLogClosed = true
+    try {
+      fs.appendFileSync(
+        this.matchLogFilePath,
+        `[MATCH_LOG_END] ${new Date().toISOString()} reason=${reason}\n`
+      )
+    } catch (error) {
+      logger.error("[MATCH_LOG_CLOSE_ERROR]", error)
+    }
+  }
+
+  setSoloLevelingResonance(
+    player: Player,
+    pokemon: Pokemon,
+    enable: boolean
+  ) {
+    pokemon.types.forEach((synergy) => {
+      const key = `solo_leveling_resonance_${synergy}`
+      if (enable) {
+        player.nightmareCounters.set(key, 1)
+        player.bonusSynergies.set(
+          synergy,
+          (player.bonusSynergies.get(synergy) ?? 0) + 1
+        )
+      } else {
+        const existed = (player.nightmareCounters.get(key) ?? 0) > 0
+        if (!existed) return
+        player.nightmareCounters.set(key, 0)
+        const current = Math.max(0, (player.bonusSynergies.get(synergy) ?? 0) - 1)
+        if (current > 0) {
+          player.bonusSynergies.set(synergy, current)
+        } else {
+          player.bonusSynergies.delete(synergy)
+        }
+      }
+    })
+    player.updateSynergies()
   }
 
   spawnWanderingPokemons() {

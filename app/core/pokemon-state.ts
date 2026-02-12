@@ -13,11 +13,13 @@ import { Item } from "../types/enum/Item"
 import { Passive } from "../types/enum/Passive"
 import { Synergy } from "../types/enum/Synergy"
 import { Weather } from "../types/enum/Weather"
+import { NightmareReward } from "../types/nightmare"
 import { count } from "../utils/array"
 import { distanceC, distanceM } from "../utils/distance"
 import { logger } from "../utils/logger"
 import { clamp, max, min } from "../utils/number"
 import { chance, pickRandomIn } from "../utils/random"
+import { hasPokemonNightmareReward } from "../models/nightmare"
 import type { Board, Cell } from "./board"
 import {
   OnResurrectEffect,
@@ -26,6 +28,7 @@ import {
 } from "./effects/effect"
 import { humanHealEffect } from "./effects/synergies"
 import { PokemonEntity } from "./pokemon-entity"
+import { DelayedCommand } from "./simulation-command"
 
 export default abstract class PokemonState {
   name: string = ""
@@ -558,6 +561,46 @@ export default abstract class PokemonState {
 
       reducedDamage = min(1)(Math.ceil(reducedDamage)) // should deal 1 damage at least
 
+      if (
+        !isRetaliation &&
+        pokemon.nightmareSoulLinkTargetId &&
+        pokemon.player?.nightmareSoulLinkActive
+      ) {
+        const soulLinkTarget =
+          (pokemon.simulation.blueTeam.get(
+            pokemon.nightmareSoulLinkTargetId
+          ) as PokemonEntity | undefined) ||
+          (pokemon.simulation.redTeam.get(
+            pokemon.nightmareSoulLinkTargetId
+          ) as PokemonEntity | undefined)
+        if (
+          soulLinkTarget &&
+          soulLinkTarget.hp > 0 &&
+          !soulLinkTarget.status.resurrecting
+        ) {
+          const selfDamage = Math.max(1, Math.floor(reducedDamage * 0.4))
+          const partnerDamage = Math.max(1, Math.floor(reducedDamage * 0.4))
+          reducedDamage = selfDamage
+          soulLinkTarget.handleDamage({
+            damage: partnerDamage,
+            board,
+            attackType: AttackType.TRUE,
+            attacker: pokemon,
+            shouldTargetGainMana: false,
+            isRetaliation: true
+          })
+        }
+      }
+
+      if (
+        hasPokemonNightmareReward(
+          pokemon.refToBoardPokemon.nightmareReward,
+          NightmareReward.REFRACTION
+        )
+      ) {
+        reducedDamage = Math.max(1, Math.floor(reducedDamage * 0.8))
+      }
+
       if (attackType === AttackType.PHYSICAL) {
         pokemon.physicalDamageReduced += min(0)(damage - reducedDamage)
       } else if (attackType === AttackType.SPECIAL) {
@@ -741,7 +784,29 @@ export default abstract class PokemonState {
       }
 
       if (pokemon.hp <= 0) {
-        if (pokemon.status.resurrection) {
+        if (pokemon.nightmareHasUnyielding && !pokemon.nightmareUnyieldingTriggered) {
+          pokemon.nightmareUnyieldingTriggered = true
+          pokemon.hp = 1
+          pokemon.simulation.addDelayedCommand(
+            new DelayedCommand(() => {
+              if (
+                pokemon.hp > 0 &&
+                !pokemon.status.resurrecting &&
+                !pokemon.status.resurrection
+              ) {
+                pokemon.handleDamage({
+                  damage: pokemon.hp + pokemon.shield + 9999,
+                  board,
+                  attackType: AttackType.TRUE,
+                  attacker,
+                  shouldTargetGainMana: false,
+                  isRetaliation: true
+                })
+              }
+            }, 5000)
+          )
+          death = false
+        } else if (pokemon.status.resurrection) {
           pokemon.status.triggerResurrection(pokemon, board)
           pokemon
             .getEffects(OnResurrectEffect)
@@ -773,11 +838,44 @@ export default abstract class PokemonState {
     board: Board,
     attackType: AttackType
   ) {
+    if (pokemon.nightmareSoulLinkTargetId) {
+      const linkedTarget =
+        (pokemon.simulation.blueTeam.get(
+          pokemon.nightmareSoulLinkTargetId
+        ) as PokemonEntity | undefined) ||
+        (pokemon.simulation.redTeam.get(
+          pokemon.nightmareSoulLinkTargetId
+        ) as PokemonEntity | undefined)
+      if (linkedTarget) {
+        linkedTarget.nightmareSoulLinkTargetId = ""
+      }
+      pokemon.nightmareSoulLinkTargetId = ""
+      if (pokemon.player) {
+        pokemon.player.nightmareSoulLinkActive = false
+      }
+    }
+
     const originalTeam = pokemon.status.possessed
       ? pokemon.team === Team.BLUE_TEAM
         ? Team.RED_TEAM
         : Team.BLUE_TEAM
       : pokemon.team
+
+    const killerPlayer = attacker?.player
+    if (
+      killerPlayer &&
+      attacker &&
+      attacker.team !== originalTeam &&
+      killerPlayer.nightmareRewards.includes(NightmareReward.WU_WEI_RULE)
+    ) {
+      const currentKills = killerPlayer.nightmareCounters.get("wu_wei_kills") ?? 0
+      const updatedKills = currentKills + 1
+      killerPlayer.nightmareCounters.set("wu_wei_kills", updatedKills)
+      if (updatedKills >= 150) {
+        killerPlayer.nightmareCounters.set("wu_wei_upgraded", 1)
+      }
+    }
+
     pokemon.team = originalTeam
     pokemon.onDeath({ board, attacker })
     board.setEntityOnCell(pokemon.positionX, pokemon.positionY, undefined)

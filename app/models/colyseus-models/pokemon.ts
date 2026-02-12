@@ -47,6 +47,7 @@ import {
 import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
 import { Weather } from "../../types/enum/Weather"
+import { NightmareReward } from "../../types/nightmare"
 import { isIn, removeInArray } from "../../utils/array"
 import {
   getFirstAvailablePositionInBench,
@@ -94,6 +95,7 @@ export class Pokemon extends Schema implements IPokemon {
   @type("uint8") stacks: number = 0
   @type("uint8") stacksRequired: number = 0
   @type("boolean") supercharged: boolean = false
+  @type("string") nightmareReward: NightmareReward = NightmareReward.NONE
   @type("float32") modelScale = 1
   dodge: number = 0
   deathCount: number = 0

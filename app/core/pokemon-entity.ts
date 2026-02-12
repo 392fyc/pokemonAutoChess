@@ -16,6 +16,7 @@ import { Pokemon, PokemonClasses } from "../models/colyseus-models/pokemon"
 import Status from "../models/colyseus-models/status"
 import { SynergyEffects } from "../models/effects"
 import PokemonFactory from "../models/pokemon-factory"
+import { getNightmareItemSlotLimit } from "../models/nightmare"
 import { getPokemonData } from "../models/precomputed/precomputed-pokemon-data"
 import { getSellPrice } from "../models/shop"
 import { Emotion, IPokemon, IPokemonEntity, Title, Transfer } from "../types"
@@ -147,6 +148,14 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   commands = new Array<SimulationCommand>()
   effectsSet = new Set<EffectClass>()
   bossDifficultyMultiplier = 1
+  nightmareUnyieldingTriggered = false
+  nightmareHasUnyielding = false
+  nightmareQualityAKills = 0
+  nightmareBerserkerStacks = 0
+  nightmareFateCooldownByTarget = new Map<string, number>()
+  nightmareSoulLinkTargetId = ""
+  nightmareLoyalCaster = false
+  nightmareAssistMaster = false
 
   constructor(
     pokemon: IPokemon,
@@ -788,8 +797,11 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
 
   addItem(item: Item, permanent = false) {
     const type = SynergyGivenByItem[item]
+    const itemSlotLimit = getNightmareItemSlotLimit(
+      this.refToBoardPokemon.nightmareReward
+    )
     if (
-      this.items.size >= 3 ||
+      this.items.size >= itemSlotLimit ||
       (isIn(SynergyStones, item) && this.types.has(type)) ||
       ((item === Item.EVIOLITE || item === Item.RARE_CANDY) &&
         !this.refToBoardPokemon.hasEvolution) ||

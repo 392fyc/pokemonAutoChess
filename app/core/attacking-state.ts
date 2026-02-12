@@ -65,7 +65,13 @@ export default class AttackingState extends PokemonState {
         if (targetAtSight) {
           pokemon.toMovingState()
         }
-      } else if (pokemon.pp >= pokemon.maxPP && !pokemon.status.silence) {
+      } else if (pokemon.nightmareLoyalCaster) {
+        // loyal caster cannot basic attack or主动施法; periodic nightmare effect handles casts
+      } else if (
+        pokemon.pp >= pokemon.maxPP &&
+        !pokemon.status.silence &&
+        !pokemon.nightmareAssistMaster
+      ) {
         // CAST ABILITY
         castAbility(pokemon.skill, pokemon, board, target)
       } else {

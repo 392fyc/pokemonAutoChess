@@ -50,6 +50,7 @@ import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
 import { Weather } from "../../types/enum/Weather"
+import { NightmareReward } from "../../types/nightmare"
 import { IPokemonCollectionItemMongo } from "../../types/interfaces/UserMetadata"
 import { isIn, removeInArray } from "../../utils/array"
 import { getPokemonCustomFromAvatar } from "../../utils/avatar"
@@ -98,7 +99,7 @@ export default class Player extends Schema implements IPlayer {
   @type("string") opponentTitle: string = ""
   @type("string") spectatedPlayerId: string
   @type("uint8") boardSize: number = 0
-  @type(["string"]) pveBotsEncountered = new ArraySchema<string>() // PVE模式中已遭遇的bot ID列表
+  pveBotsEncountered = new ArraySchema<string>() // PVE模式中已遭遇的bot ID列表
   botData?: any // Store bot data (presetLineup, etc.)
   bossFinishTime?: number
   deathStage?: number
@@ -120,7 +121,20 @@ export default class Player extends Schema implements IPlayer {
   @type("uint8") portalRefreshUsed: number = 0
   @type(["string"]) chameleonShop = new ArraySchema<Item>()
   @type("uint8") chameleonTownPurchases: number = 0
-  @type("boolean") chameleonShinyPurchased: boolean = false
+  chameleonShinyPurchased: boolean = false
+  @type(["string"]) nightmareRewards = new ArraySchema<NightmareReward>()
+  @type(["string"]) nightmareSingleEquipRewards =
+    new ArraySchema<NightmareReward>()
+  nightmareSoloLevelingTargetId = ""
+  @type(["string"]) nightmareRewardProposition =
+    new ArraySchema<NightmareReward>()
+  @type(["uint8"]) nightmareRewardRefreshCountPerSlot = new ArraySchema<
+    number
+  >(0, 0, 0)
+  @type({ map: "int16" }) nightmareCounters = new MapSchema<number>()
+  nightmareSoulLinkAlphaId = ""
+  nightmareSoulLinkBetaId = ""
+  nightmareSoulLinkActive = false
   @type(["string"]) pveRewards = new ArraySchema<Item>()
   @type(["string"]) pveRewardsPropositions = new ArraySchema<Item>()
   @type("float32") loadingProgress: number = 0
@@ -317,6 +331,7 @@ export default class Player extends Schema implements IPlayer {
   }
 
   updateSynergies() {
+    this.syncSoloLevelingResonanceBonus()
     const pokemons: Pokemon[] = values(this.board)
     const previousSynergies = this.synergies.toMap()
     let updatedSynergies = computeSynergies(
@@ -399,6 +414,52 @@ export default class Player extends Schema implements IPlayer {
     ) {
       this.completeMissionOrder(Item.MISSION_ORDER_PINK)
     }
+  }
+
+  private syncSoloLevelingResonanceBonus() {
+    const activeSoloLeveling =
+      values(this.nightmareRewards).includes(NightmareReward.SOLO_LEVELING) &&
+      (this.nightmareCounters.get("solo_leveling_rounds_left") ?? 0) > 0
+    const markerPrefix = "solo_leveling_resonance_"
+
+    this.nightmareCounters.forEach((value, key) => {
+      if (!key.startsWith(markerPrefix) || value <= 0) return
+      const synergy = key.slice(markerPrefix.length) as Synergy
+      const current = Math.max(0, (this.bonusSynergies.get(synergy) ?? 0) - 1)
+      if (current > 0) {
+        this.bonusSynergies.set(synergy, current)
+      } else {
+        this.bonusSynergies.delete(synergy)
+      }
+      this.nightmareCounters.set(key, 0)
+    })
+
+    if (!activeSoloLeveling) return
+
+    const deployedPokemons = values(this.board).filter(
+      (pokemon) =>
+        !isOnBench(pokemon) &&
+        pokemon.doesCountForTeamSize &&
+        pokemon.passive !== Passive.INANIMATE
+    )
+
+    const target =
+      deployedPokemons.find(
+        (pokemon) => pokemon.id === this.nightmareSoloLevelingTargetId
+      ) ?? deployedPokemons[0]
+    if (!target) return
+    this.nightmareSoloLevelingTargetId = target.id
+
+    const resonanceTypes = new Set<Synergy>()
+    target.types.forEach((synergy) => {
+      resonanceTypes.add(synergy)
+    })
+
+    resonanceTypes.forEach((synergy) => {
+      const key = `${markerPrefix}${synergy}`
+      this.nightmareCounters.set(key, 1)
+      this.bonusSynergies.set(synergy, (this.bonusSynergies.get(synergy) ?? 0) + 1)
+    })
   }
 
   updateArtificialItems(

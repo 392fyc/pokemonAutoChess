@@ -37,9 +37,11 @@ import { Passive } from "./enum/Passive"
 import { Pkm, PkmProposition } from "./enum/Pokemon"
 import { Synergy } from "./enum/Synergy"
 import { Weather } from "./enum/Weather"
+import { NightmareReward } from "./nightmare"
 
 export * from "./enum/Emotion"
 export * from "./enum/Item"
+export * from "./nightmare"
 
 export const CDN_URL =
   "https://raw.githubusercontent.com/keldaanCommunity/SpriteCollab/master"
@@ -96,6 +98,7 @@ export enum Transfer {
   CHANGE_ROOM_RANKS = "CHANGE_ROOM_RANKS",
   CHANGE_SPECIAL_RULE = "CHANGE_SPECIAL_RULE",
   CHANGE_PVE_DIFFICULTY = "CHANGE_PVE_DIFFICULTY",
+  CHANGE_PVE_NIGHTMARE = "CHANGE_PVE_NIGHTMARE",
   BUY_EMOTION = "BUY_EMOTION",
   BOOSTER_CONTENT = "BOOSTER_CONTENT",
   USER = "USER",
@@ -144,7 +147,11 @@ export enum Transfer {
   DELETE_ACCOUNT = "DELETE_ACCOUNT",
   HEAP_SNAPSHOT = "HEAP_SNAPSHOT",
   RECONNECT_PROMPT = "RECONNECT_PROMPT",
-  OVERWRITE_BOARD = "OVERWRITE_BOARD"
+  OVERWRITE_BOARD = "OVERWRITE_BOARD",
+  NIGHTMARE_REWARD_SELECT = "NIGHTMARE_REWARD_SELECT",
+  NIGHTMARE_REWARD_REFRESH = "NIGHTMARE_REWARD_REFRESH",
+  NIGHTMARE_SINGLE_EQUIP_APPLY = "NIGHTMARE_SINGLE_EQUIP_APPLY",
+  NIGHTMARE_WINDOW_ACTION = "NIGHTMARE_WINDOW_ACTION"
 }
 
 export enum ReadWriteMode {
@@ -305,6 +312,12 @@ export interface IPlayer {
   chameleonShop: ArraySchema<Item>
   chameleonTownPurchases: number
   chameleonShinyPurchased: boolean
+  nightmareRewards?: ArraySchema<NightmareReward>
+  nightmareSingleEquipRewards?: ArraySchema<NightmareReward>
+  nightmareSoloLevelingTargetId?: string
+  nightmareRewardProposition?: ArraySchema<NightmareReward>
+  nightmareRewardRefreshCountPerSlot?: ArraySchema<number>
+  nightmareCounters?: MapSchema<number, string>
   loadingProgress: number
   berryTreesStages: number[]
   flowerPots: Pokemon[]
@@ -378,6 +391,7 @@ export interface IPokemon {
   canEat: boolean
   deathCount: number
   killCount: number
+  nightmareReward?: NightmareReward
   readonly hasEvolution: boolean
   supercharged: boolean
   size?: "SIZE_1X1" | "SIZE_2X2"
@@ -597,6 +611,14 @@ export interface IPokemonEntity {
   modelScale?: number
   commands: ISimulationCommand[]
   effectsSet: Set<EffectClass>
+  nightmareUnyieldingTriggered?: boolean
+  nightmareHasUnyielding?: boolean
+  nightmareQualityAKills?: number
+  nightmareBerserkerStacks?: number
+  nightmareFateCooldownByTarget?: Map<string, number>
+  nightmareSoulLinkTargetId?: string
+  nightmareLoyalCaster?: boolean
+  nightmareAssistMaster?: boolean
   inSpotlight: boolean
 }
 

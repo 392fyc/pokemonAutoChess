@@ -17,6 +17,7 @@ export interface IPreparationState {
   minRank: EloRank | null
   gameMode: GameMode
   pveDifficulty: PveDifficulty | null
+  pveNightmareEnabled: boolean
 }
 
 export default class PreparationState
@@ -34,6 +35,7 @@ export default class PreparationState
   @type("string") maxRank: EloRank | null
   @type("string") gameMode: GameMode = GameMode.CUSTOM_LOBBY
   @type("string") pveDifficulty: PveDifficulty | null
+  @type("boolean") pveNightmareEnabled: boolean = false
   @type("string") specialGameRule: SpecialGameRule | null
   @type("boolean") noElo: boolean
   @type(["string"]) whitelist: string[]
@@ -49,6 +51,7 @@ export default class PreparationState
     password?: string
     gameMode: GameMode
     pveDifficulty?: PveDifficulty | null
+    pveNightmareEnabled?: boolean
     specialGameRule?: SpecialGameRule
     whitelist?: string[]
     blacklist?: string[]
@@ -69,6 +72,9 @@ export default class PreparationState
     this.pveDifficulty =
       params.pveDifficulty ??
       (params.gameMode === GameMode.PVE_MODE ? PveDifficulty.NORMAL : null)
+    this.pveNightmareEnabled =
+      this.pveDifficulty === PveDifficulty.NIGHTMARE ||
+      params.pveNightmareEnabled === true
     this.specialGameRule = params.specialGameRule ?? null
     this.whitelist = params.whitelist ?? []
     this.blacklist = params.blacklist ?? []

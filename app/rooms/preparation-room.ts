@@ -22,6 +22,7 @@ import {
   OnRemoveBotCommand,
   OnRoomChangeRankCommand,
   OnRoomChangePveDifficulty,
+  OnRoomChangePveNightmare,
   OnRoomChangeSpecialRule,
   OnRoomNameCommand,
   OnRoomPasswordCommand,
@@ -91,6 +92,7 @@ export default class PreparationRoom extends Room<PreparationState> {
     tournamentId?: string
     bracketId?: string
     pveDifficulty?: PveDifficulty
+    pveNightmareEnabled?: boolean
   }) {
     logger.info("create Preparation ", this.roomId)
     // logger.debug(options);
@@ -257,6 +259,18 @@ export default class PreparationRoom extends Room<PreparationState> {
         this.dispatcher.dispatch(new OnRoomChangePveDifficulty(), {
           client,
           difficulty
+        })
+      } catch (error) {
+        logger.error(error)
+      }
+    })
+
+    this.onMessage(Transfer.CHANGE_PVE_NIGHTMARE, (client, enabled) => {
+      logger.info(Transfer.CHANGE_PVE_NIGHTMARE, this.roomName, enabled)
+      try {
+        this.dispatcher.dispatch(new OnRoomChangePveNightmare(), {
+          client,
+          enabled
         })
       } catch (error) {
         logger.error(error)

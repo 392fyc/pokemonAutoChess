@@ -23,6 +23,7 @@ export interface IUserPreparationState {
   whitelist: string[]
   blacklist: string[]
   pveDifficulty: PveDifficulty | null
+  pveNightmareEnabled: boolean
 }
 
 const initialState: IUserPreparationState = {
@@ -41,7 +42,8 @@ const initialState: IUserPreparationState = {
   specialGameRule: null,
   whitelist: [],
   blacklist: [],
-  pveDifficulty: null
+  pveDifficulty: null,
+  pveNightmareEnabled: false
 }
 
 export const preparationSlice = createSlice({
@@ -114,6 +116,9 @@ export const preparationSlice = createSlice({
     setPveDifficulty: (state, action: PayloadAction<PveDifficulty | null>) => {
       state.pveDifficulty = action.payload
     },
+    setPveNightmareEnabled: (state, action: PayloadAction<boolean>) => {
+      state.pveNightmareEnabled = action.payload
+    },
     resetPreparation: () => initialState,
     setWhiteList: (state, action: PayloadAction<string[]>) => {
       state.whitelist = action.payload
@@ -143,6 +148,7 @@ export const {
   setBlackList,
   setGameMode,
   setPveDifficulty,
+  setPveNightmareEnabled,
   setSpecialGameRule,
   resetPreparation
 } = preparationSlice.actions

@@ -300,7 +300,9 @@ export class OnGameStartRequestCommand extends Command<
           pveDifficulty: this.state.pveDifficulty
             ? mapPveDifficultyToEloRank(this.state.pveDifficulty)
             : null,
-          pveDifficultyTier: this.state.pveDifficulty ?? null
+          pveDifficultyTier: this.state.pveDifficulty ?? null,
+          pveNightmareEnabled:
+            this.state.pveDifficulty === PveDifficulty.NIGHTMARE
         })
 
         this.state.users.forEach((user) => {
@@ -492,12 +494,44 @@ export class OnRoomChangePveDifficulty extends Command<
       if (client.auth?.uid !== this.state.ownerId) return
       if (this.state.pveDifficulty === difficulty) return
       this.state.pveDifficulty = difficulty
+      this.state.pveNightmareEnabled = difficulty === PveDifficulty.NIGHTMARE
 
       const leader = this.state.users.get(client.auth.uid)
       this.room.state.addMessage({
         author: "Server",
         authorId: "server",
         payload: `PVE difficulty has been set to ${difficulty}.`,
+        avatar: leader?.avatar
+      })
+    } catch (error) {
+      logger.error(error)
+    }
+  }
+}
+
+export class OnRoomChangePveNightmare extends Command<
+  PreparationRoom,
+  {
+    client: Client
+    enabled: boolean
+  }
+> {
+  execute({ client, enabled }: { client: Client; enabled: boolean }) {
+    try {
+      if (this.state.gameMode !== GameMode.PVE_MODE) return
+      if (client.auth?.uid !== this.state.ownerId) return
+      const nextDifficulty = enabled
+        ? PveDifficulty.NIGHTMARE
+        : PveDifficulty.EXTREME
+      if (this.state.pveDifficulty === nextDifficulty) return
+
+      this.state.pveDifficulty = nextDifficulty
+      this.state.pveNightmareEnabled = enabled
+      const leader = this.state.users.get(client.auth.uid)
+      this.room.state.addMessage({
+        author: "Server",
+        authorId: "server",
+        payload: `PVE difficulty has been set to ${nextDifficulty}.`,
         avatar: leader?.avatar
       })
     } catch (error) {

@@ -38,6 +38,7 @@ import {
   setOwnerName,
   setPassword,
   setPveDifficulty,
+  setPveNightmareEnabled,
   setSpecialGameRule,
   setUser,
   setWhiteList
@@ -162,6 +163,10 @@ export default function Preparation() {
 
       $state.listen("pveDifficulty", (value, previousValue) => {
         dispatch(setPveDifficulty(value))
+      })
+
+      $state.listen("pveNightmareEnabled", (value, previousValue) => {
+        dispatch(setPveNightmareEnabled(value))
       })
 
       $state.listen("specialGameRule", (value, previousValue) => {

@@ -369,6 +369,7 @@ export default function PreparationMenu() {
         <option value={PveDifficulty.EXTREME}>
           {t("pve_difficulty_extreme")}
         </option>
+        <option value={PveDifficulty.NIGHTMARE}>Nightmare</option>
       </select>
     </label>
   )

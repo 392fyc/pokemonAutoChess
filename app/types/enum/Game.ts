@@ -23,7 +23,8 @@ export enum PveDifficulty {
   EASY = "EASY",
   NORMAL = "NORMAL",
   HARD = "HARD",
-  EXTREME = "EXTREME"
+  EXTREME = "EXTREME",
+  NIGHTMARE = "NIGHTMARE"
 }
 
 export enum GamePhaseState {

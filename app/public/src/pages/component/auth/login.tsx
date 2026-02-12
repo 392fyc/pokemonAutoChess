@@ -22,6 +22,7 @@ export default function Login() {
   const [prejoining, setPrejoining] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [showEmailAuth, setShowEmailAuth] = useState(false) // New state
+  const [authError, setAuthError] = useState("")
 
   const preJoinLobby = throttle(async function prejoin() {
     setPrejoining(true)
@@ -63,10 +64,33 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
+      setAuthError("")
       const provider = new firebase.auth.GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: "select_account" })
       await firebase.auth().signInWithPopup(provider)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google sign-in failed:", error)
+      const fallbackToRedirectCodes = new Set([
+        "auth/popup-blocked",
+        "auth/popup-closed-by-user",
+        "auth/cancelled-popup-request",
+        "auth/network-request-failed"
+      ])
+      if (fallbackToRedirectCodes.has(error?.code)) {
+        setAuthError("Popup 登录失败，正在切换到 Redirect 登录…")
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider()
+          provider.setCustomParameters({ prompt: "select_account" })
+          await firebase.auth().signInWithRedirect(provider)
+          return
+        } catch (redirectError) {
+          console.error("Google redirect sign-in failed:", redirectError)
+        }
+      }
+      setAuthError(
+        error?.message ??
+          "Google 登录失败。请检查 VPN 是否可访问 accounts.google.com 后重试。"
+      )
     }
   }
 
@@ -101,6 +125,9 @@ export default function Login() {
             margin: "0 auto"
           }}
         >
+          {authError && (
+            <p style={{ color: "#ffb3b3", margin: "0 0 0.5rem 0" }}>{authError}</p>
+          )}
           <button
             className="bubbly blue"
             onClick={handleGoogleSignIn}

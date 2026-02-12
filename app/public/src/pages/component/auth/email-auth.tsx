@@ -78,11 +78,31 @@ export default function EmailAuth({ onCancel }: EmailAuthProps) {
     setError("")
     try {
       const provider = new firebase.auth.GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: "select_account" })
       await firebase.auth().signInWithPopup(provider)
       console.log("Google sign-in successful")
     } catch (err: any) {
       console.error("Google sign-in error:", err)
-      setError(err.message)
+      const fallbackToRedirectCodes = new Set([
+        "auth/popup-blocked",
+        "auth/popup-closed-by-user",
+        "auth/cancelled-popup-request",
+        "auth/network-request-failed"
+      ])
+      if (fallbackToRedirectCodes.has(err?.code)) {
+        setError("Popup 登录失败，正在切换到 Redirect 登录…")
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider()
+          provider.setCustomParameters({ prompt: "select_account" })
+          await firebase.auth().signInWithRedirect(provider)
+          return
+        } catch (redirectErr: any) {
+          console.error("Google redirect sign-in error:", redirectErr)
+          setError(redirectErr?.message ?? "Redirect 登录失败")
+        }
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }

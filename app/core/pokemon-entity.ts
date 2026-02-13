@@ -16,7 +16,10 @@ import { Pokemon, PokemonClasses } from "../models/colyseus-models/pokemon"
 import Status from "../models/colyseus-models/status"
 import { SynergyEffects } from "../models/effects"
 import PokemonFactory from "../models/pokemon-factory"
-import { getNightmareItemSlotLimit } from "../models/nightmare"
+import {
+  getNightmareItemSlotLimit,
+  hasPokemonNightmareReward
+} from "../models/nightmare"
 import { getPokemonData } from "../models/precomputed/precomputed-pokemon-data"
 import { getSellPrice } from "../models/shop"
 import { Emotion, IPokemon, IPokemonEntity, Title, Transfer } from "../types"
@@ -43,6 +46,7 @@ import { Pkm } from "../types/enum/Pokemon"
 import { SpecialGameRule } from "../types/enum/SpecialGameRule"
 import { Synergy } from "../types/enum/Synergy"
 import { Weather } from "../types/enum/Weather"
+import { NightmareReward } from "../types/nightmare"
 import { count, isIn } from "../utils/array"
 import { isOnBench } from "../utils/board"
 import { distanceC, distanceM } from "../utils/distance"
@@ -157,6 +161,161 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
   nightmareLoyalCaster = false
   nightmareAssistMaster = false
 
+  private getSoulLinkPartnerEntity(): PokemonEntity | undefined {
+    if (!this.nightmareSoulLinkTargetId) return undefined
+    if (!this.player?.nightmareSoulLinkActive) return undefined
+    const target =
+      (this.simulation.blueTeam.get(
+        this.nightmareSoulLinkTargetId
+      ) as PokemonEntity | undefined) ||
+      (this.simulation.redTeam.get(
+        this.nightmareSoulLinkTargetId
+      ) as PokemonEntity | undefined)
+    if (!target || target.hp <= 0 || target.status.resurrecting) return undefined
+    return target
+  }
+
+  private mirrorSoulLinkGrowth(
+    stat:
+      | "atk"
+      | "ap"
+      | "def"
+      | "speDef"
+      | "maxHP"
+      | "speed"
+      | "range"
+      | "critChance"
+      | "critPower",
+    finalValue: number,
+    permanent: boolean
+  ) {
+    if (finalValue <= 0) return
+    if (
+      !hasPokemonNightmareReward(
+        this.refToBoardPokemon.nightmareReward,
+        NightmareReward.SOUL_LINK
+      )
+    ) {
+      return
+    }
+    const partner = this.getSoulLinkPartnerEntity()
+    if (!partner) return
+
+    const mirroredValue = finalValue
+
+    if (stat === "atk") {
+      partner.atk = min(1)(partner.atk + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.atk = min(1)(partner.refToBoardPokemon.atk + mirroredValue)
+      }
+      return
+    }
+    if (stat === "ap") {
+      partner.ap = min(-100)(partner.ap + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.ap = min(-100)(
+          partner.refToBoardPokemon.ap + mirroredValue
+        )
+      }
+      return
+    }
+    if (stat === "def") {
+      partner.def = min(0)(partner.def + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.def = min(0)(
+          partner.refToBoardPokemon.def + mirroredValue
+        )
+      }
+      return
+    }
+    if (stat === "speDef") {
+      partner.speDef = min(0)(partner.speDef + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.speDef = min(0)(
+          partner.refToBoardPokemon.speDef + mirroredValue
+        )
+      }
+      return
+    }
+    if (stat === "maxHP") {
+      partner.maxHP = min(1)(partner.maxHP + mirroredValue)
+      if (partner.hp > 0) {
+        partner.hp = clamp(partner.hp + mirroredValue, 1, partner.maxHP)
+      }
+      if (permanent && !partner.isGhostOpponent) {
+        const partnerBoardPokemon = partner.refToBoardPokemon as Pokemon
+        partnerBoardPokemon.addMaxHP(mirroredValue, partner.player)
+      }
+      return
+    }
+
+    if (stat === "range") {
+      partner.range = min(1)(partner.range + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.range = min(1)(
+          partner.refToBoardPokemon.range + mirroredValue
+        )
+      }
+      return
+    }
+
+    if (stat === "critChance") {
+      partner.critChance += mirroredValue
+      if (partner.critChance > 100) {
+        const overCritChance = Math.round(partner.critChance - 100)
+        partner.critPower = min(0)(partner.critPower + overCritChance / 100)
+        partner.critChance = 100
+      }
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.critChance += mirroredValue
+        if (partner.refToBoardPokemon.critChance > 100) {
+          const overCritChance = Math.round(
+            partner.refToBoardPokemon.critChance - 100
+          )
+          partner.refToBoardPokemon.critPower = min(0)(
+            partner.refToBoardPokemon.critPower + overCritChance / 100
+          )
+          partner.refToBoardPokemon.critChance = 100
+        }
+      }
+      return
+    }
+
+    if (stat === "critPower") {
+      partner.critPower = min(0)(partner.critPower + mirroredValue)
+      if (permanent && !partner.isGhostOpponent) {
+        partner.refToBoardPokemon.critPower = min(0)(
+          partner.refToBoardPokemon.critPower + mirroredValue
+        )
+      }
+      return
+    }
+
+    partner.speed = clamp(partner.speed + mirroredValue, 0, 300)
+    if (permanent && !partner.isGhostOpponent) {
+      partner.refToBoardPokemon.speed = clamp(
+        partner.refToBoardPokemon.speed + mirroredValue,
+        0,
+        300
+      )
+    }
+  }
+
+  private splitSoulLinkGrowth(value: number): number {
+    if (value <= 0) return value
+    if (
+      !hasPokemonNightmareReward(
+        this.refToBoardPokemon.nightmareReward,
+        NightmareReward.SOUL_LINK
+      )
+    ) {
+      return value
+    }
+    const partner = this.getSoulLinkPartnerEntity()
+    if (!partner) return value
+    return value * 0.5
+  }
+
   constructor(
     pokemon: IPokemon,
     positionX: number,
@@ -193,6 +352,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     this.maxHP = pokemon.maxHP
     this.maxPP = pokemon.maxPP
     this.hp = pokemon.hp
+    this.shield = pokemon.shield
     this.speed = pokemon.speed
     this.range = pokemon.range
     this.team = team
@@ -523,7 +683,8 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     value: number,
     caster: IPokemonEntity,
     apBoost: number,
-    crit: boolean
+    crit: boolean,
+    permanent = false
   ) {
     value =
       value * (1 + (apBoost * caster.ap) / 100) * (crit ? caster.critPower : 1)
@@ -535,6 +696,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     this.critChance += value
 
@@ -544,13 +706,25 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
       this.addCritPower(overCritChance, this, 0, false)
       this.critChance = 100
     }
+    if (permanent && !this.isGhostOpponent) {
+      this.refToBoardPokemon.critChance += value
+      if (this.refToBoardPokemon.critChance > 100) {
+        const overCritChance = Math.round(this.refToBoardPokemon.critChance - 100)
+        this.refToBoardPokemon.critPower = min(0)(
+          this.refToBoardPokemon.critPower + overCritChance / 100
+        )
+        this.refToBoardPokemon.critChance = 100
+      }
+    }
+    this.mirrorSoulLinkGrowth("critChance", value, permanent)
   }
 
   addCritPower(
     value: number,
     caster: IPokemonEntity,
     apBoost: number,
-    crit: boolean
+    crit: boolean,
+    permanent = false
   ) {
     value =
       (value / 100) *
@@ -564,8 +738,24 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     this.critPower = min(0)(this.critPower + value)
+    if (permanent && !this.isGhostOpponent) {
+      this.refToBoardPokemon.critPower = min(0)(
+        this.refToBoardPokemon.critPower + value
+      )
+    }
+    this.mirrorSoulLinkGrowth("critPower", value, permanent)
+  }
+
+  addRange(value: number, permanent = false) {
+    value = this.splitSoulLinkGrowth(value)
+    this.range = min(1)(this.range + value)
+    if (permanent && !this.isGhostOpponent) {
+      this.refToBoardPokemon.range = min(1)(this.refToBoardPokemon.range + value)
+    }
+    this.mirrorSoulLinkGrowth("range", value, permanent)
   }
 
   addMaxHP(
@@ -586,6 +776,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     this.maxHP = min(1)(this.maxHP + value)
     if (this.hp > 0) {
@@ -596,6 +787,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
       const boardPokemon = this.refToBoardPokemon as Pokemon
       boardPokemon.addMaxHP(value, this.player)
     }
+    this.mirrorSoulLinkGrowth("maxHP", value, permanent)
   }
 
   addDodgeChance(
@@ -636,6 +828,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     const update = (target: { ap: number }) => {
       target.ap = min(-100)(target.ap + value)
@@ -650,6 +843,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     if (permanent && !this.isGhostOpponent) {
       update(this.refToBoardPokemon)
     }
+    this.mirrorSoulLinkGrowth("ap", value, permanent)
   }
 
   addLuck(
@@ -697,6 +891,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     const update = (target: { def: number }) => {
       target.def = min(0)(target.def + value)
@@ -705,6 +900,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     if (permanent && !this.isGhostOpponent) {
       update(this.refToBoardPokemon)
     }
+    this.mirrorSoulLinkGrowth("def", value, permanent)
   }
 
   addSpecialDefense(
@@ -725,6 +921,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     const update = (target: { speDef: number }) => {
       target.speDef = min(0)(target.speDef + value)
@@ -733,6 +930,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     if (permanent && !this.isGhostOpponent) {
       update(this.refToBoardPokemon)
     }
+    this.mirrorSoulLinkGrowth("speDef", value, permanent)
   }
 
   addAttack(
@@ -753,6 +951,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     ) {
       value *= -1 // twist band turn debuffs into buffs
     }
+    value = this.splitSoulLinkGrowth(value)
 
     const update = (target: { atk: number }) => {
       target.atk = min(1)(target.atk + value)
@@ -761,6 +960,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
     if (permanent && !this.isGhostOpponent) {
       update(this.refToBoardPokemon)
     }
+    this.mirrorSoulLinkGrowth("atk", value, permanent)
   }
 
   addSpeed(
@@ -785,6 +985,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
         value *
         (1 + (apBoost * caster.ap) / 100) *
         (crit ? caster.critPower : 1)
+      value = this.splitSoulLinkGrowth(value)
       const update = (target: { speed: number }) => {
         target.speed = clamp(target.speed + value, 0, 300)
       }
@@ -792,6 +993,7 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
       if (permanent && !this.isGhostOpponent) {
         update(this.refToBoardPokemon)
       }
+      this.mirrorSoulLinkGrowth("speed", value, permanent)
     }
   }
 
@@ -1426,10 +1628,10 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
         this.addSpeed(value, this, 0, false, permanent)
         break
       case Stat.CRIT_CHANCE:
-        this.addCritChance(value, this, 0, false)
+        this.addCritChance(value, this, 0, false, permanent)
         break
       case Stat.CRIT_POWER:
-        this.addCritPower(value, this, 0, false)
+        this.addCritPower(value, this, 0, false, permanent)
         break
       case Stat.SHIELD:
         this.addShield(value, this, 0, false)
@@ -1441,7 +1643,8 @@ export class PokemonEntity extends Schema implements IPokemonEntity {
         this.addLuck(value, this, 0, false, permanent)
         break
       case Stat.RANGE:
-        this.range = min(1)(this.range + value)
+        this.addRange(value, permanent)
+        break
     }
   }
 

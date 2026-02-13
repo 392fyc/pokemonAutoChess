@@ -117,6 +117,7 @@ export default class Simulation extends Schema implements ISimulation {
   mewtwoHeartActive = false
   mewtwoHeartBoss: PokemonEntity | null = null
   mewtwoDebugLogTimer = 3000
+  mewtwoAnchoredAp: number | null = null
   private delayedCommands: SimulationCommand[] = []
   // Boss技能管理器
   bossAbilityManager: BossAbilityManager | null = null
@@ -249,6 +250,10 @@ export default class Simulation extends Schema implements ISimulation {
     this.applyBossTraits(bossEntity, bossStage)
     if (bossEntity.name === Pkm.MEWTWO) {
       bossEntity.preventApReduction = true
+      this.mewtwoAnchoredAp = Math.round(
+        60 * (bossEntity.bossDifficultyMultiplier ?? 1)
+      )
+      bossEntity.ap = this.mewtwoAnchoredAp
     }
 
     if (this.shouldActivateMewtwoHeart(bossEntity)) {
@@ -1621,6 +1626,15 @@ export default class Simulation extends Schema implements ISimulation {
     }
 
     // 更新Boss技能管理器
+    if (this.isBossBattle && this.mewtwoAnchoredAp !== null) {
+      const mewtwo =
+        values(this.blueTeam).find((pokemon) => pokemon.name === Pkm.MEWTWO) ??
+        values(this.redTeam).find((pokemon) => pokemon.name === Pkm.MEWTWO)
+      if (mewtwo && mewtwo.ap !== this.mewtwoAnchoredAp) {
+        mewtwo.ap = this.mewtwoAnchoredAp
+      }
+    }
+
     if (this.isBossBattle && this.bossAbilityManager) {
       this.bossAbilityManager.update(dt)
     }

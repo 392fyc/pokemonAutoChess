@@ -11,7 +11,8 @@ const rewardsByTier: Record<NightmareRewardTier, NightmareReward[]> = {
   [NightmareRewardTier.C]: [],
   [NightmareRewardTier.B]: [],
   [NightmareRewardTier.A]: [],
-  [NightmareRewardTier.S]: []
+  [NightmareRewardTier.S]: [],
+  [NightmareRewardTier.SPECIAL]: []
 }
 
 Object.entries(NIGHTMARE_REWARD_CONFIG).forEach(([reward, config]) => {

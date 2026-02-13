@@ -2101,9 +2101,9 @@ export default class GameRoom extends Room<GameState> {
   }
 
   private getChameleonShopPrice(item: Item): number {
-    if ((ShinyItems as Item[]).includes(item)) return 10
+    if ((ShinyItems as Item[]).includes(item)) return 20
     if ((TownItems as Item[]).includes(item)) return 5
-    return 20
+    return 10
   }
 
   private isChameleonEggItem(item: Item): boolean {
@@ -2893,6 +2893,7 @@ export default class GameRoom extends Room<GameState> {
 
     const pokemon = player.board.get(pokemonId)
     if (!pokemon) return
+    if (pokemon.name === Pkm.SUBSTITUTE) return
 
     if (reward === NightmareReward.SOUL_LINK) {
       if (!player.nightmareSoulLinkAlphaId) {
@@ -2925,10 +2926,17 @@ export default class GameRoom extends Room<GameState> {
       return
     }
 
+    const hadRewardBeforeBind = hasPokemonNightmareReward(
+      pokemon.nightmareReward,
+      reward
+    )
     pokemon.nightmareReward = addPokemonNightmareReward(
       pokemon.nightmareReward,
       reward
     )
+    if (reward === NightmareReward.SHINRA_TENSEI && !hadRewardBeforeBind) {
+      pokemon.range = Math.max(1, pokemon.range + 3)
+    }
     removeInArray(player.nightmareSingleEquipRewards, reward)
     if (
       hasPokemonNightmareReward(pokemon.nightmareReward, NightmareReward.SOUL_LINK) &&
@@ -3074,19 +3082,25 @@ export default class GameRoom extends Room<GameState> {
   }
 
   private initializeMatchLogFile() {
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .replace("T", "_")
-      .slice(0, 19)
-    const logDir = path.resolve(process.cwd(), "bug_screenshot")
-    fs.mkdirSync(logDir, { recursive: true })
-    this.matchLogFilePath = path.join(logDir, `match_${timestamp}_${this.roomId}.log`)
-    this.matchLogClosed = false
-    fs.appendFileSync(
-      this.matchLogFilePath,
-      `[MATCH_LOG_START] ${new Date().toISOString()} roomId=${this.roomId}\n`
-    )
+    try {
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .replace("T", "_")
+        .slice(0, 19)
+      const logDir = path.resolve(process.cwd(), "test_log")
+      fs.mkdirSync(logDir, { recursive: true })
+      this.matchLogFilePath = path.join(logDir, `match_${timestamp}_${this.roomId}.log`)
+      this.matchLogClosed = false
+      fs.appendFileSync(
+        this.matchLogFilePath,
+        `[MATCH_LOG_START] ${new Date().toISOString()} roomId=${this.roomId}\n`
+      )
+    } catch (error) {
+      this.matchLogFilePath = undefined
+      this.matchLogClosed = true
+      logger.error("[MATCH_LOG_INIT_ERROR]", error)
+    }
   }
 
   appendMatchLog(event: string, payload: unknown) {

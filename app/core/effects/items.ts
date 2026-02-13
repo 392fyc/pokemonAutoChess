@@ -293,6 +293,7 @@ export class DojoTicketOnItemDroppedEffect extends OnItemDroppedEffect {
       substitute.evolutionRule = new ConditionBasedEvolutionRule(() => false) // used only to store the original pokemon
       substitute.positionX = pokemon.positionX
       substitute.positionY = pokemon.positionY
+      substitute.nightmareReward = pokemon.nightmareReward
       pokemon.items.forEach((item) => substitute.items.add(item))
       pokemon.removeItems(values(pokemon.items), player)
       const pokemonLeaving =

@@ -5,6 +5,7 @@ import {
 } from "../models/nightmare"
 import { NightmareReward } from "../types/nightmare"
 import { AttackType, Team } from "../types/enum/Game"
+import { Pkm } from "../types/enum/Pokemon"
 import { pickRandomIn } from "../utils/random"
 import { values } from "../utils/schemas"
 import Simulation from "./simulation"
@@ -104,11 +105,11 @@ export function applyNightmareEffectsOnSimulationStart(
         if (player.nightmareSoloLevelingTargetId !== soloTarget.refToBoardPokemon.id) {
           player.nightmareSoloLevelingTargetId = soloTarget.refToBoardPokemon.id
         }
-        soloTarget.addAttack(soloTarget.baseAtk, soloTarget, 0, false)
-        soloTarget.addAbilityPower(100, soloTarget, 0, false)
-        soloTarget.addDefense(soloTarget.baseDef, soloTarget, 0, false)
-        soloTarget.addSpecialDefense(soloTarget.baseSpeDef, soloTarget, 0, false)
-        soloTarget.addMaxHP(soloTarget.baseHP, soloTarget, 0, false)
+        soloTarget.addAttack(soloTarget.baseAtk * 2, soloTarget, 0, false)
+        soloTarget.addAbilityPower(200, soloTarget, 0, false)
+        soloTarget.addDefense(soloTarget.baseDef * 2, soloTarget, 0, false)
+        soloTarget.addSpecialDefense(soloTarget.baseSpeDef * 2, soloTarget, 0, false)
+        soloTarget.addMaxHP(soloTarget.baseHP * 2, soloTarget, 0, false)
         soloTarget.effectsSet.add(
           new OnKillEffect(({ attacker }) => {
             attacker.player?.addMoney(3, true, attacker)
@@ -126,6 +127,7 @@ export function applyNightmareEffectsOnSimulationStart(
   }
 
   teamEntities.forEach((entity) => {
+    if (entity.refToBoardPokemon.name === Pkm.SUBSTITUTE) return
     const rewards = getPokemonNightmareRewards(entity.refToBoardPokemon.nightmareReward)
     if (rewards.length === 0) return
 
@@ -142,6 +144,14 @@ export function applyNightmareEffectsOnSimulationStart(
           attacker.addMaxHP(2, attacker, 0, false, true)
           attacker.addAttack(1, attacker, 0, false, true)
           attacker.addAbilityPower(1, attacker, 0, false, true)
+          const totalKey = `quality_a_total_${attacker.id}`
+          const total = attacker.player?.nightmareCounters.get(totalKey) ?? 0
+          const nextTotal = total + 1
+          attacker.player?.nightmareCounters.set(totalKey, nextTotal)
+          if (nextTotal % 10 === 0) {
+            attacker.addDefense(1, attacker, 0, false, true)
+            attacker.addSpecialDefense(1, attacker, 0, false, true)
+          }
         }, NightmareReward.QUALITY_A as any)
       )
     }
@@ -259,9 +269,14 @@ export function applyNightmareEffectsOnSimulationStart(
       entity.effectsSet.add(
         new PeriodicEffect((caster) => {
           const targets = simulation.board
-            .getCellsInRange(caster.positionX, caster.positionY, 2)
+            .getCellsInRange(caster.positionX, caster.positionY, 3)
             .map((cell) => cell.value)
-            .filter((target) => !!target && target.id !== caster.id) as PokemonEntity[]
+            .filter(
+              (target) =>
+                !!target &&
+                target.id !== caster.id &&
+                target.team !== caster.team
+            ) as PokemonEntity[]
           targets.forEach((target) => {
             const candidateCells: { x: number; y: number; score: number }[] = []
             simulation.board.forEach((x, y, value) => {
@@ -270,7 +285,7 @@ export function applyNightmareEffectsOnSimulationStart(
                 Math.abs(x - caster.positionX),
                 Math.abs(y - caster.positionY)
               )
-              if (chebyshev <= 2) return
+              if (chebyshev <= 3) return
               const score =
                 Math.abs(x - target.positionX) + Math.abs(y - target.positionY)
               candidateCells.push({ x, y, score })
@@ -295,11 +310,13 @@ export function applyNightmareEffectsOnSimulationStart(
       let sumAtk = 0
       let sumDef = 0
       let sumSpeDef = 0
+      let sumSpeed = 0
       adjacentAllies.forEach((ally) => {
         sumHP += ally.baseHP
         sumAtk += ally.baseAtk
         sumDef += ally.baseDef
         sumSpeDef += ally.baseSpeDef
+        sumSpeed += ally.speed
         ally.handleDamage({
           damage: ally.hp + ally.shield + 9999,
           board: simulation.board,
@@ -312,6 +329,7 @@ export function applyNightmareEffectsOnSimulationStart(
       entity.addAttack(sumAtk * 0.5, entity, 0, false)
       entity.addDefense(sumDef * 0.5, entity, 0, false)
       entity.addSpecialDefense(sumSpeDef * 0.5, entity, 0, false)
+      entity.addSpeed(sumSpeed * 0.5, entity, 0, false)
     }
 
     if (rewards.includes(NightmareReward.TRINITY_CLONES)) {
@@ -373,7 +391,7 @@ export function applyNightmareEffectsOnSimulationStart(
             if (enemies.length === 0) return
             const reflectedTotal = Math.max(
               1,
-              Math.floor(damageBeforeReduction * 0.2)
+              Math.floor(damageBeforeReduction * 0.3)
             )
             const perTarget = Math.max(
               1,

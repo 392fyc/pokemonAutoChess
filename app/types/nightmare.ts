@@ -2,13 +2,15 @@ export enum NightmareRewardTier {
   C = "C",
   B = "B",
   A = "A",
-  S = "S"
+  S = "S",
+  SPECIAL = "SPECIAL"
 }
 
 export enum NightmareRewardType {
   TEAM_PASSIVE = "TEAM_PASSIVE",
   SINGLE_EQUIP = "SINGLE_EQUIP",
-  ECONOMY = "ECONOMY"
+  ECONOMY = "ECONOMY",
+  NUMBERS_ADVANTAGE = "NUMBERS_ADVANTAGE"
 }
 
 export enum NightmareReward {
@@ -142,8 +144,8 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
     v1Implemented: true
   },
   [NightmareReward.NUMBERS_ADVANTAGE]: {
-    tier: NightmareRewardTier.A,
-    rewardType: NightmareRewardType.ECONOMY,
+    tier: NightmareRewardTier.SPECIAL,
+    rewardType: NightmareRewardType.NUMBERS_ADVANTAGE,
     description:
       "Auto-granted at stage 21. Spend gold in nightmare window to permanently increase team size cap.",
     v1Implemented: true
@@ -206,7 +208,8 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.SOUL_LINK]: {
     tier: NightmareRewardTier.S,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Two bound units share incoming damage.",
+    description:
+      "Two bound units split incoming damage, share part of each other's stat growth, and die together when either one dies.",
     v1Implemented: true
   },
   [NightmareReward.TRINITY_CLONES]: {
@@ -222,15 +225,16 @@ export const NIGHTMARE_STAGE_POOL: Record<
   Array<{ tier: NightmareRewardTier; weight: number }>
 > = {
   5: [
-    { tier: NightmareRewardTier.C, weight: 80 },
-    { tier: NightmareRewardTier.B, weight: 20 }
+    { tier: NightmareRewardTier.C, weight: 100 }
   ],
   15: [
-    { tier: NightmareRewardTier.C, weight: 20 },
-    { tier: NightmareRewardTier.B, weight: 75 },
-    { tier: NightmareRewardTier.A, weight: 5 }
+    { tier: NightmareRewardTier.B, weight: 85 },
+    { tier: NightmareRewardTier.A, weight: 15 }
   ],
-  25: [{ tier: NightmareRewardTier.A, weight: 100 }],
+  25: [
+    { tier: NightmareRewardTier.B, weight: 20 },
+    { tier: NightmareRewardTier.A, weight: 80 }
+  ],
   35: [
     { tier: NightmareRewardTier.A, weight: 50 },
     { tier: NightmareRewardTier.S, weight: 50 }

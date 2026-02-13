@@ -1837,6 +1837,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
         p.pokemon.ap += [15, 30, 45][p.ticketLevel - 1] ?? 0
         p.pokemon.positionX = substitute.positionX
         p.pokemon.positionY = substitute.positionY
+        p.pokemon.nightmareReward = substitute.nightmareReward
         player.board.delete(substitute.id)
         player.board.set(p.pokemon.id, p.pokemon)
         /* Set schemas needs to be reset to fix reactivity issues ; bug on Colyseus Schema ? */

@@ -578,14 +578,14 @@ export default abstract class PokemonState {
           soulLinkTarget.hp > 0 &&
           !soulLinkTarget.status.resurrecting
         ) {
-          const selfDamage = Math.max(1, Math.floor(reducedDamage * 0.4))
-          const partnerDamage = Math.max(1, Math.floor(reducedDamage * 0.4))
+          const selfDamage = Math.max(1, Math.floor(reducedDamage * 0.5))
+          const partnerDamage = Math.max(1, Math.floor(reducedDamage * 0.5))
           reducedDamage = selfDamage
           soulLinkTarget.handleDamage({
             damage: partnerDamage,
             board,
             attackType: AttackType.TRUE,
-            attacker: pokemon,
+            attacker: attacker ?? pokemon,
             shouldTargetGainMana: false,
             isRetaliation: true
           })
@@ -598,7 +598,7 @@ export default abstract class PokemonState {
           NightmareReward.REFRACTION
         )
       ) {
-        reducedDamage = Math.max(1, Math.floor(reducedDamage * 0.8))
+        reducedDamage = Math.max(1, Math.floor(reducedDamage * 0.7))
       }
 
       if (attackType === AttackType.PHYSICAL) {
@@ -846,12 +846,27 @@ export default abstract class PokemonState {
         (pokemon.simulation.redTeam.get(
           pokemon.nightmareSoulLinkTargetId
         ) as PokemonEntity | undefined)
+      const linkedTargetAlive =
+        !!linkedTarget && linkedTarget.hp > 0 && !linkedTarget.status.resurrecting
       if (linkedTarget) {
         linkedTarget.nightmareSoulLinkTargetId = ""
+        if (linkedTarget.player) {
+          linkedTarget.player.nightmareSoulLinkActive = false
+        }
       }
       pokemon.nightmareSoulLinkTargetId = ""
       if (pokemon.player) {
         pokemon.player.nightmareSoulLinkActive = false
+      }
+      if (linkedTarget && linkedTargetAlive) {
+        linkedTarget.handleDamage({
+          damage: linkedTarget.hp + linkedTarget.shield + 9999,
+          board,
+          attackType: AttackType.TRUE,
+          attacker,
+          shouldTargetGainMana: false,
+          isRetaliation: true
+        })
       }
     }
 

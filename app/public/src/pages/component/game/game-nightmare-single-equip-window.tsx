@@ -125,7 +125,9 @@ export default function GameNightmareSingleEquipWindow() {
         const worldPoint = scene.cameras.main.getWorldPoint(canvasX, canvasY)
 
         const ownPokemons = [...scene.board.pokemons.values()].filter(
-          (pokemonSprite) => pokemonSprite.playerId === scene.uid
+          (pokemonSprite: any) =>
+            pokemonSprite.playerId === scene.uid &&
+            pokemonSprite?.name !== "SUBSTITUTE"
         )
         if (ownPokemons.length === 0) return
 
@@ -252,6 +254,8 @@ export default function GameNightmareSingleEquipWindow() {
           const typeLabel =
             rewardType === NightmareRewardType.SINGLE_EQUIP
               ? "SINGLE"
+              : rewardType === NightmareRewardType.NUMBERS_ADVANTAGE
+                ? "NUM"
               : rewardType === NightmareRewardType.ECONOMY
                 ? "ECON"
                 : "TEAM"
@@ -291,32 +295,32 @@ export default function GameNightmareSingleEquipWindow() {
               data-tooltip-content={`${rewardName}::${rewardDescription}`}
             >
               {isNumbersAdvantage ? (
-                <button
-                  className="reward-icon-action"
-                  disabled={!canBuyNumbersAdvantage}
-                  onClick={() =>
-                    dispatch(
-                      nightmareWindowAction({
-                        action: NightmareWindowAction.NUMBERS_ADVANTAGE_BUY
-                      })
-                    )
-                  }
-                >
-                  <img
-                    className="reward-small-icon"
-                    src={getNightmareRewardAssetUrl(reward)}
-                    alt={rewardName}
-                  />
-                </button>
+                <div className="reward-icon-column">
+                  <button
+                    className="reward-icon-action"
+                    disabled={!canBuyNumbersAdvantage}
+                    onClick={() =>
+                      dispatch(
+                        nightmareWindowAction({
+                          action: NightmareWindowAction.NUMBERS_ADVANTAGE_BUY
+                        })
+                      )
+                    }
+                  >
+                    <img
+                      className="reward-small-icon"
+                      src={getNightmareRewardAssetUrl(reward)}
+                      alt={rewardName}
+                    />
+                  </button>
+                  <span className="reward-cost">{numbersAdvantageCost}G</span>
+                </div>
               ) : (
                 <img
                   className="reward-small-icon"
                   src={getNightmareRewardAssetUrl(reward)}
                   alt={rewardName}
                 />
-              )}
-              {isNumbersAdvantage && (
-                <span className="reward-cost">{numbersAdvantageCost}G</span>
               )}
               <span className="reward-name">{rewardName}</span>
               <span className="reward-type-tag">{typeLabel}</span>

@@ -20,6 +20,15 @@ export default function WikiPokemonDetail(props: {
   selectPkm: (pkm: Pkm) => void
 }) {
   const { t } = useTranslation()
+  const getAbilityName = (ability: Ability) => {
+    const translated = t(`ability.${ability}`)
+    if (!translated.startsWith("ability.")) return translated
+    return ability
+      .toLowerCase()
+      .split("_")
+      .map((token) => token[0].toUpperCase() + token.slice(1))
+      .join(" ")
+  }
   const pokemon = useMemo(() => {
     const pokemon = PokemonFactory.createPokemonFromName(props.pokemon)
     pokemon.pp = pokemon.maxPP
@@ -156,7 +165,7 @@ export default function WikiPokemonDetail(props: {
           <>
             <dt>{t("ability_label")}</dt>
             <dd>
-              {t(`ability.${pokemon.skill}`)}
+              {getAbilityName(pokemon.skill)}
               <AbilityTooltip
                 ability={pokemonData.skill}
                 stats={{ ap: 0, luck: 0, stars: pokemonData.stars, stages: 4 }}

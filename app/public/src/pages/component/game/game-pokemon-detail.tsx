@@ -48,6 +48,15 @@ export function GamePokemonDetail(props: {
   isAlly?: boolean
 }) {
   const { t, i18n } = useTranslation()
+  const getAbilityName = (ability: Ability) => {
+    const translated = t(`ability.${ability}`)
+    if (!translated.startsWith("ability.")) return translated
+    return ability
+      .toLowerCase()
+      .split("_")
+      .map((token) => token[0].toUpperCase() + token.slice(1))
+      .join(" ")
+  }
   const pokemon: IPokemon | IPokemonEntity = useMemo(() => {
     if (typeof props.pokemon === "string") {
       const pokemon = PokemonFactory.createPokemonFromName(props.pokemon)
@@ -301,7 +310,7 @@ export function GamePokemonDetail(props: {
       ) : (
         pokemon.skill !== Ability.DEFAULT && (
         <div className="game-pokemon-detail-ult">
-          <div className="ability-name">{t(`ability.${pokemon.skill}`)}</div>
+          <div className="ability-name">{getAbilityName(pokemon.skill)}</div>
           <div>
             <AbilityTooltip
               ability={pokemon.skill}

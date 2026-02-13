@@ -18,6 +18,19 @@ import {
 
 export default function WikiAbility() {
   const { t } = useTranslation()
+  const getAbilityName = (ability: Ability) => {
+    const translated = t(`ability.${ability}`)
+    if (!translated.startsWith("ability.")) return translated
+    return ability
+      .toLowerCase()
+      .split("_")
+      .map((token) => token[0].toUpperCase() + token.slice(1))
+      .join(" ")
+  }
+  const getAbilityDescription = (ability: Ability) => {
+    const translated = t(`ability_description.${ability}`)
+    return translated.startsWith("ability_description.") ? getAbilityName(ability) : translated
+  }
 
   const [searchQuery, setSearchQuery] = useState<string>("")
   const pokemonsPerAbility = useMemo(
@@ -61,11 +74,11 @@ export default function WikiAbility() {
       (a) =>
         a !== Ability.DEFAULT &&
         (!searchQuery.trim() ||
-          `${t(`ability.${a}`)} ${t(`ability_description.${a}`)}`
+          `${getAbilityName(a)} ${getAbilityDescription(a)}`
             .toLowerCase()
             .includes(searchQuery.trim().toLowerCase()))
     )
-    .sort((a, b) => t(`ability.${a}`).localeCompare(t(`ability.${b}`)))
+    .sort((a, b) => getAbilityName(a).localeCompare(getAbilityName(b)))
 
   return (
     <div id="wiki-ability">
@@ -83,9 +96,9 @@ export default function WikiAbility() {
           return (
             <li key={ability} className="my-box">
               <div>
-                <h2>{t(`ability.${ability}`)}</h2>
+                <h2>{getAbilityName(ability)}</h2>
                 <p>
-                  {addIconsToDescription(t(`ability_description.${ability}`))}
+                  {addIconsToDescription(getAbilityDescription(ability))}
                 </p>
               </div>
               <div>

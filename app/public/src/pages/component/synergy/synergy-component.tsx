@@ -72,16 +72,16 @@ export default function SynergyComponent(props: {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "40px 2ch 1fr",
+        gridTemplateColumns: "28px 1.6ch 1fr",
         alignItems: "center",
         justifyContent: "space-around",
         backgroundColor:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--color-bg-secondary)"
             : "rgba(84, 89, 107,0)",
-        margin: "4px",
-        borderRadius: "12px",
-        padding: "2px 0",
+        margin: "2px",
+        borderRadius: "8px",
+        padding: "1px 0",
         border:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--border-thin)"
@@ -100,13 +100,13 @@ export default function SynergyComponent(props: {
         ? ReactDOM.createPortal(tooltip, document.body)
         : tooltip}
 
-      <SynergyIcon type={props.type} size="40px" />
+      <SynergyIcon type={props.type} size="28px" />
       <span
         style={{
-          fontSize: "32px",
+          fontSize: "20px",
           textShadow: "2px 2px 2px #00000080",
           textAlign: "center",
-          marginRight: "4px",
+          marginRight: "2px",
           color: levelReached ? "#ffffff" : "#b8b8b8"
         }}
       >
@@ -116,7 +116,7 @@ export default function SynergyComponent(props: {
         style={{
           display: "flex",
           flexFlow: "column",
-          lineHeight: 1.25
+          lineHeight: 1.1
         }}
       >
         <div
@@ -130,6 +130,7 @@ export default function SynergyComponent(props: {
               <span
                 key={t}
                 style={{
+                  fontSize: "0.72rem",
                   color:
                     levelReached === t
                       ? "#f7d51d"
@@ -143,7 +144,14 @@ export default function SynergyComponent(props: {
             )
           })}
         </div>
-        <p style={{ margin: "0px", textAlign: "center", fontWeight: "500" }}>
+        <p
+          style={{
+            margin: "0px",
+            textAlign: "center",
+            fontWeight: "500",
+            fontSize: "0.72rem"
+          }}
+        >
           {t(`synergy.${props.type}`)}
         </p>
       </div>

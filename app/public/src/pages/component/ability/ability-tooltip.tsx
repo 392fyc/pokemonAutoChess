@@ -9,7 +9,14 @@ export function AbilityTooltip(props: {
   stats?: { stars: number; stages: number; ap: number; luck: number }
 }) {
   const { t } = useTranslation()
-  const description = t(`ability_description.${props.ability}`)
+  const translated = t(`ability_description.${props.ability}`)
+  const description = translated.startsWith("ability_description.")
+    ? props.ability
+        .toLowerCase()
+        .split("_")
+        .map((token) => token[0].toUpperCase() + token.slice(1))
+        .join(" ")
+    : translated
   return (
     <p className="ability-description">
       {addIconsToDescription(description, props.stats)}

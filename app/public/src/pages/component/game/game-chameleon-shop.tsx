@@ -17,9 +17,9 @@ const CHAMELEON_SHOP_STAGE = 21
 const CHAMELEON_REFRESH_COST = 2
 
 function getChameleonPrice(item: Item) {
-  if ((ShinyItems as Item[]).includes(item)) return 10
+  if ((ShinyItems as Item[]).includes(item)) return 20
   if ((TownItems as Item[]).includes(item)) return 5
-  return 20
+  return 10
 }
 
 export default function GameChameleonShop() {

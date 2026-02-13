@@ -43,7 +43,7 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.WAR_DIVIDEND]:
     "连胜时额外获得随机1~2金币（25回合前50%/50%，25回合后10%/90%）。",
   [NightmareReward.SOLO_LEVELING]:
-    "选择之后的5个回合，人口强制降低为1。上场宝可梦获得100%基础属性强化、一级所拥有的共鸣特效，且击杀敌方宝可梦时获得3金币；结束后永久+30%属性。",
+    "选择之后的5个回合，人口强制降低为1。上场宝可梦获得200%额外属性，且击杀敌方宝可梦时获得3金币；结束后永久+30%属性。",
   [NightmareReward.WU_WEI_RULE]:
     "取消利息，改为固定每回合+2金币与+2经验；累计击杀150个宝可梦后提升为+3金币与+3经验。当达到等级9后，超出的经验将转化为金币。",
   [NightmareReward.LETHAL_TEMPO]:
@@ -53,7 +53,7 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.TARGETED_SEARCH]:
     "商店刷新更偏向已触发共鸣的属性池。",
   [NightmareReward.QUALITY_A]:
-    "基础属性削弱，击杀宝可梦时永久增加属性。",
+    "绑定宝可梦基础物攻/AP各-50%，最大HP-30%（永久且升星不消除）；每击杀1个单位永久+2最大HP、+1物攻/AP，每回合最多触发10次；每累计触发10次额外永久+1物防与+1特防。",
   [NightmareReward.UNYIELDING_DEATH]:
     "我方全体宝可梦每回合首次致死后维持1HP继续5秒。",
   [NightmareReward.BERSERKER]:
@@ -70,7 +70,7 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.OGRE]:
     "开战吞噬半径1格内的所有友军，获得其50%基础属性。",
   [NightmareReward.SHINRA_TENSEI]:
-    "每5秒推开自身半径2格范围内所有敌方单位。",
+    "每5秒推开自身半径3格范围内所有敌方单位，且自身射程永久+3。",
   [NightmareReward.ASSIST_MASTER]:
     "自身不主动施法，队友施法累计3次后触发自身施法。",
   [NightmareReward.DRAGON_DANCE]: "全队开场满PP。",
@@ -79,11 +79,11 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.LOYAL_CASTER]:
     "无法普攻，每2秒自动施法且不消耗PP。",
   [NightmareReward.REFRACTION]:
-    "减免20%受到的伤害，且将这部分伤害以真伤分摊给自身半径2格内的所有敌方。",
+    "减免30%受到的伤害，且将这部分伤害以真伤分摊给自身半径2格内的所有敌方。",
   [NightmareReward.TOXIC_ARMORY]:
     "绑定单位额外获得3个装备栏位；战斗中永久处于3层中毒（被净化后会重新施加）。",
   [NightmareReward.SOUL_LINK]:
-    "两名绑定单位分担伤害。",
+    "两名绑定单位分担伤害且享受对方属性成长的一部分。当一方死亡时，另一方也会立刻死亡。",
   [NightmareReward.TRINITY_CLONES]:
     "自身基础降为30%，开战召唤左右分身协同作战。"
 }
@@ -92,7 +92,8 @@ const tierPrefixMap: Record<NightmareRewardTier, string> = {
   [NightmareRewardTier.C]: "C",
   [NightmareRewardTier.B]: "B",
   [NightmareRewardTier.A]: "A",
-  [NightmareRewardTier.S]: "S"
+  [NightmareRewardTier.S]: "S",
+  [NightmareRewardTier.SPECIAL]: "特"
 }
 
 export function getNightmareRewardName(

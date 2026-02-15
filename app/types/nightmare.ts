@@ -80,7 +80,8 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.SOLO_LEVELING]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.TEAM_PASSIVE,
-    description: "Single unit challenge and growth.",
+    description:
+      "For 5 rounds, team size is locked to 1, deployed unit gains +100% attributes, and kills grant +2 gold/+2 exp.",
     v1Implemented: true
   },
   [NightmareReward.WU_WEI_RULE]: {
@@ -102,7 +103,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
     v1Implemented: true
   },
   [NightmareReward.TARGETED_SEARCH]: {
-    tier: NightmareRewardTier.B,
+    tier: NightmareRewardTier.SPECIAL,
     rewardType: NightmareRewardType.ECONOMY,
     description: "Shop refresh prefers activated synergies.",
     v1Implemented: true
@@ -153,7 +154,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.INFINITE_GROWTH]: {
     tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.TEAM_PASSIVE,
-    description: "Absorb 1-star copies into 3-star for growth.",
+    description: "Absorb bought 1-star copies into owned 3-star for permanent +20% base attributes.",
     v1Implemented: true
   },
   [NightmareReward.OGRE]: {
@@ -171,7 +172,8 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.ASSIST_MASTER]: {
     tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Cast cadence driven by ally casts.",
+    description:
+      "Does not cast proactively; every 3 ally casts triggers its cast and grants team shields equal to its max PP.",
     v1Implemented: true
   },
   [NightmareReward.DRAGON_DANCE]: {
@@ -189,7 +191,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.LOYAL_CASTER]: {
     tier: NightmareRewardTier.S,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Cannot basic attack; auto-cast periodically.",
+    description: "Cannot basic attack; auto-cast every 1 second.",
     v1Implemented: true
   },
   [NightmareReward.REFRACTION]: {
@@ -240,3 +242,23 @@ export const NIGHTMARE_STAGE_POOL: Record<
     { tier: NightmareRewardTier.S, weight: 50 }
   ]
 }
+
+export const NIGHTMARE_MUTUALLY_EXCLUSIVE_GROUPS: NightmareReward[][] = [
+  [NightmareReward.SOUL_LINK, NightmareReward.TRINITY_CLONES]
+]
+
+export const NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS = 5
+export const NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER = 1 // +100%
+export const NIGHTMARE_SOLO_LEVELING_KILL_GOLD = 2
+export const NIGHTMARE_SOLO_LEVELING_KILL_EXP = 2
+
+export const NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO = 0.2 // +20%
+
+export const NIGHTMARE_ASSIST_MASTER_ALLY_CASTS = 3
+
+export const NIGHTMARE_DRAGON_DANCE_INTERVAL_MS = 10000
+
+export const NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS = 5000
+export const NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS = 3000
+
+export const NIGHTMARE_LOYAL_CASTER_INTERVAL_MS = 1000

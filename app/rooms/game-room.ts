@@ -114,12 +114,19 @@ import { WandererBehavior, WandererType } from "../types/enum/Wanderer"
 import { IPokemonCollectionItemMongo } from "../types/interfaces/UserMetadata"
 import {
   NIGHTMARE_MILESTONES,
+  NIGHTMARE_MUTUALLY_EXCLUSIVE_GROUPS,
+  NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS,
   NightmareReward,
   NightmareRewardTier,
   NightmareRewardType,
   NIGHTMARE_REWARD_CONFIG,
   NightmareWindowAction
 } from "../types/nightmare"
+import {
+  CHAMELEON_REFRESH_COST,
+  CHAMELEON_SHOP_STAGE,
+  getChameleonShopPrice
+} from "../types/chameleon-shop"
 import { removeInArray } from "../utils/array"
 import { getAvatarString } from "../utils/avatar"
 import {
@@ -2012,12 +2019,12 @@ export default class GameRoom extends Room<GameState> {
   ) {
     const player = this.state.players.get(playerId)
     if (!player || player.isBot) return
-    if (this.state.stageLevel < 21) {
+    if (this.state.stageLevel < CHAMELEON_SHOP_STAGE) {
       player.chameleonShop.clear()
       return
     }
     if (manualRefresh) {
-      const refreshCost = 2
+      const refreshCost = CHAMELEON_REFRESH_COST
       if (player.money < refreshCost) return
       player.addMoney(-refreshCost, false, null)
     }
@@ -2028,12 +2035,12 @@ export default class GameRoom extends Room<GameState> {
   private buyChameleonShopItem(playerId: string, index: number) {
     const player = this.state.players.get(playerId)
     if (!player || player.isBot) return
-    if (this.state.stageLevel < 21) return
+    if (this.state.stageLevel < CHAMELEON_SHOP_STAGE) return
     const items = values(player.chameleonShop)
     const item = items[index]
     if (!item) return
 
-    const price = this.getChameleonShopPrice(item)
+    const price = getChameleonShopPrice(item)
     if (player.money < price) return
 
     player.addMoney(-price, false, null)
@@ -2098,12 +2105,6 @@ export default class GameRoom extends Room<GameState> {
 
   private getChameleonItemWeight(item: Item): number {
     return (SynergyStones as Item[]).includes(item) ? 0.2 : 1
-  }
-
-  private getChameleonShopPrice(item: Item): number {
-    if ((ShinyItems as Item[]).includes(item)) return 20
-    if ((TownItems as Item[]).includes(item)) return 5
-    return 10
   }
 
   private isChameleonEggItem(item: Item): boolean {
@@ -2449,6 +2450,36 @@ export default class GameRoom extends Room<GameState> {
     return hash % length
   }
 
+  private getNightmareMutuallyExclusiveRewards(
+    reward: NightmareReward
+  ): NightmareReward[] {
+    const result = new Set<NightmareReward>()
+    NIGHTMARE_MUTUALLY_EXCLUSIVE_GROUPS.forEach((group) => {
+      if (!group.includes(reward)) return
+      group.forEach((candidate) => {
+        if (candidate !== reward) result.add(candidate)
+      })
+    })
+    return Array.from(result)
+  }
+
+  private expandNightmareExcludedRewards(
+    rewards: Iterable<NightmareReward>
+  ): Set<NightmareReward> {
+    const expanded = new Set<NightmareReward>(rewards)
+    const queue = Array.from(expanded)
+    for (let index = 0; index < queue.length; index++) {
+      const reward = queue[index]
+      this.getNightmareMutuallyExclusiveRewards(reward).forEach((blocked) => {
+        if (!expanded.has(blocked)) {
+          expanded.add(blocked)
+          queue.push(blocked)
+        }
+      })
+    }
+    return expanded
+  }
+
   private rollNightmareRewardForStage(
     player: Player,
     poolStageLevel: number,
@@ -2457,11 +2488,11 @@ export default class GameRoom extends Room<GameState> {
     slotIndex: number,
     actualStageLevel = poolStageLevel
   ) {
-    excluded.add(NightmareReward.NUMBERS_ADVANTAGE)
+    const expandedExcluded = this.expandNightmareExcludedRewards(excluded)
     const forcedTier = this.getNightmareTierForStage(poolStageLevel)
     if (forcedTier) {
       const candidates = getNightmareRewardsByTier(forcedTier)
-        .filter((reward) => !excluded.has(reward))
+        .filter((reward) => !expandedExcluded.has(reward))
         .filter(
           (reward) => preferred.size === 0 || preferred.has(reward)
         )
@@ -2470,7 +2501,7 @@ export default class GameRoom extends Room<GameState> {
       const seedKey = `${this.nightmareRunSeed}:${player.id}:${poolStageLevel}:${actualStageLevel}:${slotIndex}:${values(player.nightmareRewardRefreshCountPerSlot).join(",")}`
       return candidates[this.deterministicIndex(seedKey, candidates.length)]
     }
-    return rollNightmareReward(poolStageLevel, excluded, preferred)
+    return rollNightmareReward(poolStageLevel, expandedExcluded, preferred)
   }
 
   private logNightmareSnapshot(player: Player, reason: string) {
@@ -2594,11 +2625,10 @@ export default class GameRoom extends Room<GameState> {
     const seen = this.getNightmareSeenRewardsForStage(player, stageLevel)
     const selected = new Set<NightmareReward>()
     for (let index = 0; index < 3; index++) {
-    const excluded = new Set<NightmareReward>([
-      ...Array.from(owned),
-      ...Array.from(selected),
-      NightmareReward.NUMBERS_ADVANTAGE
-    ])
+      const excluded = this.expandNightmareExcludedRewards([
+        ...Array.from(owned),
+        ...Array.from(selected)
+      ])
       const reward = this.rollNightmareRewardForStage(
         player,
         poolStageLevel,
@@ -2645,13 +2675,11 @@ export default class GameRoom extends Room<GameState> {
 
     const current = values(player.nightmareRewardProposition)
     const owned = new Set(values(player.nightmareRewards))
-    const excluded = new Set<NightmareReward>([
-      ...Array.from(owned),
-      NightmareReward.NUMBERS_ADVANTAGE
-    ])
+    const excludedRaw = new Set<NightmareReward>([...Array.from(owned)])
     current.forEach((reward, index) => {
-      if (index !== slotIndex) excluded.add(reward)
+      if (index !== slotIndex) excludedRaw.add(reward)
     })
+    const excluded = this.expandNightmareExcludedRewards(excludedRaw)
 
     const seen = this.getNightmareSeenRewardsForStage(player, this.state.stageLevel)
     const preferred = new Set<NightmareReward>()
@@ -2801,7 +2829,10 @@ export default class GameRoom extends Room<GameState> {
     }
 
     if (reward === NightmareReward.SOLO_LEVELING) {
-      player.nightmareCounters.set("solo_leveling_rounds_left", 5)
+      player.nightmareCounters.set(
+        "solo_leveling_rounds_left",
+        NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS
+      )
       const normalized = this.normalizeSoloLevelingBoard(player)
       const deployedTarget = values(player.board).find(
         (pokemon) =>
@@ -2811,7 +2842,6 @@ export default class GameRoom extends Room<GameState> {
       )
       if (deployedTarget) {
         player.nightmareSoloLevelingTargetId = deployedTarget.id
-        this.setSoloLevelingResonance(player, deployedTarget, true)
       } else {
         player.nightmareSoloLevelingTargetId = ""
       }
@@ -2957,48 +2987,13 @@ export default class GameRoom extends Room<GameState> {
   }
 
   completeSoloLevelingReward(player: Player) {
-    if (player.nightmareSoloLevelingTargetId) {
-      const target = player.board.get(player.nightmareSoloLevelingTargetId)
-      if (target) {
-        this.setSoloLevelingResonance(player, target, false)
-      }
-    }
-    const deployedTargets = values(player.board).filter(
-      (pokemon) =>
-        pokemon.positionY !== 0 &&
-        pokemon.doesCountForTeamSize &&
-        pokemon.passive !== Passive.INANIMATE
-    )
-
-    const target =
-      deployedTargets.find(
-        (pokemon) => pokemon.id === player.nightmareSoloLevelingTargetId
-      ) ?? deployedTargets[0]
-
-    if (!target) {
-      player.nightmareCounters.set("solo_leveling_rounds_left", 0)
-      return
-    }
-
-    const hpGain = Math.max(1, Math.floor(target.maxHP * 0.3))
-    const atkGain = Math.max(1, Math.floor(target.atk * 0.3))
-    const apGain = Math.max(0, Math.floor(target.ap * 0.3))
-    const defGain = Math.max(1, Math.floor(target.def * 0.3))
-    const speDefGain = Math.max(1, Math.floor(target.speDef * 0.3))
-    target.addMaxHP(hpGain, player)
-    target.addAttack(atkGain)
-    if (apGain > 0) {
-      target.addAbilityPower(apGain)
-    }
-    target.addDefense(defGain)
-    target.addSpecialDefense(speDefGain)
-
     player.nightmareCounters.set("solo_leveling_rounds_left", 0)
+    const targetId = player.nightmareSoloLevelingTargetId
     player.nightmareSoloLevelingTargetId = ""
     logger.info("[NIGHTMARE_SOLO_LEVELING_COMPLETE]", {
       playerId: player.id,
       round: this.state.stageLevel,
-      boostedPokemonIds: [target.id]
+      boostedPokemonIds: targetId ? [targetId] : []
     })
     this.logNightmareSnapshot(player, "solo_leveling_completed")
   }

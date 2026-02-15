@@ -311,6 +311,7 @@ export default class Player extends Schema implements IPlayer {
   }
 
   transformPokemon(pokemon: Pokemon, newEntry: Pkm): Pokemon {
+    const previousId = pokemon.id
     const newPokemon = PokemonFactory.createPokemonFromName(newEntry, this)
     carryOverPermanentStats(newPokemon, [pokemon])
     pokemon.items.forEach((item) => {
@@ -322,8 +323,19 @@ export default class Player extends Schema implements IPlayer {
     newPokemon.dishes = pokemon.dishes
     newPokemon.positionX = pokemon.positionX
     newPokemon.positionY = pokemon.positionY
+    newPokemon.nightmareReward = pokemon.nightmareReward
+    newPokemon.id = previousId
     this.board.delete(pokemon.id)
-    this.board.set(newPokemon.id, newPokemon)
+    this.board.set(previousId, newPokemon)
+    if (this.nightmareSoulLinkAlphaId === pokemon.id) {
+      this.nightmareSoulLinkAlphaId = previousId
+    }
+    if (this.nightmareSoulLinkBetaId === pokemon.id) {
+      this.nightmareSoulLinkBetaId = previousId
+    }
+    if (this.nightmareSoloLevelingTargetId === pokemon.id) {
+      this.nightmareSoloLevelingTargetId = previousId
+    }
     newPokemon.onAcquired(this)
     this.updateSynergies()
     this.pokemonsPlayed.add(newPokemon.name)

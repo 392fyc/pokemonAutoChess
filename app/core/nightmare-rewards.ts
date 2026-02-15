@@ -1,11 +1,24 @@
 import PokemonFactory from "../models/pokemon-factory"
 import {
+  encodePokemonNightmareRewards,
   getPokemonNightmareRewards,
   hasPokemonNightmareReward
 } from "../models/nightmare"
-import { NightmareReward } from "../types/nightmare"
+import {
+  NIGHTMARE_ASSIST_MASTER_ALLY_CASTS,
+  NIGHTMARE_DRAGON_DANCE_INTERVAL_MS,
+  NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS,
+  NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS,
+  NIGHTMARE_LOYAL_CASTER_INTERVAL_MS,
+  NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+  NIGHTMARE_SOLO_LEVELING_KILL_EXP,
+  NIGHTMARE_SOLO_LEVELING_KILL_GOLD,
+  NightmareReward
+} from "../types/nightmare"
 import { AttackType, Team } from "../types/enum/Game"
+import { EffectEnum } from "../types/enum/Effect"
 import { Pkm } from "../types/enum/Pokemon"
+import { Synergy } from "../types/enum/Synergy"
 import { pickRandomIn } from "../utils/random"
 import { values } from "../utils/schemas"
 import Simulation from "./simulation"
@@ -25,15 +38,23 @@ import { IPokemonEntity } from "../types"
 
 const fateDebuffs = [
   (target: PokemonEntity, source: PokemonEntity) =>
-    target.status.triggerWound(3000, target, source),
+    target.status.triggerWound(NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS, target, source),
   (target: PokemonEntity, source: PokemonEntity) =>
-    target.status.triggerSilence(3000, target, source),
+    target.status.triggerSilence(NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS, target, source),
   (target: PokemonEntity, source: PokemonEntity) =>
-    target.status.triggerBurn(3000, target, source),
+    target.status.triggerBurn(NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS, target, source),
   (target: PokemonEntity, source: PokemonEntity) =>
-    target.status.triggerConfusion(3000, target, source),
+    target.status.triggerConfusion(
+      NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS,
+      target,
+      source
+    ),
   (target: PokemonEntity, source: PokemonEntity) =>
-    target.status.triggerParalysis(3000, target, source)
+    target.status.triggerParalysis(
+      NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS,
+      target,
+      source
+    )
 ]
 
 export function applyNightmareEffectsOnSimulationStart(
@@ -50,16 +71,31 @@ export function applyNightmareEffectsOnSimulationStart(
     teamEntities.forEach((entity) => {
       entity.pp = entity.maxPP
     })
+    teamEntities.forEach((entity) => {
+      entity.effectsSet.add(
+        new PeriodicEffect(
+          () => {
+            teamEntities.forEach((ally) => {
+              if (ally.hp > 0 && !ally.status.resurrecting) {
+                ally.pp = ally.maxPP
+              }
+            })
+          },
+          NightmareReward.DRAGON_DANCE as any,
+          NIGHTMARE_DRAGON_DANCE_INTERVAL_MS
+        )
+      )
+    })
   }
 
   if (rewards.has(NightmareReward.RESONANCE_EXPERT)) {
-    let activeResonances = 0
-    player.synergies.forEach((value) => {
-      if (value > 0) activeResonances += 1
+    let totalResonanceLevels = 0
+    player.synergies.forEach((_, key) => {
+      totalResonanceLevels += player.synergies.getSynergyStep(key as Synergy)
     })
-    if (activeResonances > 0) {
+    if (totalResonanceLevels > 0) {
       teamEntities.forEach((entity) => {
-        entity.addSpeed(activeResonances * 10, entity, 0, false)
+        entity.addSpeed(totalResonanceLevels * 10, entity, 0, false)
       })
     }
   }
@@ -105,14 +141,40 @@ export function applyNightmareEffectsOnSimulationStart(
         if (player.nightmareSoloLevelingTargetId !== soloTarget.refToBoardPokemon.id) {
           player.nightmareSoloLevelingTargetId = soloTarget.refToBoardPokemon.id
         }
-        soloTarget.addAttack(soloTarget.baseAtk * 2, soloTarget, 0, false)
-        soloTarget.addAbilityPower(200, soloTarget, 0, false)
-        soloTarget.addDefense(soloTarget.baseDef * 2, soloTarget, 0, false)
-        soloTarget.addSpecialDefense(soloTarget.baseSpeDef * 2, soloTarget, 0, false)
-        soloTarget.addMaxHP(soloTarget.baseHP * 2, soloTarget, 0, false)
+        soloTarget.addAttack(
+          soloTarget.baseAtk * NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+          soloTarget,
+          0,
+          false
+        )
+        soloTarget.addAbilityPower(
+          100 * NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+          soloTarget,
+          0,
+          false
+        )
+        soloTarget.addDefense(
+          soloTarget.baseDef * NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+          soloTarget,
+          0,
+          false
+        )
+        soloTarget.addSpecialDefense(
+          soloTarget.baseSpeDef * NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+          soloTarget,
+          0,
+          false
+        )
+        soloTarget.addMaxHP(
+          soloTarget.baseHP * NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+          soloTarget,
+          0,
+          false
+        )
         soloTarget.effectsSet.add(
           new OnKillEffect(({ attacker }) => {
-            attacker.player?.addMoney(3, true, attacker)
+            attacker.player?.addMoney(NIGHTMARE_SOLO_LEVELING_KILL_GOLD, true, attacker)
+            attacker.player?.addExperience(NIGHTMARE_SOLO_LEVELING_KILL_EXP)
           }, NightmareReward.SOLO_LEVELING as any)
         )
       }
@@ -182,7 +244,7 @@ export function applyNightmareEffectsOnSimulationStart(
           const cooldownMap = pokemon.nightmareFateCooldownByTarget
           const nextAllowedAt = cooldownMap.get(target.id) ?? 0
           if (now < nextAllowedAt) return
-          cooldownMap.set(target.id, now + 3000)
+          cooldownMap.set(target.id, now + NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS)
           pickRandomIn(fateDebuffs)(target, pokemon)
         }, NightmareReward.FATE_OBSERVATION as any)
       )
@@ -206,7 +268,7 @@ export function applyNightmareEffectsOnSimulationStart(
             true
           )
           caster.pp = prevPP
-        }, NightmareReward.LOYAL_CASTER as any, 2000)
+        }, NightmareReward.LOYAL_CASTER as any, NIGHTMARE_LOYAL_CASTER_INTERVAL_MS)
       )
     }
 
@@ -246,7 +308,7 @@ export function applyNightmareEffectsOnSimulationStart(
             new OnAbilityCastEffect(() => {
               if (entity.hp <= 0 || entity.status.resurrecting) return
               allyCasts += 1
-              if (allyCasts < 3) return
+              if (allyCasts < NIGHTMARE_ASSIST_MASTER_ALLY_CASTS) return
               allyCasts = 0
               const enemies = values(
                 entity.team === Team.BLUE_TEAM ? simulation.redTeam : simulation.blueTeam
@@ -260,6 +322,13 @@ export function applyNightmareEffectsOnSimulationStart(
                 target as PokemonEntity,
                 true
               )
+              const allyTeam =
+                entity.team === Team.BLUE_TEAM ? simulation.blueTeam : simulation.redTeam
+              values(allyTeam).forEach((ally) => {
+                if (ally.hp > 0 && !ally.status.resurrecting) {
+                  ally.addShield(entity.maxPP, entity, 0, false)
+                }
+              })
             }, NightmareReward.ASSIST_MASTER as any)
           )
         })
@@ -373,7 +442,14 @@ export function applyNightmareEffectsOnSimulationStart(
         clone.speed = entity.refToBoardPokemon.speed
         clone.critChance = entity.refToBoardPokemon.critChance
         clone.critPower = entity.refToBoardPokemon.critPower
-        clone.nightmareReward = NightmareReward.NONE
+        const inheritedRewards = getPokemonNightmareRewards(
+          entity.refToBoardPokemon.nightmareReward
+        ).filter(
+          (reward) =>
+            reward !== NightmareReward.TRINITY_CLONES &&
+            reward !== NightmareReward.SOUL_LINK
+        )
+        clone.nightmareReward = encodePokemonNightmareRewards(inheritedRewards)
         simulation.addPokemon(clone, coord.x, coord.y, entity.team, true)
       })
     }
@@ -416,10 +492,19 @@ export function applyNightmareEffectsOnSimulationStart(
     if (rewards.includes(NightmareReward.TOXIC_ARMORY)) {
       entity.effectsSet.add(
         new PeriodicEffect((pokemon) => {
-          while (pokemon.status.poisonStacks < 3) {
+          if (pokemon.effects.has(EffectEnum.IMMUNITY_POISON)) return
+          if (pokemon.status.runeProtect) return
+          let safety = 0
+          while (pokemon.status.poisonStacks < 3 && safety < 3) {
+            const before = pokemon.status.poisonStacks
             pokemon.status.triggerPoison(1000, pokemon, pokemon)
+            if (pokemon.status.poisonStacks <= before) break
+            safety += 1
           }
-          if (pokemon.status.poisonCooldown < 1000) {
+          if (
+            pokemon.status.poisonStacks > 0 &&
+            pokemon.status.poisonCooldown < 1000
+          ) {
             pokemon.status.poisonCooldown = 1000
           }
         }, NightmareReward.TOXIC_ARMORY as any, 1000)

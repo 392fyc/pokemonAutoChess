@@ -105,7 +105,10 @@ import { SpecialGameRule } from "../../types/enum/SpecialGameRule"
 import { Synergy } from "../../types/enum/Synergy"
 import { TownEncounters } from "../../types/enum/TownEncounter"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
-import { NightmareReward } from "../../types/nightmare"
+import {
+  NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO,
+  NightmareReward
+} from "../../types/nightmare"
 import { isIn, removeInArray } from "../../utils/array"
 import { getAvatarString } from "../../utils/avatar"
 import {
@@ -196,6 +199,13 @@ export class OnBuyPokemonCommand extends Command<
     if (!player || !player.alive || !name || name === Pkm.DEFAULT) return
 
     const pokemon = PokemonFactory.createPokemonFromName(name, player)
+    const targetThreeStarForInfiniteGrowth =
+      hasNightmareReward(player, NightmareReward.INFINITE_GROWTH) &&
+      pokemon.stars === 1
+        ? values(player.board).find(
+            (existing) => existing.name === pokemon.name && existing.stars >= 3
+          )
+        : undefined
     const isEvolution =
       pokemon.evolutionRule &&
       pokemon.evolutionRule instanceof CountEvolutionRule &&
@@ -203,7 +213,8 @@ export class OnBuyPokemonCommand extends Command<
 
     let cost = getBuyPrice(name, this.state.specialGameRule)
     const freeSpaceOnBench = getFreeSpaceOnBench(player.board)
-    const hasSpaceOnBench = freeSpaceOnBench > 0 || isEvolution
+    const hasSpaceOnBench =
+      freeSpaceOnBench > 0 || isEvolution || !!targetThreeStarForInfiniteGrowth
 
     if (
       isEvolution &&
@@ -217,25 +228,45 @@ export class OnBuyPokemonCommand extends Command<
 
     player.money -= cost
 
-    if (
-      hasNightmareReward(player, NightmareReward.INFINITE_GROWTH) &&
-      pokemon.stars === 1
-    ) {
-      const targetThreeStar = values(player.board).find(
-        (existing) => existing.name === pokemon.name && existing.stars >= 3
+    if (targetThreeStarForInfiniteGrowth) {
+      const hpGain = Math.max(
+        1,
+        Math.floor(
+          targetThreeStarForInfiniteGrowth.maxHP * NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO
+        )
       )
-      if (targetThreeStar) {
-        const hpGain = Math.max(1, Math.floor(targetThreeStar.hp * 0.05))
-        const atkGain = Math.max(1, Math.floor(targetThreeStar.atk * 0.05))
-        const defGain = Math.max(1, Math.floor(targetThreeStar.def * 0.05))
-        const speDefGain = Math.max(1, Math.floor(targetThreeStar.speDef * 0.05))
-        targetThreeStar.addMaxHP(hpGain, player)
-        targetThreeStar.addAttack(atkGain)
-        targetThreeStar.addDefense(defGain)
-        targetThreeStar.addSpecialDefense(speDefGain)
-        this.state.shop.releasePokemon(name, player, this.state)
-        return
-      }
+      const atkGain = Math.max(
+        1,
+        Math.floor(
+          targetThreeStarForInfiniteGrowth.atk * NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO
+        )
+      )
+      const apGain = Math.max(
+        1,
+        Math.floor(
+          targetThreeStarForInfiniteGrowth.ap * NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO
+        )
+      )
+      const defGain = Math.max(
+        1,
+        Math.floor(
+          targetThreeStarForInfiniteGrowth.def * NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO
+        )
+      )
+      const speDefGain = Math.max(
+        1,
+        Math.floor(
+          targetThreeStarForInfiniteGrowth.speDef * NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO
+        )
+      )
+      targetThreeStarForInfiniteGrowth.addMaxHP(hpGain, player)
+      targetThreeStarForInfiniteGrowth.addAttack(atkGain)
+      targetThreeStarForInfiniteGrowth.addAbilityPower(apGain)
+      targetThreeStarForInfiniteGrowth.addDefense(defGain)
+      targetThreeStarForInfiniteGrowth.addSpecialDefense(speDefGain)
+      this.state.shop.releasePokemon(name, player, this.state)
+      player.shop[index] = Pkm.DEFAULT
+      return
     }
 
     const x = getFirstAvailablePositionInBench(player.board)
@@ -1650,7 +1681,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     const commands = new Array<Command>()
 
     this.state.players.forEach((p) => this.updatePlayerBetweenStages(p))
-
     this.room.spawnWanderingPokemons()
     this.room.prepareNightmareRewardsForStage(this.state.stageLevel)
 

@@ -1,8 +1,13 @@
 import React from "react"
 import { useTranslation } from "react-i18next"
 import { getPortraitSrc } from "../../../../../utils/avatar"
-import { Item, ShinyItems, TownItems } from "../../../../../types/enum/Item"
+import { Item } from "../../../../../types/enum/Item"
 import { Pkm, PkmIndex } from "../../../../../types/enum/Pokemon"
+import {
+  CHAMELEON_REFRESH_COST,
+  CHAMELEON_SHOP_STAGE,
+  getChameleonShopPrice
+} from "../../../../../types/chameleon-shop"
 import { useAppDispatch, useAppSelector } from "../../../hooks"
 import {
   chameleonShopBuy,
@@ -13,21 +18,13 @@ import { Money } from "../icons/money"
 import { Tooltip } from "react-tooltip"
 import "./game-chameleon-shop.css"
 
-const CHAMELEON_SHOP_STAGE = 21
-const CHAMELEON_REFRESH_COST = 2
-
-function getChameleonPrice(item: Item) {
-  if ((ShinyItems as Item[]).includes(item)) return 20
-  if ((TownItems as Item[]).includes(item)) return 5
-  return 10
-}
-
 export default function GameChameleonShop() {
   const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const stageLevel = useAppSelector((state) => state.game.stageLevel)
   const items = useAppSelector((state) => state.game.chameleonShop)
   const money = useAppSelector((state) => state.game.money)
+  const itemTooltipId = "chameleon-item-detail-tooltip"
 
   if (stageLevel < CHAMELEON_SHOP_STAGE) return null
 
@@ -61,7 +58,7 @@ export default function GameChameleonShop() {
               <div key={`empty-${index}`} className="chameleon-shop-item empty" />
             )
           }
-          const price = getChameleonPrice(item)
+          const price = getChameleonShopPrice(item)
           return (
             <button
               key={`${item}-${index}`}
@@ -69,7 +66,7 @@ export default function GameChameleonShop() {
               type="button"
               disabled={money < price}
               onClick={() => dispatch(chameleonShopBuy(index))}
-              data-tooltip-id="item-detail-tooltip"
+              data-tooltip-id={itemTooltipId}
               data-tooltip-content={item}
             >
               <img src={`/assets/item/${item}.png`} alt={item} />
@@ -83,7 +80,7 @@ export default function GameChameleonShop() {
           )
         })}
       </div>
-      <ItemDetailTooltip />
+      <ItemDetailTooltip id={itemTooltipId} className="chameleon-item-tooltip" />
       <Tooltip
         id="chameleon-refresh-tooltip"
         className="custom-theme-tooltip"

@@ -72,16 +72,16 @@ export default function SynergyComponent(props: {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "28px 1.6ch 1fr",
+        gridTemplateColumns: "34px 2ch minmax(0,1fr)",
         alignItems: "center",
         justifyContent: "space-around",
         backgroundColor:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--color-bg-secondary)"
             : "rgba(84, 89, 107,0)",
-        margin: "2px",
+        margin: "2px 0",
         borderRadius: "8px",
-        padding: "1px 0",
+        padding: "4px 3px",
         border:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--border-thin)"
@@ -100,13 +100,13 @@ export default function SynergyComponent(props: {
         ? ReactDOM.createPortal(tooltip, document.body)
         : tooltip}
 
-      <SynergyIcon type={props.type} size="28px" />
+      <SynergyIcon type={props.type} size="34px" />
       <span
         style={{
-          fontSize: "20px",
+          fontSize: "22px",
           textShadow: "2px 2px 2px #00000080",
           textAlign: "center",
-          marginRight: "2px",
+          marginRight: "1px",
           color: levelReached ? "#ffffff" : "#b8b8b8"
         }}
       >
@@ -130,7 +130,7 @@ export default function SynergyComponent(props: {
               <span
                 key={t}
                 style={{
-                  fontSize: "0.72rem",
+                  fontSize: "0.86rem",
                   color:
                     levelReached === t
                       ? "#f7d51d"
@@ -149,7 +149,10 @@ export default function SynergyComponent(props: {
             margin: "0px",
             textAlign: "center",
             fontWeight: "500",
-            fontSize: "0.72rem"
+            fontSize: "0.95rem",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
           }}
         >
           {t(`synergy.${props.type}`)}

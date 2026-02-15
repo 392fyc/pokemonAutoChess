@@ -95,6 +95,7 @@ export default function GamePokemonsPropositions() {
           <div className="game-pokemons-proposition-list">
             {pokemonsProposition.map((proposition, index) => {
               const item = itemsProposition[index]
+              const hasAdditionalItem = Boolean(item && isIn(ShinyItems, item) === false)
               return (
                 <div
                   key={index}
@@ -141,8 +142,11 @@ export default function GamePokemonsPropositions() {
                       }
                     />
                   )}
-                  {item && isIn(ShinyItems, item) === false && (
-                    <div className="additional-pick-item ">
+                  <div
+                    className={`additional-pick-item ${hasAdditionalItem ? "" : "empty"}`.trim()}
+                  >
+                    {hasAdditionalItem && (
+                      <>
                       <span
                         style={{
                           fontSize: "2rem",
@@ -162,8 +166,9 @@ export default function GamePokemonsPropositions() {
                       <p>
                         {addIconsToDescription(t(`item_description.${item}`))}
                       </p>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )
             })}

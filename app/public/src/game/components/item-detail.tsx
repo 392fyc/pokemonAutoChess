@@ -132,11 +132,13 @@ export function ItemDetailTooltipContent({
   )
 }
 
-export function ItemDetailTooltip() {
+export function ItemDetailTooltip(props?: { id?: string; className?: string }) {
+  const tooltipId = props?.id ?? "item-detail-tooltip"
+  const tooltipClass = `custom-theme-tooltip item-detail-tooltip ${props?.className ?? ""}`.trim()
   return (
     <Tooltip
-      id="item-detail-tooltip"
-      className="custom-theme-tooltip item-detail-tooltip"
+      id={tooltipId}
+      className={tooltipClass}
       render={({ content }) => (
         <ItemDetailTooltipContent item={content as Item} />
       )}

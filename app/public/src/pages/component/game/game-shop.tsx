@@ -17,9 +17,10 @@ export default function GameShop() {
     <>
       <div className="game-shop my-container">
         <div id="game-shop-info">
-          <GameLifeInfo />
-          <GameMoneyInfo />
-          <div className="spacer"></div>
+          <div className="shop-info-left">
+            <GameLifeInfo />
+            <GameMoneyInfo />
+          </div>
           <GameTeamInfo />
         </div>
         <div className="game-shop-actions">
@@ -44,7 +45,7 @@ export default function GameShop() {
         closeOnClick
         limit={1}
         closeButton={false}
-        style={{ left: `calc(var(--sidebar-width) + 17.5vw)`, bottom: `9vw` }}
+        style={{ left: `calc(15.8vw + 160px)`, bottom: `128px` }}
       />
       <ToastContainer
         className="toast"

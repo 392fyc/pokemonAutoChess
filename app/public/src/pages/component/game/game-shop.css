@@ -1,18 +1,19 @@
 .game-shop.my-container {
   position: absolute;
-  left: 8vw;
-  right: 8vw;
+  left: 15.8vw;
+  right: auto;
+  width: fit-content;
   bottom: 5px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .game-shop-actions {
   display: grid;
-  grid-template: 1fr 1fr / 3vw 1fr;
-  padding: 5px;
+  grid-template: 1fr 1fr / 2.5vw 1fr;
+  padding: 4px;
   gap: 0.5em;
   align-items: center;
 }
@@ -138,18 +139,19 @@
 
 .game-pokemons-store {
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
   list-style: none;
   gap: 5px;
   margin: 0;
   padding: 0;
-  justify-content: center;
+  justify-content: flex-start;
+  width: max-content;
 }
 
 .game-experience {
-  width: 12vw;
+  width: 10.8vw;
   display: grid;
-  grid-template: 1fr 1fr / 3vw 1fr;
+  grid-template: 1fr 1fr / 2.6vw 1fr;
   padding: 5px;
   gap: 0.5em;
   align-items: center;
@@ -193,12 +195,19 @@
 #game-shop-info {
   position: absolute;
   bottom: 100%;
-  left: 0;
-  right: 0;
+  left: 6px;
+  right: 6px;
   display: flex;
-  gap: 1em;
-  padding: 0 1em;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.6em;
+  padding: 0;
   pointer-events: none;
+}
+
+#game-shop-info .shop-info-left {
+  display: flex;
+  gap: 0.6em;
 }
 
 #game-money-info {
@@ -235,7 +244,7 @@
 }
 
 .game-shop .information {
-  padding: 0.001px 0.001px 0.001px 36px;
+  padding: 0.001px 0.001px 0.001px 24px;
   display: flex;
   justify-content: end;
   color: white;

@@ -1,25 +1,28 @@
 #chameleon-shop {
   position: fixed;
-  left: 112px;
-  bottom: 116px;
-  width: 210px;
+  left: calc(var(--sidebar-width) + 8px);
+  bottom: 10px;
+  width: 226px;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  z-index: 20;
+  z-index: 18;
+  max-height: min(38vh, 320px);
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 #chameleon-shop .chameleon-shop-header {
   display: grid;
-  grid-template-columns: 32px 1fr auto;
+  grid-template-columns: 34px 1fr auto;
   align-items: center;
   gap: 6px;
 }
 
 #chameleon-shop .chameleon-shop-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: var(--border-thin);
   border-radius: 6px;
   image-rendering: pixelated;
@@ -27,12 +30,12 @@
 
 #chameleon-shop .chameleon-shop-title {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 
 #chameleon-shop .chameleon-refresh-button {
-  padding: 0.25em 0.5em;
-  min-height: 2.25em;
+  padding: 0.24em 0.52em;
+  min-height: 2.2em;
   display: grid;
   place-items: center;
 }
@@ -45,31 +48,34 @@
 #chameleon-shop .chameleon-shop-items {
   display: grid;
   gap: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 #chameleon-shop .chameleon-shop-item {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 6px;
   background: var(--color-bg-secondary);
   border: var(--border-thin);
   border-radius: 8px;
-  padding: 4px;
+  padding: 5px 6px;
   color: #fff;
   cursor: var(--cursor-hover);
 }
 
 #chameleon-shop .chameleon-shop-item.empty {
-  height: 40px;
+  height: 46px;
   background: rgba(84, 89, 107, 0.2);
   border-style: dashed;
   cursor: default;
 }
 
 #chameleon-shop .chameleon-shop-item img {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   image-rendering: pixelated;
 }
 
@@ -77,18 +83,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 #chameleon-shop .chameleon-shop-item-name {
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #chameleon-shop .chameleon-shop-item-price {
   font-weight: 700;
   min-width: 2ch;
   text-align: right;
+  font-size: 0.9rem;
 }
 
 #chameleon-shop .chameleon-shop-item:disabled {

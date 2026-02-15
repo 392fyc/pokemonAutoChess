@@ -111,3 +111,14 @@
   width: 20px;
   height: 20px;
 }
+
+.react-tooltip.chameleon-item-tooltip {
+  z-index: 60;
+  max-width: min(360px, 36vw);
+}
+
+.react-tooltip.chameleon-item-tooltip .game-item-detail {
+  min-width: 200px;
+  max-width: min(340px, 34vw);
+  font-size: 1rem;
+}

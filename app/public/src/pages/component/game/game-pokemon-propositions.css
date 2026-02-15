@@ -22,6 +22,7 @@
   padding: 10px;
   gap: 1vw;
   justify-content: center;
+  align-items: stretch;
 }
 
 .game-pokemons-proposition-refresh {
@@ -53,6 +54,9 @@
 
 .game-pokemons-proposition-list > .my-box {
   padding: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .game-pokemons-proposition-list > .my-box:hover {
@@ -67,9 +71,23 @@
 .game-pokemons-proposition .additional-pick-item {
   color: white;
   text-align: center;
+  margin-top: 6px;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
 }
 
 .game-pokemons-proposition .additional-pick-item p {
   font-size: 80%;
   max-width: 240px;
+  min-height: 3.3em;
+  max-height: 3.3em;
+  margin: 4px 0 0;
+  overflow: hidden;
+}
+
+.game-pokemons-proposition .additional-pick-item.empty {
+  visibility: hidden;
 }

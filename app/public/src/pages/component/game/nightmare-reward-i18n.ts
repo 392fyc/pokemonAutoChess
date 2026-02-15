@@ -1,4 +1,14 @@
 import {
+  NIGHTMARE_ASSIST_MASTER_ALLY_CASTS,
+  NIGHTMARE_DRAGON_DANCE_INTERVAL_MS,
+  NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS,
+  NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS,
+  NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO,
+  NIGHTMARE_LOYAL_CASTER_INTERVAL_MS,
+  NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
+  NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS,
+  NIGHTMARE_SOLO_LEVELING_KILL_EXP,
+  NIGHTMARE_SOLO_LEVELING_KILL_GOLD,
   NIGHTMARE_REWARD_CONFIG,
   NightmareReward,
   NightmareRewardTier
@@ -43,7 +53,9 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.WAR_DIVIDEND]:
     "连胜时额外获得随机1~2金币（25回合前50%/50%，25回合后10%/90%）。",
   [NightmareReward.SOLO_LEVELING]:
-    "选择之后的5个回合，人口强制降低为1。上场宝可梦获得200%额外属性，且击杀敌方宝可梦时获得3金币；结束后永久+30%属性。",
+    `获得后${NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS}回合内人口锁定为1。上场宝可梦获得${
+      NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER * 100
+    }%额外属性；击杀敌方宝可梦时获得${NIGHTMARE_SOLO_LEVELING_KILL_GOLD}金币和${NIGHTMARE_SOLO_LEVELING_KILL_EXP}经验。${NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS}回合结束后人口恢复。`,
   [NightmareReward.WU_WEI_RULE]:
     "取消利息，改为固定每回合+2金币与+2经验；累计击杀150个宝可梦后提升为+3金币与+3经验。当达到等级9后，超出的经验将转化为金币。",
   [NightmareReward.LETHAL_TEMPO]:
@@ -58,7 +70,8 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
     "我方全体宝可梦每回合首次致死后维持1HP继续5秒。",
   [NightmareReward.BERSERKER]:
     "血量越低，攻/特攻/攻速加成越高。",
-  [NightmareReward.RESONANCE_EXPERT]: "每激活一级共鸣，全队+10攻速。",
+  [NightmareReward.RESONANCE_EXPERT]:
+    "每触发一级共鸣，全队+10攻速（按共鸣级数累积）。",
   [NightmareReward.MAGICAL_FEEDBACK]:
     "敌方施法时触发一次无视距离普攻。",
   [NightmareReward.DEEP_PLANNING]:
@@ -66,18 +79,23 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.NUMBERS_ADVANTAGE]:
     "该词条第21回合自动获得；在词条窗口内花费金币可使人口上限永久+1（费用翻倍递增）。",
   [NightmareReward.INFINITE_GROWTH]:
-    "购买1星宝可梦时，若场上已有3星则吸收，永久+10%基础属性。",
+    `购买1星宝可梦时，若场上已有3星则吸收，永久+${
+      NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO * 100
+    }%基础属性。`,
   [NightmareReward.OGRE]:
     "开战吞噬半径1格内的所有友军，获得其50%基础属性。",
   [NightmareReward.SHINRA_TENSEI]:
     "每5秒推开自身半径3格范围内所有敌方单位，且自身射程永久+3。",
   [NightmareReward.ASSIST_MASTER]:
-    "自身不主动施法，队友施法累计3次后触发自身施法。",
-  [NightmareReward.DRAGON_DANCE]: "全队开场满PP。",
+    `自身不主动施法，队友施法累计${NIGHTMARE_ASSIST_MASTER_ALLY_CASTS}次后触发自身施法；自身施法时为全队添加自身PP最大值的护盾。`,
+  [NightmareReward.DRAGON_DANCE]:
+    `战斗开始时全队满PP，且每${NIGHTMARE_DRAGON_DANCE_INTERVAL_MS / 1000}秒再次触发。`,
   [NightmareReward.FATE_OBSERVATION]:
-    "造成伤害时附加随机debuff。",
+    `造成伤害时附加随机debuff（持续${
+      NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS / 1000
+    }秒，同一目标${NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS / 1000}秒内置CD）。`,
   [NightmareReward.LOYAL_CASTER]:
-    "无法普攻，每2秒自动施法且不消耗PP。",
+    `无法普攻，每${NIGHTMARE_LOYAL_CASTER_INTERVAL_MS / 1000}秒自动施法且不消耗PP。`,
   [NightmareReward.REFRACTION]:
     "减免30%受到的伤害，且将这部分伤害以真伤分摊给自身半径2格内的所有敌方。",
   [NightmareReward.TOXIC_ARMORY]:

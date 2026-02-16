@@ -66,6 +66,7 @@ export default class GameState extends Schema {
   @type("boolean") pveSuddenDeathActive = false
   @type(["string"]) pveBotOrder = new ArraySchema<string>()
   @type("uint8") pveBotOrderIndex = 0
+  @type("boolean") pvePreparationPaused = false
   outlawStage: number | null = null
 
   constructor(

@@ -119,6 +119,18 @@ aside.sidebar {
   background: var(--color-bg-accent);
 }
 
+.menu-item.disabled {
+  opacity: 0.55;
+}
+
+.menu-item.disabled a.ps-menu-button {
+  cursor: default !important;
+}
+
+.menu-item.disabled a.ps-menu-button:hover {
+  background: var(--color-bg-secondary);
+}
+
 .menu-item.red a.ps-menu-button:hover {
   background: #e76e55;
 }

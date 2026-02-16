@@ -875,10 +875,28 @@ export default class GameRoom extends Room<GameState> {
         }
       }
     })
+
+    this.onMessage(Transfer.PVE_PREPARATION_PAUSE_TOGGLE, (client) => {
+      if (this.state.gameFinished || !client.auth) return
+      if (this.state.gameMode !== GameMode.PVE_MODE) return
+      if (this.state.phase !== GamePhaseState.PICK) return
+
+      const metadata = this.metadata as IGameMetadata | undefined
+      const ownerId = metadata?.playerIds?.[0]
+      if (!ownerId || ownerId !== client.auth.uid) return
+
+      this.state.pvePreparationPaused = !this.state.pvePreparationPaused
+
+      if (!this.state.pvePreparationPaused) {
+        this.checkAllPlayersReady()
+      }
+    })
   }
 
   // 新增方法: 检查所有玩家是否准备好
   checkAllPlayersReady() {
+    if (this.state.pvePreparationPaused) return
+
     const humanPlayers = values(this.state.players).filter(
       (p) => !p.isBot && p.alive
     )
@@ -3092,7 +3110,7 @@ export default class GameRoom extends Room<GameState> {
         `[MATCH_LOG_START] ${new Date().toISOString()} roomId=${this.roomId}\n`
       )
     } catch (error) {
-      this.matchLogFilePath = undefined
+      this.matchLogFilePath = ""
       this.matchLogClosed = true
       logger.error("[MATCH_LOG_INIT_ERROR]", error)
     }

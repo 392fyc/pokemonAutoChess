@@ -230,6 +230,9 @@ export const networkSlice = createSlice({
     ) => {
       state.game?.send(Transfer.NIGHTMARE_WINDOW_ACTION, action.payload)
     },
+    togglePvePreparationPause: (state) => {
+      state.game?.send(Transfer.PVE_PREPARATION_PAUSE_TOGGLE)
+    },
     itemClick: (state, action: PayloadAction<Item>) => {
       state.game?.send(Transfer.ITEM, action.payload)
     },
@@ -387,6 +390,7 @@ export const {
   nightmareRewardRefresh,
   nightmareSingleEquipApply,
   nightmareWindowAction,
+  togglePvePreparationPause,
   giveTitle,
   giveRole,
   removeMessage,

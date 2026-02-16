@@ -72,16 +72,16 @@ export default function SynergyComponent(props: {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "34px 2ch minmax(0,1fr)",
+        gridTemplateColumns: "30px 1.8ch minmax(0,1fr)",
         alignItems: "center",
         justifyContent: "space-around",
         backgroundColor:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--color-bg-secondary)"
             : "rgba(84, 89, 107,0)",
-        margin: "2px 0",
+        margin: "1px 0",
         borderRadius: "8px",
-        padding: "4px 3px",
+        padding: "3px 2px",
         border:
           props.value >= SynergyTriggers[props.type][0]
             ? "var(--border-thin)"
@@ -100,10 +100,10 @@ export default function SynergyComponent(props: {
         ? ReactDOM.createPortal(tooltip, document.body)
         : tooltip}
 
-      <SynergyIcon type={props.type} size="34px" />
+      <SynergyIcon type={props.type} size="30px" />
       <span
         style={{
-          fontSize: "22px",
+          fontSize: "19px",
           textShadow: "2px 2px 2px #00000080",
           textAlign: "center",
           marginRight: "1px",
@@ -130,7 +130,7 @@ export default function SynergyComponent(props: {
               <span
                 key={t}
                 style={{
-                  fontSize: "0.86rem",
+                  fontSize: "0.74rem",
                   color:
                     levelReached === t
                       ? "#f7d51d"
@@ -149,7 +149,7 @@ export default function SynergyComponent(props: {
             margin: "0px",
             textAlign: "center",
             fontWeight: "500",
-            fontSize: "0.95rem",
+            fontSize: "0.82rem",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis"

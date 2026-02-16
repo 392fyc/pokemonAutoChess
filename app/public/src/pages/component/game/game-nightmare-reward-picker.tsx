@@ -15,6 +15,7 @@ import {
   getNightmareRewardDescription,
   getNightmareRewardNameWithTier
 } from "./nightmare-reward-i18n"
+import { addIconsToDescription } from "../../utils/descriptions"
 import "./game-nightmare-reward-picker.css"
 
 export default function GameNightmareRewardPicker() {
@@ -81,7 +82,7 @@ export default function GameNightmareRewardPicker() {
                     src={getNightmareRewardAssetUrl(reward)}
                     alt={rewardName}
                   />
-                  <p>{rewardDescription}</p>
+                  <p>{addIconsToDescription(rewardDescription)}</p>
                 </button>
                 <button
                   className="bubbly blue reward-refresh"

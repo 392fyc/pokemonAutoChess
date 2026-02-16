@@ -68,38 +68,39 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.FINANCIAL_TYCOON]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Gain +1 gold each round. Max interest +1, and +2 after stage 25.",
+    description:
+      "Max interest +2 (becomes +3 after stage 25). If current GOLD is below max-interest threshold GOLD, interest is doubled.",
     v1Implemented: true
   },
   [NightmareReward.WAR_DIVIDEND]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Extra 1~2 gold rewards while win streaking.",
+    description: "Extra 1~2 GOLD rewards while win streaking.",
     v1Implemented: true
   },
   [NightmareReward.SOLO_LEVELING]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.TEAM_PASSIVE,
     description:
-      "For 5 rounds, team size is locked to 1, deployed unit gains +100% attributes, and kills grant +2 gold/+2 exp.",
+      "For 5 rounds, team size is locked to 1, deployed unit gains +100% attributes, and kills grant +2 GOLD/+2 STAR.",
     v1Implemented: true
   },
   [NightmareReward.WU_WEI_RULE]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Replace interest with fixed gold/exp gains.",
+    description: "Replace interest with fixed GOLD/STAR gains.",
     v1Implemented: true
   },
   [NightmareReward.LETHAL_TEMPO]: {
     tier: NightmareRewardTier.B,
     rewardType: NightmareRewardType.TEAM_PASSIVE,
-    description: "Ranged attacks accumulate permanent speed boosts.",
+    description: "Ranged attacks accumulate permanent SPEED boosts.",
     v1Implemented: true
   },
   [NightmareReward.CALCULATED_LOSS]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Loss rounds grant extra gold/exp and heal.",
+    description: "Loss rounds grant extra GOLD/STAR and HEAL.",
     v1Implemented: true
   },
   [NightmareReward.TARGETED_SEARCH]: {
@@ -111,7 +112,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.QUALITY_A]: {
     tier: NightmareRewardTier.B,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Start weaker, scale through kills.",
+    description: "Start weaker, scale through kills with ATK/AP/DEF/SPE_DEF/HP growth.",
     v1Implemented: true
   },
   [NightmareReward.UNYIELDING_DEATH]: {
@@ -123,13 +124,13 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.BERSERKER]: {
     tier: NightmareRewardTier.B,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Lower HP grants stronger combat stats.",
+    description: "Lower HP grants stronger ATK/AP/SPEED.",
     v1Implemented: true
   },
   [NightmareReward.RESONANCE_EXPERT]: {
     tier: NightmareRewardTier.B,
     rewardType: NightmareRewardType.TEAM_PASSIVE,
-    description: "Each active synergy level grants team speed.",
+    description: "Each active synergy level grants team SPEED.",
     v1Implemented: true
   },
   [NightmareReward.MAGICAL_FEEDBACK]: {
@@ -173,7 +174,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
     tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
     description:
-      "Does not cast proactively; every 3 ally casts triggers its cast and grants team shields equal to its max PP.",
+      "Does not cast proactively; every 3 ally casts triggers its cast and grants team SHIELD equal to its MAX_PP.",
     v1Implemented: true
   },
   [NightmareReward.DRAGON_DANCE]: {
@@ -183,7 +184,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
     v1Implemented: true
   },
   [NightmareReward.FATE_OBSERVATION]: {
-    tier: NightmareRewardTier.S,
+    tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
     description: "Damage applies random debuffs.",
     v1Implemented: true
@@ -191,20 +192,20 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.LOYAL_CASTER]: {
     tier: NightmareRewardTier.S,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Cannot basic attack; auto-cast every 1 second.",
+    description: "Cannot basic attack; auto-cast every 1 second with no PP cost.",
     v1Implemented: true
   },
   [NightmareReward.REFRACTION]: {
     tier: NightmareRewardTier.S,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Damage reduction and reflected true damage.",
+    description: "Damage reduction and reflected TRUE damage.",
     v1Implemented: true
   },
   [NightmareReward.TOXIC_ARMORY]: {
     tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
     description:
-      "Pain Armor: bound unit gains +3 item slots, but is permanently forced to 3 poison stacks in battle.",
+      "Pain Armor: bound unit gains +3 item slots, but is permanently forced to 3 POISON stacks in battle.",
     v1Implemented: true
   },
   [NightmareReward.SOUL_LINK]: {

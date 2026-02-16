@@ -1133,6 +1133,15 @@ export class OnUpdateCommand extends Command<
 > {
   execute({ deltaTime }) {
     if (deltaTime) {
+      const pickPhasePaused =
+        this.state.phase === GamePhaseState.PICK &&
+        this.state.gameMode === GameMode.PVE_MODE &&
+        this.state.pvePreparationPaused
+
+      if (pickPhasePaused) {
+        return
+      }
+
       this.state.time -= deltaTime
       if (Math.round(this.state.time / 1000) != this.state.roundTime) {
         this.state.roundTime = Math.round(this.state.time / 1000)
@@ -1446,8 +1455,8 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           NightmareReward.FINANCIAL_TYCOON
         )
           ? this.state.stageLevel >= 25
-            ? 2
-            : 1
+            ? 3
+            : 2
           : 0
         const baseInterestCap = 5 + nbGimmighoulCoins - nbAmuletCoins
         player.maxInterest = baseInterestCap + financialTycoonBonus
@@ -1461,10 +1470,20 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           finalValue: player.maxInterest
         })
         if (specialGameRule !== SpecialGameRule.BLOOD_MONEY && !hasWuWeiRule) {
-          player.interest = max(player.maxInterest)(Math.floor(player.money / 10))
+          const baselineInterest = max(player.maxInterest)(Math.floor(player.money / 10))
+          const shouldDoubleInterest =
+            financialTycoonBonus > 0 && player.money < player.maxInterest * 10
+          player.interest = shouldDoubleInterest
+            ? baselineInterest * 2
+            : baselineInterest
           if (financialTycoonBonus > 0) {
-            const baselineInterest = max(baseInterestCap)(Math.floor(player.money / 10))
-            const tycoonExtraInterest = Math.max(0, player.interest - baselineInterest)
+            const interestWithoutTycoon = max(baseInterestCap)(
+              Math.floor(player.money / 10)
+            )
+            const tycoonExtraInterest = Math.max(
+              0,
+              player.interest - interestWithoutTycoon
+            )
             if (tycoonExtraInterest > 0) {
               setNightmareCounter(
                 player,
@@ -1529,14 +1548,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
               expConvertedToGold
             }
           })
-        }
-        if (financialTycoonBonus > 0) {
-          income += 1
-          setNightmareCounter(
-            player,
-            "financial_tycoon_bonus_gold_total",
-            getNightmareCounter(player, "financial_tycoon_bonus_gold_total") + 1
-          )
         }
         if (!isPVE) {
           income += max(5)(player.streak)

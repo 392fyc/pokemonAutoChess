@@ -24,38 +24,54 @@
   top: calc(100% + 12px);
   left: -4px;
   right: -4px;
-  height: 22px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 0 0 8px 8px;
-  background: black;
+  background-color: rgba(0, 0, 0, 0.92);
+  background-image: url("/assets/ui/back1.png");
+  background-size: cover;
+  background-position: center;
   border: var(--border-thick);
   border-top: none;
 }
 
+.nightmare-spread-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.nightmare-spread-slot-wrapper {
+  width: 100%;
+}
+
 .nightmare-spread-slot {
-  width: 16px;
-  height: 16px;
+  width: 100%;
+  height: 22px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.3);
   user-select: none;
+  background-color: rgba(10, 12, 18, 0.82);
+  background-image: url("/assets/ui/back1.png");
+  background-size: cover;
+  background-position: center;
 }
 
 .nightmare-spread-slot.empty {
   color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .nightmare-spread-slot.filled {
   cursor: help;
   color: #f9e3a2;
-  background: rgba(111, 31, 35, 0.8);
+  background-color: rgba(111, 31, 35, 0.8);
   border-color: rgba(249, 227, 162, 0.6);
 }
 

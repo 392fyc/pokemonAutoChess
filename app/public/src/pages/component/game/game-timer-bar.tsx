@@ -58,45 +58,51 @@ export default function TimerBar() {
         <div className="timer-bar-inner" style={{ width: `${pc}%` }}></div>
       </div>
       <div className="nightmare-spread-bar">
-        {slots.map((entry, index) => {
-          if (!entry) {
+        <div className="nightmare-spread-grid">
+          {slots.map((entry, index) => {
+            if (!entry) {
+              return (
+                <div
+                  key={`spread-empty-${index}`}
+                  className="nightmare-spread-slot empty"
+                  aria-label="空的噩梦蔓延词条槽位"
+                >
+                  <span>+</span>
+                </div>
+              )
+            }
+
+            const tooltipId = `nightmare-spread-tooltip-${index}`
             return (
-              <div
-                key={`spread-empty-${index}`}
-                className="nightmare-spread-slot empty"
-                aria-label="空的噩梦蔓延词条槽位"
-              >
-                <span>+</span>
+              <div key={entry.id} className="nightmare-spread-slot-wrapper">
+                <div
+                  className="nightmare-spread-slot filled"
+                  data-tooltip-id={tooltipId}
+                >
+                  {entry.icon ? (
+                    <img
+                      className="nightmare-spread-slot-icon"
+                      src={entry.icon}
+                      alt={entry.name}
+                    />
+                  ) : (
+                    <span className="nightmare-spread-slot-text">
+                      {entry.name.slice(0, 2)}
+                    </span>
+                  )}
+                </div>
+                <Tooltip
+                  id={tooltipId}
+                  className="custom-theme-tooltip"
+                  place="bottom"
+                >
+                  <strong>{entry.name}</strong>
+                  <p>{entry.description}</p>
+                </Tooltip>
               </div>
             )
-          }
-
-          const tooltipId = `nightmare-spread-tooltip-${index}`
-          return (
-            <React.Fragment key={entry.id}>
-              <div
-                className="nightmare-spread-slot filled"
-                data-tooltip-id={tooltipId}
-              >
-                {entry.icon ? (
-                  <img
-                    className="nightmare-spread-slot-icon"
-                    src={entry.icon}
-                    alt={entry.name}
-                  />
-                ) : (
-                  <span className="nightmare-spread-slot-text">
-                    {entry.name.slice(0, 2)}
-                  </span>
-                )}
-              </div>
-              <Tooltip id={tooltipId} className="custom-theme-tooltip" place="bottom">
-                <strong>{entry.name}</strong>
-                <p>{entry.description}</p>
-              </Tooltip>
-            </React.Fragment>
-          )
-        })}
+          })}
+        </div>
       </div>
     </>
   )

@@ -57,13 +57,9 @@ start-cloudflared.ps1
 
 # development documentation
 AGENTS.md
-NightmareDifficulty.md
-nightmare_mode_v1_spec.md
-nightmare_test_log_reference.md
-future_work.md
-work_summary.md
 policy.md
 community-servers.md
+dev_doc/
 
 # local debug logs
 test_log/

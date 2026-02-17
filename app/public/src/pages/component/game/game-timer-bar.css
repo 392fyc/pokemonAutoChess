@@ -18,3 +18,55 @@
   border: var(--border-thick);
   transition: all linear 1s;
 }
+
+.nightmare-spread-bar {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: -4px;
+  right: -4px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 0 0 8px 8px;
+  background: black;
+  border: var(--border-thick);
+  border-top: none;
+}
+
+.nightmare-spread-slot {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  user-select: none;
+}
+
+.nightmare-spread-slot.empty {
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nightmare-spread-slot.filled {
+  cursor: help;
+  color: #f9e3a2;
+  background: rgba(111, 31, 35, 0.8);
+  border-color: rgba(249, 227, 162, 0.6);
+}
+
+.nightmare-spread-slot-icon {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+}
+
+.nightmare-spread-slot-text {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}

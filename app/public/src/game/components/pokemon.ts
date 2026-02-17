@@ -199,7 +199,7 @@ export default class PokemonSprite extends DraggableObject {
       pokemon.items ?? new SetSchema(),
       this.sprite.width / 2 + 25,
       -35,
-      isEntity(pokemon) ? pokemon.refToBoardPokemon.id : this.id,
+      this.id,
       playerId
     )
 

@@ -39,22 +39,16 @@ export default class ItemsContainer extends GameObjects.Container {
     const xDirection = this.pokemonId === null ? -1 : 1
     const items = values(inventory)
     let itemSlotLimit: number | null = null
-    let fallbackBoardItems: Item[] = []
     if (this.pokemonId) {
       const boardPokemon = this.scene.room?.state.players
         .get(this.playerId)
         ?.board.get(this.pokemonId)
       itemSlotLimit = getNightmareItemSlotLimit(boardPokemon?.nightmareReward)
-      fallbackBoardItems = boardPokemon ? values(boardPokemon.items) : []
     }
 
     this.items = []
-    const sourceItems =
-      fallbackBoardItems.length > items.length ? fallbackBoardItems : items
     const renderedItems =
-      itemSlotLimit == null
-        ? sourceItems
-        : sourceItems.slice(0, itemSlotLimit)
+      itemSlotLimit == null ? items : items.slice(0, itemSlotLimit)
     renderedItems.forEach((item, i) => {
       this.items.push(item)
       const x = xDirection * itemSize * Math.floor(i / itemsPerColumn)

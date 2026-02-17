@@ -80,10 +80,21 @@ class GameContainer {
   }
 
   initializeSimulation(simulation: Simulation) {
+    logger.debug("[SIM_DEBUG] initializeSimulation", {
+      simulationId: simulation.id,
+      bluePlayerId: simulation.bluePlayerId,
+      redPlayerId: simulation.redPlayerId,
+      currentPlayerId: this.player?.id,
+      currentPlayerSimulationId: this.player?.simulationId
+    })
+
     if (
       simulation.bluePlayerId === this.player?.id ||
       (simulation.redPlayerId === this.player?.id && !simulation.isGhostBattle)
     ) {
+      logger.debug("[SIM_DEBUG] initializeSimulation -> setSimulation", {
+        simulationId: simulation.id
+      })
       this.setSimulation(simulation)
     }
 
@@ -116,6 +127,13 @@ class GameContainer {
     }
 
     $simulation.listen("started", (value, previousValue) => {
+      logger.debug("[SIM_DEBUG] simulation.started", {
+        simulationId: simulation.id,
+        value,
+        previousValue,
+        activeBoardSimulationId: this.gameScene?.board?.player.simulationId,
+        activeContainerSimulationId: this.simulation?.id
+      })
       if (
         this.gameScene?.board?.player.simulationId === simulation.id &&
         value === true &&
@@ -767,6 +785,11 @@ class GameContainer {
   }
 
   setPlayer(player: Player) {
+    logger.debug("[SIM_DEBUG] setPlayer", {
+      playerId: player.id,
+      playerSimulationId: player.simulationId,
+      phase: this.room.state.phase
+    })
     this.player = player
     if (this.room.state.phase !== GamePhaseState.TOWN) {
       this.gameScene?.setMap(player.map)
@@ -779,6 +802,12 @@ class GameContainer {
   }
 
   setSimulation(simulation: Simulation) {
+    logger.debug("[SIM_DEBUG] setSimulation", {
+      simulationId: simulation.id,
+      started: simulation.started,
+      blueSize: simulation.blueTeam.size,
+      redSize: simulation.redTeam.size
+    })
     this.simulation = simulation
     store.dispatch(setSimulation(simulation))
     if (this.gameScene?.battle) {

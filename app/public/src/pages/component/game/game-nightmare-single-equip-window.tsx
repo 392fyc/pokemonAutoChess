@@ -20,7 +20,6 @@ import {
   getNightmareRewardDescription,
   getNightmareRewardNameWithTier
 } from "./nightmare-reward-i18n"
-import { addIconsToDescription } from "../../utils/descriptions"
 import "./game-nightmare-single-equip-window.css"
 
 export default function GameNightmareSingleEquipWindow() {
@@ -273,6 +272,10 @@ export default function GameNightmareSingleEquipWindow() {
             "financial_tycoon_bonus_interest_total",
             0
           )
+          const financialTycoonGoldTotal = getCounter(
+            "financial_tycoon_bonus_gold_total",
+            0
+          )
           const calculatedLossRoundsLeft = getCounter("calculated_loss_rounds_left", 0)
           const calculatedLossGoldTotal = getCounter(
             "calculated_loss_bonus_gold_total",
@@ -330,27 +333,21 @@ export default function GameNightmareSingleEquipWindow() {
                     击杀：{wuWeiKills}/150（{wuWeiUpgraded ? "已升级" : "未升级"}）
                   </span>
                   <span className="reward-inline-hint">
-                    {addIconsToDescription(
-                      `累计收益：+${wuWeiGoldTotal} GOLD，+${wuWeiExpTotal} STAR`
-                    )}
+                    累计收益：+{wuWeiGoldTotal} 金币，+{wuWeiExpTotal} 经验
                     {wuWeiExpToGoldTotal > 0
-                      ? addIconsToDescription(
-                          `（其中 STAR 转 GOLD ${wuWeiExpToGoldTotal}）`
-                        )
+                      ? `（其中经验转金币 ${wuWeiExpToGoldTotal}）`
                       : ""}
                   </span>
                 </>
               )}
               {reward === NightmareReward.WAR_DIVIDEND && (
                 <span className="reward-inline-hint">
-                  {addIconsToDescription(`累计额外收益：+${warDividendGoldTotal} GOLD`)}
+                  累计额外收益：+{warDividendGoldTotal} 金币
                 </span>
               )}
               {reward === NightmareReward.FINANCIAL_TYCOON && (
                 <span className="reward-inline-hint">
-                  {addIconsToDescription(
-                    `累计额外利息收益：+${financialTycoonInterestTotal} GOLD`
-                  )}
+                  累计收益：固定+{financialTycoonGoldTotal} 金币，利息+{financialTycoonInterestTotal} 金币
                 </span>
               )}
               {reward === NightmareReward.CALCULATED_LOSS && (
@@ -359,9 +356,7 @@ export default function GameNightmareSingleEquipWindow() {
                     剩余回合：{calculatedLossRoundsLeft}
                   </span>
                   <span className="reward-inline-hint">
-                    {addIconsToDescription(
-                      `累计收益：+${calculatedLossGoldTotal} GOLD，+${calculatedLossExpTotal} STAR，+${calculatedLossHealTotal} HP`
-                    )}
+                    累计收益：+{calculatedLossGoldTotal} 金币，+{calculatedLossExpTotal} 经验，+{calculatedLossHealTotal} 生命
                   </span>
                 </>
               )}
@@ -386,7 +381,7 @@ export default function GameNightmareSingleEquipWindow() {
           return (
             <div className="single-equip-tooltip">
               <strong>{name}</strong>
-              <p>{addIconsToDescription(description)}</p>
+              <p>{description}</p>
             </div>
           )
         }}

@@ -75,6 +75,7 @@ export default class GameScene extends Scene {
   loadingManager: LoadingManager | null = null
   started: boolean = false
   spectate: boolean = false
+  private fightDebugSnapshot = ""
 
   constructor() {
     super({
@@ -178,6 +179,25 @@ export default class GameScene extends Scene {
 
   update(time: number, delta: number) {
     super.update(time, delta)
+    if (this.room?.state?.phase === GamePhaseState.FIGHT && this.board && this.battle) {
+      const simulationId = this.board.player?.simulationId
+      const simulation = simulationId
+        ? this.room.state.simulations.get(simulationId)
+        : undefined
+      const snapshot = [
+        `phase=${this.room.state.phase}`,
+        `boardMode=${this.board.mode}`,
+        `boardSim=${simulationId ?? "none"}`,
+        `battleSim=${this.battle.simulation?.id ?? "none"}`,
+        `targetStarted=${simulation?.started ?? false}`,
+        `rendered=${this.battle.pokemonSprites.size}`
+      ].join(" ")
+      if (snapshot !== this.fightDebugSnapshot) {
+        this.fightDebugSnapshot = snapshot
+        logger.debug("[FIGHT_DEBUG]", snapshot)
+      }
+    }
+
     if (this.lastPokemonDetail) {
       this.lastPokemonDetail.updateTooltipPosition()
     }
@@ -312,6 +332,13 @@ export default class GameScene extends Scene {
   }
 
   updatePhase(newPhase: GamePhaseState, previousPhase: GamePhaseState) {
+    logger.debug("[FIGHT_DEBUG] updatePhase", {
+      previousPhase,
+      newPhase,
+      boardMode: this.board?.mode,
+      boardSimulationId: this.board?.player?.simulationId,
+      battleSimulationId: this.battle?.simulation?.id
+    })
     this.weatherManager?.clearWeather()
     clearAbilityAnimations(this)
     this.resetDragState()

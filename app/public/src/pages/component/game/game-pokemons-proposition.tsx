@@ -25,7 +25,6 @@ import {
 import { getGameScene } from "../../game"
 import { playSound, SOUNDS } from "../../utils/audio"
 import { addIconsToDescription } from "../../utils/descriptions"
-import { cc } from "../../utils/jsx"
 import { LocalStoreKeys, localStore } from "../../utils/store"
 import GamePokemonDuoPortrait from "./game-pokemon-duo-portrait"
 import GamePokemonPortrait from "./game-pokemon-portrait"
@@ -80,7 +79,8 @@ export default function GamePokemonsPropositions() {
         style={{ zIndex: DEPTH.MODAL }}
       >
         <div
-          className={cc("my-container", { hidden: !visible })}
+          className="my-container"
+          style={{ visibility: visible ? "visible" : "hidden" }}
         >
           {AdditionalPicksStages.includes(stageLevel) && (
             <h2>{t("pick_additional_pokemon_hint")}</h2>
@@ -163,7 +163,9 @@ export default function GamePokemonsPropositions() {
                         }}
                         src={"assets/item/" + item + ".png"}
                       />
-                      <p>{addIconsToDescription(t(`item_description.${item}`))}</p>
+                      <p>
+                        {addIconsToDescription(t(`item_description.${item}`))}
+                      </p>
                       </>
                     )}
                   </div>

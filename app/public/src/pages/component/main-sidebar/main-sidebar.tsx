@@ -6,14 +6,12 @@ import { useNavigate } from "react-router"
 import pkg from "../../../../../../package.json"
 import { GADGETS } from "../../../../../core/gadgets"
 import { Role } from "../../../../../types"
-import { GameMode, GamePhaseState } from "../../../../../types/enum/Game"
 import {
   selectConnectedPlayer,
   useAppDispatch,
   useAppSelector
 } from "../../../hooks"
 import { setSearchedUser } from "../../../stores/LobbyStore"
-import { togglePvePreparationPause } from "../../../stores/NetworkStore"
 import { toggleFullScreen } from "../../utils/fullscreen"
 import { cc } from "../../utils/jsx"
 import Booster from "../booster/booster"
@@ -49,7 +47,6 @@ export function MainSidebar(props: MainSidebarProps) {
   const navigate = useNavigate()
   const [modal, setModal] = useState<Modals>()
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false)
-  const dispatch = useAppDispatch()
   const changeModal = useCallback(
     (nextModal: Modals) => setModal(nextModal),
     []
@@ -88,15 +85,6 @@ export function MainSidebar(props: MainSidebarProps) {
   }, [])
 
   const player = useAppSelector(selectConnectedPlayer)
-  const gameRoom = useAppSelector((state) => state.network.game)
-  const gameMode = gameRoom?.state?.gameMode
-  const gamePhase = gameRoom?.state?.phase
-  const pvePreparationPaused = gameRoom?.state?.pvePreparationPaused ?? false
-  const canTogglePvePreparationPause =
-    page === "game" &&
-    gameMode === GameMode.PVE_MODE &&
-    gamePhase === GamePhaseState.PICK
-
   const playersAlive = useAppSelector(
     createSelector([(state) => state.game.players], (players) =>
       players.filter((p) => p.life > 0)
@@ -324,20 +312,6 @@ export function MainSidebar(props: MainSidebarProps) {
             onClick={() => window.open(process.env.DISCORD_SERVER, "_blank")}
           >
             Discord
-          </NavLink>
-        )}
-
-        {page === "game" && gameMode === GameMode.PVE_MODE && (
-          <NavLink
-            svg="options"
-            onClick={() => {
-              if (canTogglePvePreparationPause) {
-                dispatch(togglePvePreparationPause())
-              }
-            }}
-            className={canTogglePvePreparationPause ? "default" : "disabled"}
-          >
-            {pvePreparationPaused ? "恢复倒计时" : "暂停倒计时"}
           </NavLink>
         )}
 

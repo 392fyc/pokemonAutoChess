@@ -126,10 +126,6 @@
   font-size: 0.84em;
   line-height: 1.2;
   flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .game-nightmare-single-equip-window-draggable .reward-type-tag {

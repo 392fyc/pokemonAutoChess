@@ -38,6 +38,7 @@ export default class GameState extends Schema {
   @type("boolean") shinyEncounter = false
   @type("boolean") noElo = false
   @type("boolean") isBossTest = false
+  @type("boolean") gamePaused = false
   @type("string") gameMode: GameMode = GameMode.CUSTOM_LOBBY
   @type({ set: "string" }) spectators = new SetSchema<string>()
   @type({ map: Simulation }) simulations = new MapSchema<Simulation>()

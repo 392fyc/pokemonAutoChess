@@ -25,6 +25,7 @@ export interface GameStateStore {
   phaseDuration: number
   roundTime: number
   phase: GamePhaseState
+  gamePaused: boolean
   players: IPlayer[]
   simulations: ISimulation[]
   stageLevel: number
@@ -58,6 +59,7 @@ export interface IGameStore {
   phaseDuration: number
   roundTime: number
   phase: GamePhaseState
+  gamePaused: boolean
   players: Map<string, IPlayer>
   simulations: ISimulation[]
   stageLevel: number
@@ -91,6 +93,7 @@ const initialState: GameStateStore = {
   phaseDuration: StageDuration[1],
   roundTime: StageDuration[1],
   phase: GamePhaseState.PICK,
+  gamePaused: false,
   players: new Array<IPlayer>(),
   simulations: new Array<ISimulation>(),
   stageLevel: 0,
@@ -132,6 +135,9 @@ export const gameSlice = createSlice({
     },
     setPhase: (state, action: PayloadAction<GamePhaseState>) => {
       state.phase = action.payload
+    },
+    setGamePaused: (state, action: PayloadAction<boolean>) => {
+      state.gamePaused = action.payload
     },
     setStageLevel: (state, action: PayloadAction<number>) => {
       state.stageLevel = action.payload
@@ -359,6 +365,7 @@ export const {
   setRoundTime,
   setAfterGameId,
   setPhase,
+  setGamePaused,
   setStageLevel,
   setWeather,
   setNoELO,

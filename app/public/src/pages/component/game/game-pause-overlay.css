@@ -1,0 +1,28 @@
+.game-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.game-pause-overlay-card {
+  min-width: 320px;
+  max-width: 80vw;
+  text-align: center;
+  padding: 16px 20px;
+  background: rgba(20, 24, 34, 0.95);
+}
+
+.game-pause-overlay-card h2 {
+  margin: 0 0 8px;
+  color: #fff;
+}
+
+.game-pause-overlay-card p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+}

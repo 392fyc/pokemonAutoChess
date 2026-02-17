@@ -463,6 +463,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.ITEM, (client, item: Item) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.pickItemProposition(client.auth.uid, item)
         } catch (error) {
@@ -473,6 +474,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.CHAMELEON_SHOP_REFRESH, (client) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.refreshChameleonShopForPlayer(client.auth.uid, true)
         } catch (error) {
@@ -485,6 +487,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.CHAMELEON_SHOP_BUY,
       (client, message: { index: number }) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.buyChameleonShopItem(client.auth.uid, message.index)
           } catch (error) {
@@ -496,6 +499,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.SHOP, (client, message) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnBuyPokemonCommand(), {
             playerId: client.auth.uid,
@@ -510,6 +514,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.REMOVE_FROM_SHOP, (client, index) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnRemoveFromShopCommand(), {
             playerId: client.auth.uid,
@@ -525,6 +530,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.POKEMON_PROPOSITION,
       (client, payload: Pkm | { proposition: PkmProposition; index?: number }) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
             const proposition =
               typeof payload === "object" && payload !== null && "proposition" in payload
@@ -547,6 +553,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.PORTAL_POKEMON_REFRESH, (client) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.refreshPortalPokemonPropositions(client.auth.uid)
         } catch (error) {
@@ -562,6 +569,7 @@ export default class GameRoom extends Room<GameState> {
         message: { reward: NightmareReward; pokemonId?: string | undefined }
       ) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.applyNightmareReward(
               client.auth.uid,
@@ -579,6 +587,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.NIGHTMARE_REWARD_REFRESH,
       (client, message: { slotIndex: number }) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.refreshNightmareRewardSlot(client.auth.uid, message.slotIndex)
           } catch (error) {
@@ -592,6 +601,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.NIGHTMARE_SINGLE_EQUIP_APPLY,
       (client, message: { reward: NightmareReward; pokemonId: string }) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.applyNightmareSingleEquipReward(
               client.auth.uid,
@@ -609,6 +619,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.NIGHTMARE_WINDOW_ACTION,
       (client, message: { action: NightmareWindowAction }) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.applyNightmareWindowAction(client.auth.uid, message.action)
           } catch (error) {
@@ -620,6 +631,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.DRAG_DROP, (client, message: IDragDropMessage) => {
       if (!this.state.gameFinished) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnDragDropPokemonCommand(), {
             client: client,
@@ -641,6 +653,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.DRAG_DROP_ITEM,
       (client, message: IDragDropItemMessage) => {
         if (!this.state.gameFinished) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.dispatcher.dispatch(new OnDragDropItemCommand(), {
               client: client,
@@ -662,6 +675,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.DRAG_DROP_COMBINE,
       (client, message: IDragDropCombineMessage) => {
         if (!this.state.gameFinished) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.dispatcher.dispatch(new OnDragDropCombineCommand(), {
               client: client,
@@ -682,6 +696,7 @@ export default class GameRoom extends Room<GameState> {
     this.onMessage(
       Transfer.VECTOR,
       (client, message: { x: number; y: number }) => {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           if (client.auth) {
             this.miniGame.applyVector(client.auth.uid, message.x, message.y)
@@ -694,6 +709,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.SELL_POKEMON, (client, pokemonId: string) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnSellPokemonCommand(), {
             client,
@@ -707,6 +723,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.REFRESH, (client, message) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnShopRerollCommand(), client.auth.uid)
         } catch (error) {
@@ -717,6 +734,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.LOCK, (client, message) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnLockCommand(), client.auth.uid)
         } catch (error) {
@@ -729,6 +747,7 @@ export default class GameRoom extends Room<GameState> {
       Transfer.SWITCH_BENCH_AND_BOARD,
       (client, pokemonId: string) => {
         if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
           try {
             this.dispatcher.dispatch(new OnSwitchBenchAndBoardCommand(), {
               client,
@@ -758,6 +777,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.LEVEL_UP, (client, message) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnLevelUpCommand(), client.auth.uid)
         } catch (error) {
@@ -767,6 +787,7 @@ export default class GameRoom extends Room<GameState> {
     })
 
     this.onMessage(Transfer.SHOW_EMOTE, (client: Client, message?: string) => {
+      if (this.shouldBlockGameplayInput(client)) return
       if (client.auth) {
         this.broadcast(Transfer.SHOW_EMOTE, {
           id: client.auth.uid,
@@ -778,6 +799,7 @@ export default class GameRoom extends Room<GameState> {
     this.onMessage(
       Transfer.WANDERER_CLICKED,
       async (client, msg: { id: string }) => {
+        if (this.shouldBlockGameplayInput(client)) return
         if (client.auth) {
           try {
             this.dispatcher.dispatch(new OnPokemonCatchCommand(), {
@@ -794,6 +816,7 @@ export default class GameRoom extends Room<GameState> {
 
     this.onMessage(Transfer.PICK_BERRY, async (client, index) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           this.dispatcher.dispatch(new OnPickBerryCommand(), {
             playerId: client.auth.uid,
@@ -855,6 +878,7 @@ export default class GameRoom extends Room<GameState> {
     // 在所有其他 onMessage 之后添加准备按钮处理
     this.onMessage(Transfer.TOGGLE_READY, (client) => {
       if (!this.state.gameFinished && client.auth) {
+        if (this.shouldBlockGameplayInput(client)) return
         try {
           const player = this.state.players.get(client.auth.uid)
           if (!player || player.isBot) return
@@ -874,6 +898,15 @@ export default class GameRoom extends Room<GameState> {
           logger.error("toggle ready error", error)
         }
       }
+    })
+
+    this.onMessage(Transfer.GAME_PAUSE_TOGGLE, (client) => {
+      if (this.state.gameFinished || !client.auth) return
+      if (this.state.gameMode !== GameMode.PVE_MODE) return
+      const metadata = this.metadata as IGameMetadata | undefined
+      const ownerId = metadata?.playerIds?.[0]
+      if (!ownerId || ownerId !== client.auth.uid) return
+      this.state.gamePaused = !this.state.gamePaused
     })
   }
 
@@ -906,7 +939,11 @@ export default class GameRoom extends Room<GameState> {
       /* in case of lag spikes, the game should feel slower,
       but this max simulation dt helps preserving the correctness of simulation result */
       deltaTime = Math.min(MAX_SIMULATION_DELTA_TIME, deltaTime)
-      if (!this.state.gameFinished && !this.state.simulationPaused) {
+      if (
+        !this.state.gameFinished &&
+        !this.state.simulationPaused &&
+        !this.state.gamePaused
+      ) {
         try {
           this.dispatcher.dispatch(new OnUpdateCommand(), { deltaTime })
         } catch (error) {
@@ -916,6 +953,10 @@ export default class GameRoom extends Room<GameState> {
     })
     this.state.botManager.updateBots()
     this.miniGame.initialize(this.state, this)
+  }
+
+  private shouldBlockGameplayInput(client?: Client) {
+    return !!client?.auth && this.state.gamePaused && !this.state.gameFinished
   }
 
   async onAuth(client: Client, options, context) {

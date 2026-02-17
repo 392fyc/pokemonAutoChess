@@ -59,6 +59,7 @@ import {
   setMaxInterest,
   setMoney,
   setNoELO,
+  setGamePaused,
   setPhase,
   setPodium,
   setPokemonProposition,
@@ -83,6 +84,7 @@ import GameItemsProposition from "./component/game/game-items-proposition"
 import GameLoadingScreen from "./component/game/game-loading-screen"
 import GameNightmareRewardPicker from "./component/game/game-nightmare-reward-picker"
 import GameNightmareSingleEquipWindow from "./component/game/game-nightmare-single-equip-window"
+import GamePauseOverlay from "./component/game/game-pause-overlay"
 import GamePlayers from "./component/game/game-players"
 import GamePokemonsProposition from "./component/game/game-pokemons-proposition"
 import GameReadyButton from "./component/game/game-ready-button"
@@ -662,6 +664,9 @@ export default function Game() {
         }
         dispatch(setPhase(newPhase))
       })
+      $state.listen("gamePaused", (value) => {
+        dispatch(setGamePaused(value))
+      })
 
       $state.listen("stageLevel", (value) => {
         dispatch(setStageLevel(value))
@@ -1067,6 +1072,7 @@ export default function Game() {
           <GameNightmareSingleEquipWindow />
           <GameDpsMeter />
           <GameToasts />
+          <GamePauseOverlay />
           {showReadyButton && (
             <GameReadyButton
               isReady={isReady}

@@ -6,12 +6,14 @@ import { useNavigate } from "react-router"
 import pkg from "../../../../../../package.json"
 import { GADGETS } from "../../../../../core/gadgets"
 import { Role } from "../../../../../types"
+import { GameMode } from "../../../../../types/enum/Game"
 import {
   selectConnectedPlayer,
   useAppDispatch,
   useAppSelector
 } from "../../../hooks"
 import { setSearchedUser } from "../../../stores/LobbyStore"
+import { toggleGamePause } from "../../../stores/NetworkStore"
 import { toggleFullScreen } from "../../utils/fullscreen"
 import { cc } from "../../utils/jsx"
 import Booster from "../booster/booster"
@@ -85,6 +87,11 @@ export function MainSidebar(props: MainSidebarProps) {
   }, [])
 
   const player = useAppSelector(selectConnectedPlayer)
+  const dispatch = useAppDispatch()
+  const gameRoom = useAppSelector((state) => state.network.game)
+  const gameMode = gameRoom?.state?.gameMode
+  const gamePaused = useAppSelector((state) => state.game.gamePaused)
+  const canTogglePause = page === "game" && gameMode === GameMode.PVE_MODE
   const playersAlive = useAppSelector(
     createSelector([(state) => state.game.players], (players) =>
       players.filter((p) => p.life > 0)
@@ -312,6 +319,15 @@ export function MainSidebar(props: MainSidebarProps) {
             onClick={() => window.open(process.env.DISCORD_SERVER, "_blank")}
           >
             Discord
+          </NavLink>
+        )}
+
+        {canTogglePause && (
+          <NavLink
+            svg="options"
+            onClick={() => dispatch(toggleGamePause())}
+          >
+            {gamePaused ? "恢复游戏" : "暂停游戏"}
           </NavLink>
         )}
 

@@ -52,39 +52,6 @@ export interface PVEBossStage {
   }
 }
 
-export const pikachuBossStage: PVEBossStage = {
-  name: "Boss Pikachu",
-  avatar: Pkm.PIKACHU,
-  emotion: Emotion.ANGRY,
-  stageLevel: 1,
-  board: [
-    [Pkm.PIKACHU, 3, 2] // Center position for the boss Pikachu
-  ],
-  baseStats: {
-    hp: 1000,
-    atk: 50,
-    def: 20,
-    ap: 30
-  },
-  statMultipliers: {
-    hp: 1.1,
-    atk: 1.05,
-    def: 1.02,
-    ap: 1.08
-  },
-  abilities: [Ability.THUNDER_SHOCK, Ability.QUICK_ATTACK],
-  rewards: [
-    { itemId: Item.THUNDER_STONE, chance: 0.5, quantity: 1 },
-    { itemId: Item.COIN, chance: 1.0, quantity: 100 },
-    { itemId: Item.EXP_SHARE, chance: 0.3, quantity: 1 }
-  ],
-  triggerCondition: {
-    minWave: 5,
-    playerLevel: 5
-  }
-}
-
-// Export as PVEBossStages object to match the import in game-commands.ts
 export const mewtwoBossStage: PVEBossStage = {
   name: "Boss Mewtwo",
   avatar: Pkm.MEWTWO,
@@ -113,6 +80,7 @@ export const mewtwoBossStage: PVEBossStage = {
   },
   abilities: [
     Ability.BOSS_TELEPORT,
+    Ability.BOSS_MEDITATE,
     Ability.BOSS_PSYSTRIKE,
     Ability.BOSS_PSYCHIC
   ],
@@ -135,6 +103,13 @@ export const mewtwoBossStage: PVEBossStage = {
       triggerValue: 8000, // 每8秒触发
       cooldown: 8000,
       priority: 1
+    },
+    {
+      ability: Ability.BOSS_MEDITATE,
+      triggerType: "periodic",
+      triggerValue: 10000, // 每10秒触发
+      cooldown: 10000,
+      priority: 2
     },
     {
       ability: Ability.BOSS_PSYSTRIKE,
@@ -184,6 +159,5 @@ export const mewtwoBossStage: PVEBossStage = {
 }
 
 export const PVEBossStages = {
-  1: pikachuBossStage,
   49: mewtwoBossStage
 }

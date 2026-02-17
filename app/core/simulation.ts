@@ -118,6 +118,9 @@ export default class Simulation extends Schema implements ISimulation {
   mewtwoHeartBoss: PokemonEntity | null = null
   mewtwoDebugLogTimer = 3000
   mewtwoAnchoredAp: number | null = null
+  simulationElapsedMs = 0
+  nightmareDeadlyPursuitLastTriggerByTeam = new Map<Team, number>()
+  nightmareDeadlyPursuitStacksByEntity = new Map<string, number>()
   private delayedCommands: SimulationCommand[] = []
   // Boss技能管理器
   bossAbilityManager: BossAbilityManager | null = null
@@ -251,7 +254,7 @@ export default class Simulation extends Schema implements ISimulation {
     if (bossEntity.name === Pkm.MEWTWO) {
       bossEntity.preventApReduction = true
       this.mewtwoAnchoredAp = Math.round(
-        60 * (bossEntity.bossDifficultyMultiplier ?? 1)
+        100 * (bossEntity.bossDifficultyMultiplier ?? 1)
       )
       bossEntity.ap = this.mewtwoAnchoredAp
     }
@@ -1621,6 +1624,7 @@ export default class Simulation extends Schema implements ISimulation {
   }
 
   update(dt: number) {
+    this.simulationElapsedMs += dt
     if (this.blueTeam.size === 0 || this.redTeam.size === 0) {
       this.onFinish()
     }
@@ -1988,6 +1992,47 @@ export default class Simulation extends Schema implements ISimulation {
     if (coord) {
       this.addPokemon(pikachuSurfer, coord.x, coord.y, team, true)
     }
+  }
+
+  triggerNightmareDeadlyPursuit(
+    deadTeam: Team,
+    minIntervalMs: number,
+    maxStacks: number,
+    speedBonus: number,
+    durationMs: number
+  ) {
+    const last = this.nightmareDeadlyPursuitLastTriggerByTeam.get(deadTeam) ?? -999999
+    if (this.simulationElapsedMs - last < minIntervalMs) return
+    this.nightmareDeadlyPursuitLastTriggerByTeam.set(deadTeam, this.simulationElapsedMs)
+
+    const enemyTeam = deadTeam === Team.BLUE_TEAM ? this.redTeam : this.blueTeam
+    enemyTeam.forEach((entity) => {
+      if (entity.hp <= 0 || entity.status.resurrecting) return
+      const currentStacks =
+        this.nightmareDeadlyPursuitStacksByEntity.get(entity.id) ?? 0
+      if (currentStacks >= maxStacks) return
+
+      this.nightmareDeadlyPursuitStacksByEntity.set(entity.id, currentStacks + 1)
+      entity.addSpeed(speedBonus, entity, 0, false)
+
+      this.addDelayedCommand(
+        new DelayedCommand(() => {
+          const target =
+            (this.blueTeam.get(entity.id) as PokemonEntity | undefined) ??
+            (this.redTeam.get(entity.id) as PokemonEntity | undefined)
+          if (target) {
+            target.addSpeed(-speedBonus, target, 0, false)
+          }
+          const latest =
+            this.nightmareDeadlyPursuitStacksByEntity.get(entity.id) ?? 0
+          if (latest <= 1) {
+            this.nightmareDeadlyPursuitStacksByEntity.delete(entity.id)
+          } else {
+            this.nightmareDeadlyPursuitStacksByEntity.set(entity.id, latest - 1)
+          }
+        }, durationMs)
+      )
+    })
   }
 
   handleTidalWaveForTeam(team: Team) {

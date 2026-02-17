@@ -129,10 +129,11 @@ export class BossMeditateStrategy extends AbilityStrategy {
   ) {
     super.process(pokemon, board, target, crit, preventDefaultAnim)
 
-    const difficultyMultiplier = pokemon.bossDifficultyMultiplier ?? 1
-    const spAtkIncrease = Math.round(50 * difficultyMultiplier)
-
-    pokemon.ap += spAtkIncrease
+    const shieldGain = Math.round(Math.max(0, pokemon.hp) * 0.1)
+    if (shieldGain > 0) {
+      pokemon.addShield(shieldGain, pokemon, 0, false)
+    }
+    pokemon.pp = pokemon.maxPP
 
     pokemon.effects.add(EffectEnum.MEDITATE)
     pokemon.simulation.addDelayedCommand(
@@ -145,7 +146,7 @@ export class BossMeditateStrategy extends AbilityStrategy {
     )
 
     logger.debug(
-      `BossMeditateStrategy: ${pokemon.name} increased AP by ${spAtkIncrease}`
+      `BossMeditateStrategy: ${pokemon.name} gained ${shieldGain} shield and restored PP to max`
     )
   }
 }

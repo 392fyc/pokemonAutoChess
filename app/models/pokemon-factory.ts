@@ -120,8 +120,10 @@ export default class PokemonFactory {
             )
           }
           if (pkm === Pkm.MEWTWO) {
-            pokemon.ap = Math.round(60 * difficultyMultiplier)
-            pokemon.shield = Math.round(8000 * difficultyMultiplier)
+            pokemon.ap = Math.round(100 * difficultyMultiplier)
+            pokemon.hp = Math.round(6000 * difficultyMultiplier)
+            pokemon.maxHP = pokemon.hp
+            pokemon.shield = Math.round(6000 * difficultyMultiplier)
           }
           if (pkm === Pkm.MEWTWO && pokemon.speDef !== undefined) {
             const maxSpeDef = Math.round(50 * difficultyMultiplier)

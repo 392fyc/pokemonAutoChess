@@ -20,7 +20,11 @@ import { Item } from "../../../types/enum/Item"
 import { Language } from "../../../types/enum/Language"
 import { PkmProposition } from "../../../types/enum/Pokemon"
 import { SpecialGameRule } from "../../../types/enum/SpecialGameRule"
-import { NightmareReward, NightmareWindowAction } from "../../../types/nightmare"
+import {
+  NightmareReward,
+  NightmareSpread,
+  NightmareWindowAction
+} from "../../../types/nightmare"
 import {
   IPokemonCollectionItemUnpacked,
   IUserMetadataJSON,
@@ -218,6 +222,12 @@ export const networkSlice = createSlice({
     ) => {
       state.game?.send(Transfer.NIGHTMARE_REWARD_REFRESH, action.payload)
     },
+    nightmareSpreadVote: (
+      state,
+      action: PayloadAction<{ spread: NightmareSpread }>
+    ) => {
+      state.game?.send(Transfer.NIGHTMARE_SPREAD_VOTE, action.payload)
+    },
     nightmareSingleEquipApply: (
       state,
       action: PayloadAction<{ reward: NightmareReward; pokemonId: string }>
@@ -388,6 +398,7 @@ export const {
   portalPokemonRefresh,
   nightmareRewardSelect,
   nightmareRewardRefresh,
+  nightmareSpreadVote,
   nightmareSingleEquipApply,
   nightmareWindowAction,
   toggleGamePause,

@@ -106,8 +106,14 @@ import { Synergy } from "../../types/enum/Synergy"
 import { TownEncounters } from "../../types/enum/TownEncounter"
 import { WandererBehavior, WandererType } from "../../types/enum/Wanderer"
 import {
+  getNightmareSpreadActiveCounterKey,
   NIGHTMARE_INFINITE_GROWTH_BONUS_RATIO,
-  NightmareReward
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_FREE_REFRESHES,
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_HP_COST_PER_EXTRA_REFRESH,
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY,
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY,
+  NightmareReward,
+  NightmareSpread
 } from "../../types/nightmare"
 import { isIn, removeInArray } from "../../utils/array"
 import { getAvatarString } from "../../utils/avatar"
@@ -995,6 +1001,38 @@ export class OnShopRerollCommand extends Command<GameRoom, string> {
     if (canRoll) {
       player.rerollCount++
       player.money -= rollCost
+      const budgetAuditActive =
+        getNightmareCounter(
+          player,
+          getNightmareSpreadActiveCounterKey(NightmareSpread.BUDGET_AUDIT)
+        ) > 0
+      if (budgetAuditActive) {
+        const currentRefreshCount = getNightmareCounter(
+          player,
+          NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY
+        )
+        const nextRefreshCount = currentRefreshCount + 1
+        setNightmareCounter(
+          player,
+          NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY,
+          nextRefreshCount
+        )
+        const pendingHpCost = Math.max(
+          0,
+          nextRefreshCount - NIGHTMARE_SPREAD_BUDGET_AUDIT_FREE_REFRESHES
+        )
+        setNightmareCounter(
+          player,
+          NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY,
+          pendingHpCost
+        )
+        if (nextRefreshCount > NIGHTMARE_SPREAD_BUDGET_AUDIT_FREE_REFRESHES) {
+          player.life = Math.max(
+            0,
+            player.life - NIGHTMARE_SPREAD_BUDGET_AUDIT_HP_COST_PER_EXTRA_REFRESH
+          )
+        }
+      }
       if (player.shopFreeRolls > 0) {
         player.shopFreeRolls--
       } else {
@@ -1133,6 +1171,13 @@ export class OnUpdateCommand extends Command<
 > {
   execute({ deltaTime }) {
     if (deltaTime) {
+      if (
+        this.state.phase === GamePhaseState.PICK &&
+        this.room.isNightmareSpreadVotingActive()
+      ) {
+        this.room.updateNightmareSpreadVote(deltaTime)
+        return
+      }
       this.state.time -= deltaTime
       if (Math.round(this.state.time / 1000) != this.state.roundTime) {
         this.state.roundTime = Math.round(this.state.time / 1000)
@@ -1446,8 +1491,8 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           NightmareReward.FINANCIAL_TYCOON
         )
           ? this.state.stageLevel >= 25
-            ? 2
-            : 1
+            ? 3
+            : 2
           : 0
         const baseInterestCap = 5 + nbGimmighoulCoins - nbAmuletCoins
         player.maxInterest = baseInterestCap + financialTycoonBonus
@@ -1461,10 +1506,22 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           finalValue: player.maxInterest
         })
         if (specialGameRule !== SpecialGameRule.BLOOD_MONEY && !hasWuWeiRule) {
-          player.interest = max(player.maxInterest)(Math.floor(player.money / 10))
+          const baselineInterest = max(player.maxInterest)(
+            Math.floor(player.money / 10)
+          )
+          const shouldBoostInterest =
+            financialTycoonBonus > 0 && player.money < player.maxInterest * 10
+          player.interest = shouldBoostInterest
+            ? Math.floor(baselineInterest * 1.5)
+            : baselineInterest
           if (financialTycoonBonus > 0) {
-            const baselineInterest = max(baseInterestCap)(Math.floor(player.money / 10))
-            const tycoonExtraInterest = Math.max(0, player.interest - baselineInterest)
+            const interestWithoutTycoon = max(baseInterestCap)(
+              Math.floor(player.money / 10)
+            )
+            const tycoonExtraInterest = Math.max(
+              0,
+              player.interest - interestWithoutTycoon
+            )
             if (tycoonExtraInterest > 0) {
               setNightmareCounter(
                 player,
@@ -1530,14 +1587,6 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
             }
           })
         }
-        if (financialTycoonBonus > 0) {
-          income += 1
-          setNightmareCounter(
-            player,
-            "financial_tycoon_bonus_gold_total",
-            getNightmareCounter(player, "financial_tycoon_bonus_gold_total") + 1
-          )
-        }
         if (!isPVE) {
           income += max(5)(player.streak)
         }
@@ -1545,7 +1594,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
           hasNightmareReward(player, NightmareReward.WAR_DIVIDEND) &&
           isPlayerOnWinStreak(player)
         ) {
-          const extraGold =
+          const baseExtraGold =
             this.state.stageLevel >= 25
               ? chance(0.9)
                 ? 2
@@ -1553,6 +1602,8 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
               : chance(0.5)
                 ? 2
                 : 1
+          const streakMultiplier = player.streak >= 5 ? 2 : 1
+          const extraGold = baseExtraGold * streakMultiplier
           income += extraGold
           setNightmareCounter(
             player,
@@ -1683,6 +1734,7 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
     this.state.players.forEach((p) => this.updatePlayerBetweenStages(p))
     this.room.spawnWanderingPokemons()
     this.room.prepareNightmareRewardsForStage(this.state.stageLevel)
+    this.room.prepareNightmareSpreadForStage(this.state.stageLevel)
 
     // PvE stage initialization
     const pveStage = PVEStages[this.state.stageLevel]
@@ -1699,6 +1751,8 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
 
   updatePlayerBetweenStages(player: Player) {
     const board = values(player.board)
+    setNightmareCounter(player, NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY, 0)
+    setNightmareCounter(player, NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY, 0)
     const soloRoundsLeft = getNightmareCounter(player, "solo_leveling_rounds_left")
     if (soloRoundsLeft > 0) {
       const nextRounds = soloRoundsLeft - 1
@@ -1958,6 +2012,9 @@ export class OnUpdatePhaseCommand extends Command<GameRoom> {
   }
 
   stopPickingPhase() {
+    if (this.room.isNightmareSpreadVotingActive()) {
+      this.room.resolveNightmareSpreadVoteForCurrentStage("pick_end")
+    }
     this.state.players.forEach((player) => {
       const pokemonsProposition = values(player.pokemonsProposition)
 

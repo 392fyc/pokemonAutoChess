@@ -49,9 +49,9 @@ const enNameMap: Partial<Record<NightmareReward, string>> = {
 
 const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.FINANCIAL_TYCOON]:
-    "每回合额外+1金币；最大利息+1，第25回合后提升为+2。",
+    "最大利息 +2；第25回合后提升为 +3。当前 GOLD 小于可获得最大利息所需 GOLD 时，利息变为 x1.5。",
   [NightmareReward.WAR_DIVIDEND]:
-    "连胜时额外获得随机1~2金币（25回合前50%/50%，25回合后10%/90%）。",
+    "连胜时额外获得随机1~2金币（25回合前50%/50%，25回合后10%/90%）；当连胜≥5时该奖励翻倍。",
   [NightmareReward.SOLO_LEVELING]:
     `获得后${NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS}回合内人口锁定为1。上场宝可梦获得${
       NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER * 100
@@ -69,7 +69,7 @@ const zhDescriptionMap: Partial<Record<NightmareReward, string>> = {
   [NightmareReward.UNYIELDING_DEATH]:
     "我方全体宝可梦每回合首次致死后维持1HP继续5秒。",
   [NightmareReward.BERSERKER]:
-    "血量越低，攻/特攻/攻速加成越高。",
+    "我方全体宝可梦血量越低，ATK/AP/SPEED 加成越高。",
   [NightmareReward.RESONANCE_EXPERT]:
     "每触发一级共鸣，全队+10攻速（按共鸣级数累积）。",
   [NightmareReward.MAGICAL_FEEDBACK]:

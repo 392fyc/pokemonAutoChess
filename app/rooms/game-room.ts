@@ -113,12 +113,24 @@ import { Synergy } from "../types/enum/Synergy"
 import { WandererBehavior, WandererType } from "../types/enum/Wanderer"
 import { IPokemonCollectionItemMongo } from "../types/interfaces/UserMetadata"
 import {
+  getNightmareSpreadActiveCounterKey,
+  getNightmareSpreadId,
   NIGHTMARE_MILESTONES,
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY,
+  NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY,
+  NIGHTMARE_SPREAD_STAGE_MAP,
+  NIGHTMARE_SPREAD_VOTE_DURATION_MS,
+  NIGHTMARE_SPREAD_VOTE_OPEN_KEY,
+  NIGHTMARE_SPREAD_VOTE_OPTION_KEY,
+  NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY,
+  NIGHTMARE_SPREAD_VOTE_SELECTED_KEY,
+  NIGHTMARE_SPREAD_VOTE_STAGE_KEY,
   NIGHTMARE_MUTUALLY_EXCLUSIVE_GROUPS,
   NIGHTMARE_SOLO_LEVELING_DURATION_ROUNDS,
   NightmareReward,
   NightmareRewardTier,
   NightmareRewardType,
+  NightmareSpread,
   NIGHTMARE_REWARD_CONFIG,
   NightmareWindowAction
 } from "../types/nightmare"
@@ -180,8 +192,12 @@ export default class GameRoom extends Room<GameState> {
   nightmareSandboxEnabled = false
   pveNightmareEnabled = false
   nightmareRunSeed = ""
-  private matchLogFilePath = ""
+  private matchLogFilePath: string | undefined = ""
   private matchLogClosed = false
+  private nightmareSpreadVoteRemainingMs = 0
+  private nightmareSpreadVoteStage = 0
+  private nightmareSpreadVoteOption: NightmareSpread | null = null
+  private nightmareSpreadVotes = new Map<string, NightmareSpread>()
   constructor() {
     super()
     this.dispatcher = new Dispatcher(this)
@@ -592,6 +608,20 @@ export default class GameRoom extends Room<GameState> {
             this.refreshNightmareRewardSlot(client.auth.uid, message.slotIndex)
           } catch (error) {
             logger.error("nightmare reward refresh error", message, error)
+          }
+        }
+      }
+    )
+
+    this.onMessage(
+      Transfer.NIGHTMARE_SPREAD_VOTE,
+      (client, message: { spread: NightmareSpread }) => {
+        if (!this.state.gameFinished && client.auth) {
+          if (this.shouldBlockGameplayInput(client)) return
+          try {
+            this.voteNightmareSpread(client.auth.uid, message.spread)
+          } catch (error) {
+            logger.error("nightmare spread vote error", message, error)
           }
         }
       }
@@ -1680,7 +1710,8 @@ export default class GameRoom extends Room<GameState> {
       player,
       this.state,
       values(player.portalSynergies),
-      excluded
+      excluded,
+      true
     )
     player.portalRefreshUsed = 1
   }
@@ -2575,6 +2606,141 @@ export default class GameRoom extends Room<GameState> {
     }
     logger.info("[NIGHTMARE_STATE_SNAPSHOT]", payload)
     this.appendMatchLog("NIGHTMARE_STATE_SNAPSHOT", payload)
+  }
+
+  isNightmareSpreadVotingActive() {
+    return this.nightmareSpreadVoteRemainingMs > 0 && !!this.nightmareSpreadVoteOption
+  }
+
+  updateNightmareSpreadVote(deltaTime: number) {
+    if (!this.isNightmareSpreadVotingActive()) return
+    this.nightmareSpreadVoteRemainingMs = Math.max(
+      0,
+      this.nightmareSpreadVoteRemainingMs - deltaTime
+    )
+    this.state.players.forEach((player) => {
+      if (player.isBot || !player.alive) return
+      player.nightmareCounters.set(
+        NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY,
+        Math.ceil(this.nightmareSpreadVoteRemainingMs)
+      )
+    })
+    if (this.nightmareSpreadVoteRemainingMs <= 0) {
+      this.resolveNightmareSpreadVoteForCurrentStage("timeout")
+    }
+  }
+
+  prepareNightmareSpreadForStage(stageLevel: number) {
+    if (!this.isNightmareModeEnabled()) return
+    const spread = NIGHTMARE_SPREAD_STAGE_MAP[stageLevel]
+    if (!spread) {
+      this.state.players.forEach((player) => {
+        if (!player.isBot && player.alive) {
+          player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_OPEN_KEY, 0)
+          player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY, 0)
+        }
+      })
+      return
+    }
+
+    this.nightmareSpreadVoteStage = stageLevel
+    this.nightmareSpreadVoteOption = spread
+    this.nightmareSpreadVoteRemainingMs = NIGHTMARE_SPREAD_VOTE_DURATION_MS
+    this.nightmareSpreadVotes.clear()
+
+    const spreadId = getNightmareSpreadId(spread)
+    this.state.players.forEach((player) => {
+      if (player.isBot || !player.alive) return
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_OPEN_KEY, 1)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_STAGE_KEY, stageLevel)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_OPTION_KEY, spreadId)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_SELECTED_KEY, 0)
+      player.nightmareCounters.set(
+        NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY,
+        NIGHTMARE_SPREAD_VOTE_DURATION_MS
+      )
+    })
+
+    this.appendMatchLog("NIGHTMARE_SPREAD_VOTE_OPEN", {
+      stageLevel,
+      option: spread
+    })
+    logger.info("[NIGHTMARE_SPREAD_VOTE_OPEN]", {
+      stageLevel,
+      option: spread
+    })
+  }
+
+  voteNightmareSpread(playerId: string, spread: NightmareSpread) {
+    if (!this.isNightmareSpreadVotingActive()) return
+    if (this.nightmareSpreadVoteOption !== spread) return
+    const player = this.state.players.get(playerId)
+    if (!player || player.isBot || !player.alive) return
+    if (this.nightmareSpreadVotes.has(playerId)) return
+
+    this.nightmareSpreadVotes.set(playerId, spread)
+    player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_SELECTED_KEY, getNightmareSpreadId(spread))
+
+    const aliveHumans = values(this.state.players).filter(
+      (candidate) => candidate.alive && !candidate.isBot
+    )
+    if (this.nightmareSpreadVotes.size >= aliveHumans.length) {
+      this.resolveNightmareSpreadVoteForCurrentStage("all_voted")
+    }
+  }
+
+  resolveNightmareSpreadVoteForCurrentStage(
+    reason: "timeout" | "all_voted" | "pick_end" = "timeout"
+  ) {
+    const spread = this.nightmareSpreadVoteOption
+    const stageLevel = this.nightmareSpreadVoteStage
+    if (!spread || stageLevel <= 0) return
+
+    this.applyNightmareSpreadToAllAliveHumans(spread)
+
+    this.state.players.forEach((player) => {
+      if (player.isBot || !player.alive) return
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_OPEN_KEY, 0)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_STAGE_KEY, 0)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_OPTION_KEY, 0)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_SELECTED_KEY, 0)
+      player.nightmareCounters.set(NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY, 0)
+    })
+
+    this.appendMatchLog("NIGHTMARE_SPREAD_VOTE_RESOLVE", {
+      reason,
+      stageLevel,
+      selected: spread,
+      voteCount: this.nightmareSpreadVotes.size
+    })
+    logger.info("[NIGHTMARE_SPREAD_VOTE_RESOLVE]", {
+      reason,
+      stageLevel,
+      selected: spread,
+      voteCount: this.nightmareSpreadVotes.size
+    })
+
+    this.nightmareSpreadVoteOption = null
+    this.nightmareSpreadVoteStage = 0
+    this.nightmareSpreadVoteRemainingMs = 0
+    this.nightmareSpreadVotes.clear()
+  }
+
+  private applyNightmareSpreadToAllAliveHumans(spread: NightmareSpread) {
+    this.state.players.forEach((player) => {
+      if (player.isBot || !player.alive) return
+      player.nightmareCounters.set(getNightmareSpreadActiveCounterKey(spread), 1)
+      if (spread === NightmareSpread.BUDGET_AUDIT) {
+        player.nightmareCounters.set(
+          NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY,
+          0
+        )
+        player.nightmareCounters.set(
+          NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY,
+          0
+        )
+      }
+    })
   }
 
   prepareNightmareRewardsForStage(stageLevel: number) {

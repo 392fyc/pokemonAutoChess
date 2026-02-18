@@ -6,6 +6,10 @@ import {
 } from "../models/nightmare"
 import {
   NIGHTMARE_ASSIST_MASTER_ALLY_CASTS,
+  NIGHTMARE_SPREAD_DEADLY_PURSUIT_DURATION_MS,
+  NIGHTMARE_SPREAD_DEADLY_PURSUIT_MAX_STACKS,
+  NIGHTMARE_SPREAD_DEADLY_PURSUIT_MIN_INTERVAL_MS,
+  NIGHTMARE_SPREAD_DEADLY_PURSUIT_SPEED_BONUS,
   NIGHTMARE_DRAGON_DANCE_INTERVAL_MS,
   NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS,
   NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS,
@@ -13,6 +17,8 @@ import {
   NIGHTMARE_SOLO_LEVELING_ATTR_MULTIPLIER,
   NIGHTMARE_SOLO_LEVELING_KILL_EXP,
   NIGHTMARE_SOLO_LEVELING_KILL_GOLD,
+  NightmareSpread,
+  getNightmareSpreadActiveCounterKey,
   NightmareReward
 } from "../types/nightmare"
 import { AttackType, Team } from "../types/enum/Game"
@@ -28,6 +34,7 @@ import {
   OnAttackEffect,
   OnDamageDealtEffect,
   OnDamageReceivedEffect,
+  OnDeathEffect,
   OnKillEffect,
   PeriodicEffect
 } from "./effects/effect"
@@ -188,6 +195,66 @@ export function applyNightmareEffectsOnSimulationStart(
     })
   }
 
+  if (rewards.has(NightmareReward.BERSERKER)) {
+    teamEntities.forEach((entity) => {
+      entity.nightmareBerserkerStacks = 0
+      entity.effectsSet.add(
+        new OnDamageReceivedEffect(({ pokemon }) => {
+          const lostRatio = 1 - pokemon.hp / Math.max(1, pokemon.maxHP)
+          const expectedStacks = Math.floor(lostRatio / 0.2)
+          const currentStacks = pokemon.nightmareBerserkerStacks ?? 0
+          if (expectedStacks > currentStacks) {
+            const delta = expectedStacks - currentStacks
+            pokemon.nightmareBerserkerStacks = expectedStacks
+            pokemon.addAttack(pokemon.baseAtk * 0.1 * delta, pokemon, 0, false)
+            pokemon.addAbilityPower(10 * delta, pokemon, 0, false)
+            pokemon.addSpeed(10 * delta, pokemon, 0, false)
+          }
+        }, NightmareReward.BERSERKER as any)
+      )
+    })
+  }
+
+  const supplyShortageActive =
+    (player.nightmareCounters.get(
+      getNightmareSpreadActiveCounterKey(NightmareSpread.SUPPLY_SHORTAGE)
+    ) ?? 0) > 0
+  if (supplyShortageActive) {
+    let totalResonanceLevels = 0
+    player.synergies.forEach((_, key) => {
+      totalResonanceLevels += player.synergies.getSynergyStep(key as Synergy)
+    })
+    if (totalResonanceLevels > 0) {
+      const hpLossRate = Math.max(0, Math.min(95, totalResonanceLevels)) / 100
+      teamEntities.forEach((entity) => {
+        const hpLoss = Math.floor(entity.maxHP * hpLossRate)
+        if (hpLoss > 0) {
+          entity.hp = Math.max(1, entity.hp - hpLoss)
+        }
+      })
+    }
+  }
+
+  const deadlyPursuitActive =
+    (player.nightmareCounters.get(
+      getNightmareSpreadActiveCounterKey(NightmareSpread.DEADLY_PURSUIT)
+    ) ?? 0) > 0
+  if (deadlyPursuitActive) {
+    teamEntities.forEach((entity) => {
+      entity.effectsSet.add(
+        new OnDeathEffect(({ pokemon }) => {
+          simulation.triggerNightmareDeadlyPursuit(
+            pokemon.team,
+            NIGHTMARE_SPREAD_DEADLY_PURSUIT_MIN_INTERVAL_MS,
+            NIGHTMARE_SPREAD_DEADLY_PURSUIT_MAX_STACKS,
+            NIGHTMARE_SPREAD_DEADLY_PURSUIT_SPEED_BONUS,
+            NIGHTMARE_SPREAD_DEADLY_PURSUIT_DURATION_MS
+          )
+        }, NightmareSpread.DEADLY_PURSUIT as any)
+      )
+    })
+  }
+
   teamEntities.forEach((entity) => {
     if (entity.refToBoardPokemon.name === Pkm.SUBSTITUTE) return
     const rewards = getPokemonNightmareRewards(entity.refToBoardPokemon.nightmareReward)
@@ -215,24 +282,6 @@ export function applyNightmareEffectsOnSimulationStart(
             attacker.addSpecialDefense(1, attacker, 0, false, true)
           }
         }, NightmareReward.QUALITY_A as any)
-      )
-    }
-
-    if (rewards.includes(NightmareReward.BERSERKER)) {
-      entity.nightmareBerserkerStacks = 0
-      entity.effectsSet.add(
-        new OnDamageReceivedEffect(({ pokemon }) => {
-          const lostRatio = 1 - pokemon.hp / Math.max(1, pokemon.maxHP)
-          const expectedStacks = Math.floor(lostRatio / 0.2)
-          const currentStacks = pokemon.nightmareBerserkerStacks ?? 0
-          if (expectedStacks > currentStacks) {
-            const delta = expectedStacks - currentStacks
-            pokemon.nightmareBerserkerStacks = expectedStacks
-            pokemon.addAttack(pokemon.baseAtk * 0.1 * delta, pokemon, 0, false)
-            pokemon.addAbilityPower(10 * delta, pokemon, 0, false)
-            pokemon.addSpeed(10 * delta, pokemon, 0, false)
-          }
-        }, NightmareReward.BERSERKER as any)
       )
     }
 

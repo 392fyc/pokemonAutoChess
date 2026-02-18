@@ -83,6 +83,7 @@ import GameFinalRank from "./component/game/game-final-rank"
 import GameItemsProposition from "./component/game/game-items-proposition"
 import GameLoadingScreen from "./component/game/game-loading-screen"
 import GameNightmareRewardPicker from "./component/game/game-nightmare-reward-picker"
+import GameNightmareSpreadPicker from "./component/game/game-nightmare-spread-picker"
 import GameNightmareSingleEquipWindow from "./component/game/game-nightmare-single-equip-window"
 import GamePauseOverlay from "./component/game/game-pause-overlay"
 import GamePlayers from "./component/game/game-players"
@@ -1069,6 +1070,7 @@ export default function Game() {
           <GameItemsProposition />
           <GamePokemonsProposition />
           <GameNightmareRewardPicker />
+          <GameNightmareSpreadPicker />
           <GameNightmareSingleEquipWindow />
           <GameDpsMeter />
           <GameToasts />

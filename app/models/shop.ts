@@ -200,6 +200,7 @@ export default class Shop {
   rarePool: Pkm[] = new Array<Pkm>()
   epicPool: Pkm[] = new Array<Pkm>()
   ultraPool: Pkm[] = new Array<Pkm>()
+  private portalPropositionPoolCache = new Map<string, Pkm[]>()
   constructor() {
     this.commonPool = CommonShop.flatMap((pkm) =>
       Array(getPoolSize(Rarity.COMMON, 3)).fill(pkm)
@@ -369,15 +370,19 @@ export default class Shop {
     player: Player,
     state: GameState,
     portalSynergies: Synergy[],
-    excludedPropositions: PkmProposition[] = []
+    excludedPropositions: PkmProposition[] = [],
+    reuseCachedPool = false
   ) {
     const stageLevel = state.stageLevel
-    let allCandidates =
-      {
-        [PortalCarouselStages[0]]: [...this.commonPool],
-        [PortalCarouselStages[1]]: [...UniquePool],
-        [PortalCarouselStages[2]]: [...LegendaryPool]
-      }[stageLevel] ?? []
+    const cacheKey = `${player.id}:${stageLevel}`
+    const cachedPool = this.portalPropositionPoolCache.get(cacheKey)
+    let allCandidates = reuseCachedPool && cachedPool
+      ? [...cachedPool]
+      : ({
+          [PortalCarouselStages[0]]: [...this.commonPool],
+          [PortalCarouselStages[1]]: [...UniquePool],
+          [PortalCarouselStages[2]]: [...LegendaryPool]
+        }[stageLevel] ?? [])
 
     if (stageLevel === 0) {
       if (state.specialGameRule === SpecialGameRule.UNIQUE_STARTER) {
@@ -386,6 +391,7 @@ export default class Shop {
         allCandidates = pickFirstPartners(player, state)
       }
     }
+    this.portalPropositionPoolCache.set(cacheKey, [...allCandidates])
 
     // ensure we have at least one synergy per proposition
     if (portalSynergies.length > NB_UNIQUE_PROPOSITIONS) {

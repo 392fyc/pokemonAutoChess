@@ -68,13 +68,15 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   [NightmareReward.FINANCIAL_TYCOON]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Gain +1 gold each round. Max interest +1, and +2 after stage 25.",
+    description:
+      "Max interest +2 (becomes +3 after stage 25). If current GOLD is below max-interest threshold GOLD, interest becomes x1.5.",
     v1Implemented: true
   },
   [NightmareReward.WAR_DIVIDEND]: {
     tier: NightmareRewardTier.C,
     rewardType: NightmareRewardType.ECONOMY,
-    description: "Extra 1~2 gold rewards while win streaking.",
+    description:
+      "Extra 1~2 gold rewards while win streaking (50%/50%, then 10%/90% after stage 25). Doubled at streak >= 5.",
     v1Implemented: true
   },
   [NightmareReward.SOLO_LEVELING]: {
@@ -122,8 +124,8 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
   },
   [NightmareReward.BERSERKER]: {
     tier: NightmareRewardTier.B,
-    rewardType: NightmareRewardType.SINGLE_EQUIP,
-    description: "Lower HP grants stronger combat stats.",
+    rewardType: NightmareRewardType.TEAM_PASSIVE,
+    description: "All allies gain stronger ATK/AP/SPEED as their HP gets lower.",
     v1Implemented: true
   },
   [NightmareReward.RESONANCE_EXPERT]: {
@@ -183,7 +185,7 @@ export const NIGHTMARE_REWARD_CONFIG: Record<
     v1Implemented: true
   },
   [NightmareReward.FATE_OBSERVATION]: {
-    tier: NightmareRewardTier.S,
+    tier: NightmareRewardTier.A,
     rewardType: NightmareRewardType.SINGLE_EQUIP,
     description: "Damage applies random debuffs.",
     v1Implemented: true
@@ -262,3 +264,56 @@ export const NIGHTMARE_FATE_OBSERVATION_DEBUFF_DURATION_MS = 5000
 export const NIGHTMARE_FATE_OBSERVATION_TARGET_CD_MS = 3000
 
 export const NIGHTMARE_LOYAL_CASTER_INTERVAL_MS = 1000
+
+export enum NightmareSpread {
+  BUDGET_AUDIT = "BUDGET_AUDIT",
+  SUPPLY_SHORTAGE = "SUPPLY_SHORTAGE",
+  DEADLY_PURSUIT = "DEADLY_PURSUIT"
+}
+
+export const NIGHTMARE_SPREAD_ID: Record<NightmareSpread, number> = {
+  [NightmareSpread.BUDGET_AUDIT]: 1,
+  [NightmareSpread.SUPPLY_SHORTAGE]: 2,
+  [NightmareSpread.DEADLY_PURSUIT]: 3
+}
+
+export function getNightmareSpreadById(id: number): NightmareSpread | null {
+  const entry = Object.entries(NIGHTMARE_SPREAD_ID).find(
+    ([, value]) => value === id
+  )
+  return (entry?.[0] as NightmareSpread | undefined) ?? null
+}
+
+export function getNightmareSpreadId(spread: NightmareSpread): number {
+  return NIGHTMARE_SPREAD_ID[spread] ?? 0
+}
+
+export function getNightmareSpreadActiveCounterKey(spread: NightmareSpread) {
+  return `spread_active_${spread.toLowerCase()}`
+}
+
+export const NIGHTMARE_SPREAD_VOTE_OPEN_KEY = "spread_vote_open"
+export const NIGHTMARE_SPREAD_VOTE_STAGE_KEY = "spread_vote_stage"
+export const NIGHTMARE_SPREAD_VOTE_OPTION_KEY = "spread_vote_option_0"
+export const NIGHTMARE_SPREAD_VOTE_SELECTED_KEY = "spread_vote_selected"
+export const NIGHTMARE_SPREAD_VOTE_REMAINING_MS_KEY = "spread_vote_remaining_ms"
+export const NIGHTMARE_SPREAD_BUDGET_AUDIT_REFRESH_COUNT_KEY =
+  "spread_budget_audit_refresh_count"
+export const NIGHTMARE_SPREAD_BUDGET_AUDIT_PENDING_HP_COST_KEY =
+  "spread_budget_audit_pending_hp_cost"
+
+export const NIGHTMARE_SPREAD_STAGE_MAP: Partial<Record<number, NightmareSpread>> = {
+  11: NightmareSpread.BUDGET_AUDIT,
+  21: NightmareSpread.SUPPLY_SHORTAGE,
+  31: NightmareSpread.DEADLY_PURSUIT
+}
+
+export const NIGHTMARE_SPREAD_VOTE_DURATION_MS = 30000
+
+export const NIGHTMARE_SPREAD_BUDGET_AUDIT_FREE_REFRESHES = 10
+export const NIGHTMARE_SPREAD_BUDGET_AUDIT_HP_COST_PER_EXTRA_REFRESH = 1
+
+export const NIGHTMARE_SPREAD_DEADLY_PURSUIT_SPEED_BONUS = 100
+export const NIGHTMARE_SPREAD_DEADLY_PURSUIT_DURATION_MS = 2000
+export const NIGHTMARE_SPREAD_DEADLY_PURSUIT_MIN_INTERVAL_MS = 500
+export const NIGHTMARE_SPREAD_DEADLY_PURSUIT_MAX_STACKS = 4

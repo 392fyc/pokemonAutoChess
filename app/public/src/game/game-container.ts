@@ -469,6 +469,8 @@ class GameContainer {
       this.initializeGame()
     }
 
+    const listenedPokemonRefs = new Map<string, Pokemon>()
+
     const listenForPokemonChanges = (
       pokemon: Pokemon,
       fields: NonFunctionPropNames<IPokemon>[] = [
@@ -538,6 +540,13 @@ class GameContainer {
       })
     }
 
+    const ensurePokemonListeners = (pokemon: Pokemon) => {
+      const currentRef = listenedPokemonRefs.get(pokemon.id)
+      if (currentRef === pokemon) return
+      listenedPokemonRefs.set(pokemon.id, pokemon)
+      listenForPokemonChanges(pokemon)
+    }
+
     const $player = this.$<Player>(player)
 
     $player.board.onAdd((pokemon, key) => {
@@ -555,7 +564,7 @@ class GameContainer {
         })
       }
 
-      listenForPokemonChanges(pokemon)
+      ensurePokemonListeners(pokemon)
       this.handleBoardPokemonAdd(player, pokemon)
     }, false)
 
@@ -566,14 +575,28 @@ class GameContainer {
     })
 
     $player.board.onChange((pokemon, key) => {
+      if (pokemon) {
+        ensurePokemonListeners(pokemon)
+      }
       store.dispatch(
         changePlayer({ id: player.id, field: "board", value: player.board })
       )
     })
 
+    $player.items.onAdd(() => {
+      if (player.id === this.spectatedPlayerId) {
+        this.gameScene?.itemsContainer?.render(player.items)
+      }
+    })
+
+    $player.items.onRemove(() => {
+      if (player.id === this.spectatedPlayerId) {
+        this.gameScene?.itemsContainer?.render(player.items)
+      }
+    })
+
     $player.items.onChange((value, key) => {
       if (player.id === this.spectatedPlayerId) {
-        //logger.debug("changed", value, key, player.items)
         this.gameScene?.itemsContainer?.render(player.items)
       }
     })

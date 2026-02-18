@@ -66,6 +66,8 @@
 
 .nightmare-spread-slot.empty {
   color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .nightmare-spread-slot.filled {
@@ -85,4 +87,9 @@
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+  max-width: 100%;
 }

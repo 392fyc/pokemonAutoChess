@@ -26,6 +26,7 @@ export default function GameNightmareSingleEquipWindow() {
   const { i18n, t } = useTranslation()
   const dispatch = useAppDispatch()
   const connectedPlayer = useAppSelector(selectConnectedPlayer)
+  const stageLevel = useAppSelector((state) => state.game.stageLevel)
   const [armedReward, setArmedReward] = useState<NightmareReward | null>(null)
   const initialPosition = useMemo(() => {
     const defaultWidth = 248
@@ -277,6 +278,12 @@ export default function GameNightmareSingleEquipWindow() {
             0
           )
           const calculatedLossRoundsLeft = getCounter("calculated_loss_rounds_left", 0)
+          const soloLevelingRoundsLeft = getCounter("solo_leveling_rounds_left", 0)
+          const deepPlanningDueRound = getCounter("deep_planning_due_round", 0)
+          const deepPlanningRoundsLeft = Math.max(
+            0,
+            deepPlanningDueRound - stageLevel
+          )
           const calculatedLossGoldTotal = getCounter(
             "calculated_loss_bonus_gold_total",
             0
@@ -359,6 +366,16 @@ export default function GameNightmareSingleEquipWindow() {
                     累计收益：+{calculatedLossGoldTotal} 金币，+{calculatedLossExpTotal} 经验，+{calculatedLossHealTotal} 生命
                   </span>
                 </>
+              )}
+              {reward === NightmareReward.SOLO_LEVELING && (
+                <span className="reward-inline-hint">
+                  剩余回合：{soloLevelingRoundsLeft}
+                </span>
+              )}
+              {reward === NightmareReward.DEEP_PLANNING && (
+                <span className="reward-inline-hint">
+                  额外里程碑生效剩余：{deepPlanningRoundsLeft} 回合
+                </span>
               )}
               {rewardType === NightmareRewardType.SINGLE_EQUIP && (
                 <span className="reward-inline-hint">
